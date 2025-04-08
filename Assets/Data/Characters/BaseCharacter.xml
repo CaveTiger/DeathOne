@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Characters>
+	<Character ID="000000" Specimen="True">
+		<Label>Character</Label> <!--캐릭터의 이름-->
+		<Description>dscription</Description> <!---->
+		<Stat>
+			<Hp>100</Hp> <!--들어갈때 최대체력 + 현재체력 모두 이걸로 세팅된다.-->
+			<ATK>0</ATK>
+			<DEF>0</DEF>
+			<Evasionrate>0.0</Evasionrate>
+			<Accuracy>0.0</Accuracy>
+		</Stat>
+		<Skills>
+			<li>010001</li>
+			<li>010002</li>
+			<li>010003</li>
+			<li>010004</li>
+		</Skills>
+		<Passives>
+		</Passives>
+		<Rarity>Normal</Rarity>
+		<Sprite>None</Sprite>
+	</Character>
+</Characters>
