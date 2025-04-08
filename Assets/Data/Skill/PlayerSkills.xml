@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Skills>
+	<Skill ID ="010000" Specimen="True">
+		<Name>스킬</Name>
+		<DamageMin>0</DamageMin>
+		<DamageMax>0</DamageMax>
+		<HealMin>0</HealMin>
+		<HealMax>0</HealMax>
+		<SkillEffect></SkillEffect>
+		<SkillTarget>All</SkillTarget>
+		<Motion>Stand</Motion>
+		<AttackPoint>Body</AttackPoint>
+		<AttackEffect>None</AttackEffect>
+		<ActiveCount>None</ActiveCount>
+		<ManaCost>0</ManaCost>
+		<CoolTime>0</CoolTime>
+		<priority>0</priority>
+	</Skill>
+	
+	<!-- 플레이어 기본 스킬 -->
+	
+	<Skill ID ="010001" ParentID="010000">
+		<Name>단검베기</Name>
+		<DamageMin>9</DamageMin>
+		<DamageMax>16</DamageMax>
+		<SkillEffect>0</SkillEffect>
+		<SkillTarget>Enermy</SkillTarget>
+		<Motion>Attack</Motion>
+		<AttackPoint>Body</AttackPoint>
+		<AttackEffect>Cut</AttackEffect>
+	</Skill>
+	
+	<Skill ID ="010002" ParentID="010000">
+		<Name>발목 노리기</Name>
+		<DamageMin>4</DamageMin>
+		<DamageMax>9</DamageMax>
+		<SkillEffect>
+			<li>020004</li>
+		</SkillEffect>
+		<SkillTarget>Enermy</SkillTarget>
+		<Motion>Attack</Motion>
+		<AttackPoint>Body</AttackPoint>
+		<AttackEffect>Foot</AttackEffect>
+	</Skill>
+	
+	<Skill ID ="010003" ParentID="010000">
+		<Name>여신의 축복</Name>
+		<SkillEffect>
+			<li>020005</li>
+		</SkillEffect>
+		<SkillTarget>Me</SkillTarget>
+		<Motion>Buff</Motion>
+	</Skill>
+</Skills>

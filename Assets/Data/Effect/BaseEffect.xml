@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Skilleffects>
+	<Skilleffect EfID="020000" Specimen="True">
+		<label>NoneEffect</label>
+		<SkillDescription>None</SkillDescription><!--스킬창에서-->
+		<InDescription>None</InDescription><!--상태이상으로 적용될때-->
+		<icon>None</icon> <!--상태이상으로 적용될때-->
+		<Damage>0</Damage><!--상태이상으로 적용될때-->
+		<DamagedEffect>false</DamagedEffect> <!--이 상태이상이 피해를 주는 타입인지-->
+		<Duration>0</Duration> <!--지속되는 턴 역시 적용될때 씀-->
+	</Skilleffect>
+</Skilleffects>
