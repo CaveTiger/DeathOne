@@ -51,4 +51,13 @@
 		<SkillTarget>Me</SkillTarget>
 		<Motion>Buff</Motion>
 	</Skill>
+	
+	<Skill ID ="010004" ParentID="010000">
+		<Name>주변 살피기</Name>
+		<SkillEffect>
+			<li>020005</li>
+		</SkillEffect>
+		<SkillTarget>Me</SkillTarget>
+		<Motion>Buff</Motion>
+	</Skill>
 </Skills>

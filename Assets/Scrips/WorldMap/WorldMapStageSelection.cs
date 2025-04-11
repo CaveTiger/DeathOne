@@ -10,6 +10,7 @@ public class WorldMapStageSelection : MonoBehaviour
 
     public GameObject stageStarterUI;
 
+    [Header("이 오브젝트에 대응하는 스테이지 ID")]
     public string stageID;
 
     private void Start()
@@ -31,6 +32,8 @@ public class WorldMapStageSelection : MonoBehaviour
         rend.material.color = clickColor;
         Debug.Log($"스테이지 클릭됨: {stageID}");
         // 씬 이동 or 세부 정보 표시 등
+        Debug.Log($"[스테이지 선택] ID: {stageID}");
+        StageManager.Instance.SelectStage(stageID);
     }
     private void OnMouseUp()
     {
@@ -42,19 +45,8 @@ public class WorldMapStageSelection : MonoBehaviour
             Debug.LogWarning("stageStarterUI가 연결되지 않았습니다!");
             return;
         }
-        else if (stageStarterUI.activeSelf)
-        {
-            stageStarterUI.SetActive(false);
-            Debug.Log("UI 닫음");
-        }
-        else if (stageStarterUI != null) //스테이지스타터가 널이 아님
-        {
-            stageStarterUI.SetActive(true); // ← 여기서 UI 활성화
-        }
-        
-        else
-        {
-            Debug.Log("열려있지않다.");
-        }
-        }
+        bool isOpen = stageStarterUI.activeSelf;
+        stageStarterUI.SetActive(!isOpen);
+        Debug.Log(isOpen ? "UI 닫힘" : "UI 열림");
+    }
 }

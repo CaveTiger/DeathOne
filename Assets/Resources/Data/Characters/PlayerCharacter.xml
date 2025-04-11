@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Characters>
+	<Character ID="000001" ParentID="000000">
+		<Label>오드</Label> <!--캐릭터의 이름-->
+		<Description>어둠의 신자</Description> <!---->
+		<Stats>
+			<Hp>100</Hp> <!--들어갈때 최대체력 + 현재체력 모두 이걸로 세팅된다.-->
+			<Atk>0</Atk>
+			<Def>0</Def>
+			<Evasionrate>0.25</Evasionrate>
+			<Accuracy>0.1</Accuracy>
+			<Speed>20</Speed>
+		</Stats>
+		<Skills>
+			<li>010001</li>
+			<li>010002</li>
+			<li>010003</li>
+			<li>010004</li>
+		</Skills>
+		<Passives>
+		</Passives>
+		<Rarity>One</Rarity>
+		<Sprite>UnitSprite/Player/Player_Stand</Sprite> <!--스프라이트 주소를 찾아 적어넣기-->
+		<Pattern>Normal</Pattern> <!--행동 패턴 스크립트-->
+	</Character>
+</Characters>

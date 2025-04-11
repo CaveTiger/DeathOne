@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Skilleffects>
+	<Skilleffect ID="020000" Specimen="True">
+		<label>NoneEffect</label>
+		<SkillDescription>None</SkillDescription><!--스킬창에서-->
+		<InDescription>None</InDescription><!--상태이상으로 적용될때-->
+		<icon>None</icon> <!--상태이상으로 적용될때-->
+		<Damage>0</Damage><!--상태이상으로 적용될때-->
+		<DamagedEffect>false</DamagedEffect> <!--이 상태이상이 피해를 주는 타입인지-->
+		<Duration>0</Duration> <!--지속되는 턴 역시 적용될때 씀-->
+		<EffecterLoader>None</EffecterLoader> <!--하단의 이펙터를 쓸 경우 그 이름을 적어넣고 아니면 None로 이펙터 관련 효과는 없다.-->
+	</Skilleffect>
+	
+	<Skilleffect ParentID="020000">
+		<label>공격도</label>
+		<SkillDescription>공격도 : 해당 효과를 적용받는 대상의 피해량이 1당 10%증가합니다.</SkillDescription><!--스킬창에서-->
+		<InDescription>1당 피해량 10%증가</InDescription><!--상태이상으로 적용될때-->
+		<icon>None</icon>
+		<DamagedEffect>false</DamagedEffect> <!--이 상태이상이 피해를 주는 타입인지-->
+		<Duration>0</Duration> <!--지속되는 턴 역시 적용될때 씀-->
+	</Skilleffect>
+	
+	<!--이펙터 위는 사용자 밑은 실행자-->
+
+	<Effecter EfID="Base">
+		<!--적용 되는 효과 작성 단순 피해 효과일 경우는 안쓸 수 있다.-->
+		<Increase>true</Increase>
+		<!--증가일 경우-->
+		<Stack>1</Stack>
+		<!--효과가 몇스택 기준으로 효과가 나올 것인지 체크-->
+		<Changer>0.1</Changer>
+		<!--10퍼센트-->
+		<WhatStat>Atk</WhatStat>
+		<!--스탯에 변동을 줄 경우 어떤 스탯인지-->
+		<ChainEffect>false</ChainEffect>
+		<!--이 효과가 부여될 때 또 다른 효과를 불러올 것인지 -->
+		<ChainedEffect>None</ChainedEffect>
+		<!--불러올거라면 어떤건지-->
+	</Effecter>
+	
+	<Effecter EfID="AttackPoint">
+		<!--적용 되는 효과 작성 단순 피해 효과일 경우는 안쓸 수 있다.-->
+		<Increase>true</Increase>
+		<!--증가일 경우-->
+		<Stack>1</Stack>
+		<!--효과가 몇스택 기준으로 효과가 나올 것인지 체크-->
+		<Changer>1</Changer>
+		<!--플레이어 스탯 증가수-->
+		<WhatStat>Atk</WhatStat>
+		<!--스탯에 변동을 줄 경우 어떤 스탯인지-->
+		<ChainEffect>false</ChainEffect>
+		<!--이 효과가 부여될 때 또 다른 효과를 불러올 것인지 -->
+		<ChainedEffect>None</ChainedEffect>
+		<!--불러올거라면 어떤건지-->
+	</Effecter>
+</Skilleffects>
+
