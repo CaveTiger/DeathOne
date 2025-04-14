@@ -30,7 +30,7 @@ public class GameManager : MonoBehaviour
         foreach (var kvp in CharacterData.characterDict)
         {
             var data = kvp.Value;
-            Debug.Log($"[µñ¼Å³Ê¸® Ã¼Å©] ID: {data.ID}, HP: {data.Hp}, Atk: {data.Atk}, Def: {data.Def}, Sprite: {data.Sprite}");
+            Debug.Log($"[µñ¼Å³Ê¸® Ã¼Å©] ID: {data.ID}, HP: {data.Hp}, Atk: {data.Atk}, Def: {data.Def}, Speed{data.Speed}, Sprite: {data.Sprite}, EvasionRate{data.EvasionRate }, Accuracy{data.Accuracy}");
         } //½ºÅ×ÀÌÁö Ã¼Å©
         foreach (var kvp in StageManager.Instance.stageDict)
         {

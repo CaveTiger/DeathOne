@@ -24,7 +24,7 @@
 		<DamageMin>9</DamageMin>
 		<DamageMax>16</DamageMax>
 		<SkillEffect>0</SkillEffect>
-		<SkillTarget>Enermy</SkillTarget>
+		<SkillTarget>Enemy</SkillTarget>
 		<Motion>Attack</Motion>
 		<AttackPoint>Body</AttackPoint>
 		<AttackEffect>Cut</AttackEffect>
@@ -37,10 +37,10 @@
 		<SkillEffect>
 			<li>020004</li>
 		</SkillEffect>
-		<SkillTarget>Enermy</SkillTarget>
+		<SkillTarget>Enemy</SkillTarget>
 		<Motion>Attack</Motion>
-		<AttackPoint>Body</AttackPoint>
-		<AttackEffect>Foot</AttackEffect>
+		<AttackPoint>Foot</AttackPoint>
+		<AttackEffect>Cut</AttackEffect>
 	</Skill>
 	
 	<Skill ID ="010003" ParentID="010000">

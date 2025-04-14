@@ -35,7 +35,7 @@ public class CharacterLoader : MonoBehaviour
     public void LoadAllCharacters()
     {
         TextAsset[] xmlFiles = Resources.LoadAll<TextAsset>("Data/Characters");
-        Debug.Log($"[로드] XML 파일 개수: {xmlFiles.Length}");
+        Debug.Log($"[로드] 캐릭터 XML 파일 개수: {xmlFiles.Length}");
         foreach (TextAsset xml in xmlFiles)
         {
             XDocument doc = XDocument.Parse(xml.text);

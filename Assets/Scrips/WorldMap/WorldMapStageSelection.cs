@@ -45,6 +45,10 @@ public class WorldMapStageSelection : MonoBehaviour
             Debug.LogWarning("stageStarterUI가 연결되지 않았습니다!");
             return;
         }
+        else if (stageStarterUI.activeSelf)
+        {
+            StageManager.Instance.ClearSelectedStage();
+        }
         bool isOpen = stageStarterUI.activeSelf;
         stageStarterUI.SetActive(!isOpen);
         Debug.Log(isOpen ? "UI 닫힘" : "UI 열림");

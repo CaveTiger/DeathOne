@@ -1,0 +1,70 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Skills>
+	<Skill ID ="010005" ParentID="010000">
+		<Name>기초적인 검격</Name>
+		<DamageMin>6</DamageMin>
+		<DamageMax>10</DamageMax>
+		<SkillEffect></SkillEffect>
+		<SkillTarget>Enemy</SkillTarget>
+		<Motion>Attack</Motion>
+		<AttackPoint>Body</AttackPoint>
+		<AttackEffect>Cut</AttackEffect>
+		<ActiveCount>None</ActiveCount>
+		<ManaCost>0</ManaCost>
+		<CoolTime>0</CoolTime>
+		<priority>0</priority>
+	</Skill>
+	
+	<!-- 플레이어 기본 스킬 -->
+	
+	<Skill ID ="010006" ParentID="010000">
+		<Name>방어</Name>
+		<DamageMin>0</DamageMin>
+		<DamageMax>0</DamageMax>
+		<SkillEffect>0</SkillEffect>
+		<SkillTarget>Me</SkillTarget>
+		<Motion>Buff</Motion>
+		<AttackPoint>Body</AttackPoint>
+		<AttackEffect>Buff</AttackEffect>
+	</Skill>
+	
+	<Skill ID ="010007" ParentID="010000">
+		<Name>참수</Name>
+		<DamageMin>1</DamageMin>
+		<DamageMax>18</DamageMax>
+		<SkillEffect>
+			<li>020004</li>
+		</SkillEffect>
+		<SkillTarget>Enemy</SkillTarget>
+		<Motion>Attack</Motion>
+		<AttackPoint>Head</AttackPoint>
+		<AttackEffect>Foot</AttackEffect>
+		<CoolTime>1</CoolTime>
+	</Skill>
+	
+	<Skill ID ="010008" ParentID="010000">
+		<Name>지목</Name>
+		<SkillEffect>
+			<li>020005</li>
+		</SkillEffect>
+		<SkillTarget>Enemy</SkillTarget>
+		<Motion>Buff</Motion>
+	</Skill>
+	
+	<Skill ID ="010009" ParentID="010000">
+		<Name>예리한 칼날</Name>
+		<DamageMin>3</DamageMin>
+		<DamageMax>7</DamageMax>
+		<SkillEffect>
+			<li>020005</li>
+		</SkillEffect>
+		<SkillTarget>Enemy</SkillTarget>
+		<Motion>Attack</Motion>
+		<AttackPoint>Body</AttackPoint>
+		<AttackEffect>Cut</AttackEffect>
+		<ActiveCount>None</ActiveCount>
+		<ManaCost>0</ManaCost>
+		<CoolTime>1</CoolTime>
+		<priority>0</priority>
+	</Skill>
+</Skills>

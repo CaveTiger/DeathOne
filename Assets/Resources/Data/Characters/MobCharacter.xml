@@ -1,0 +1,50 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Characters>
+	<Character ID="000003">
+		<Label>호송병</Label> <!--캐릭터의 이름-->
+		<Description>설명 영혼의 기억에서 확인 가능</Description> <!---->
+		<Stats>
+			<Hp>30</Hp> <!--들어갈때 최대체력 + 현재체력 모두 이걸로 세팅된다.-->
+			<Atk>2</Atk>
+			<Def>2</Def>
+			<Evasionrate>0.05</Evasionrate>
+			<Accuracy>0.1</Accuracy>
+			<Speed>14</Speed>
+		</Stats>
+		<Skills>
+			<li>010001</li>
+			<li>010002</li>
+			<li>010003</li>
+			<li>010004</li>
+		</Skills>
+		<Passives>
+		</Passives>
+		<Rarity>Normal</Rarity>
+		<Sprite>UnitSprite/MobA/MobA_Stand</Sprite> <!--스프라이트 주소를 찾아 적어넣기-->
+		<Pattern>Normal</Pattern> <!--행동 패턴 스크립트-->
+	</Character>
+	
+	<Character ID="000004">
+		<Label>귀족 신참병</Label> <!--캐릭터의 이름-->
+		<Description>설명 영혼의 기억에서 확인 가능</Description> <!---->
+		<Stats>
+			<Hp>26</Hp> <!--들어갈때 최대체력 + 현재체력 모두 이걸로 세팅된다.-->
+			<Atk>1</Atk>
+			<Def>3</Def>
+			<Evasionrate>0.1</Evasionrate>
+			<Accuracy>0.0</Accuracy>
+			<Speed>12</Speed>
+		</Stats>
+		<Skills>
+			<li>010001</li>
+			<li>010002</li>
+			<li>010003</li>
+			<li>010004</li>
+		</Skills>
+		<Passives>
+		</Passives>
+		<Rarity>Normal</Rarity>
+		<Sprite>UnitSprite/MobA/MobA_Stand</Sprite> <!--스프라이트 주소를 찾아 적어넣기-->
+		<Pattern>Normal</Pattern> <!--행동 패턴 스크립트-->
+	</Character>
+</Characters>
