@@ -2,79 +2,14 @@
 <Stages>
 	<Stage ID="050000" Specimen="True"> <!--순수한 스테이지 기본품-->
 		<Label>None</Label>
-		<TotalStageBlock>1</TotalStageBlock>
-		<StageBlock> <!--스테이지 ParentID는 이곳을 따라 작성 스테이지 블록은 아래부분 스테이지 블록네임을 Parent해서 가져간다.-->
+		<StageBlock>
+			<li>060000</li>
 		</StageBlock>
 	</Stage>
-
-	<Stage ID="050001" ParentID="050000" Specimen="True"> <!--스테이지 블록을 따가기 위해 분리 정돈-->
-		<Label>StageBlock</Label>
+	<Stage ID="050001" ParentID="050000">
+		<Label>튜토리얼</Label>
 		<StageBlock>
-			<li BlockName="Base">
-				<StageKey>None</StageKey>
-				<!--스테이지 고유 이름으로 넥스트 스테이지 지정에 쓰임-->
-				<BlockLabel>None</BlockLabel>
-				<BlockType>None</BlockType>
-				<!--타입은 None, Batte, Event가 존재함 해당속성 상속시 기재 무필요-->
-				<FrontCut>false</FrontCut>
-				<!--스테이지 진입시 컷이 나올지-->
-				<FrontCutID>None</FrontCutID>
-				<!--불러올 컷이 있을때 ID-->
-				<BackCut>false</BackCut>
-				<!--스테이지를 나갈때 컷이 나올지-->
-				<BackCutID>None</BackCutID>
-				<NextBlock>
-					<li>Battle</li>
-					<!--StageKey를 기입 키는 절대 중복 안되게 주의-->
-					<li>Event</li>
-				</NextBlock>
-			</li>
-			<li ParentBlockName="Base" BlockName="Battle">
-				<StageKey>Battle</StageKey>
-				<BlockLabel>Battle</BlockLabel>
-				<BlockType>Battle</BlockType>
-				<SetEnemy>
-					<li>000001</li><!--ID만 넣으면 끝-->
-				</SetEnemy>
-			</li>
-			<li ParentBlockName="Base" BlockName="Event">
-				<StageKey>Event</StageKey>
-				<BlockLabel>Event</BlockLabel>
-				<BlockType>Event</BlockType>
-				<EventList>
-					<li>None</li>
-					<!--이벤트의 경우 반드시 컷신 형태의 선택지가 주어진다.-->
-				</EventList>
-				<!--이벤트의 최대적 수는 일반 전투 선택지가 걸렸을때를 대비-->
-				<SetEnemy>
-					<!---->
-					<li>000001</li><!--ID만 넣으면 끝-->
-				</SetEnemy>
-				<SpecialGuest><!--특수 전투가 있을시-->
-					<li>000001</li><!--특수 전투에 나올 대상들-->
-				</SpecialGuest>
-				<!---->
-			</li>
-		</StageBlock>
-	</Stage>
-
-	<Stage ID="050002" ParentID="050000">
-		<Label>Tutorial</Label>
-		<StageBlock>
-			<li ParentBlockName="Battle">
-				<StageKey>Tutorial</StageKey>
-				<BlockLabel>튜토리얼</BlockLabel>
-				<BlockType>Battle</BlockType>
-				<FrontCut>true</FrontCut>
-				<FrontCutID>060001</FrontCutID>
-				<BackCut>true</BackCut>
-				<BackCutID>060002</BackCutID>
-				<SetEnemy>
-					<li>000004</li>
-					<li>000003</li>
-					<li>000002</li>
-				</SetEnemy>
-			</li>
+			<li>060001</li>
 		</StageBlock>
 	</Stage>
 </Stages>

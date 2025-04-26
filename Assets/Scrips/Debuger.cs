@@ -11,7 +11,7 @@ public class Debuger : MonoBehaviour
         for (int i = 0; i < count; i++)
         {
             Vector3 pos = transform.position + new Vector3(i * 1.5f, 0, 0);
-            SpawnManager.Instance.SpawnCharacter(characterID, pos);
+            //SpawnManager.Instance.SpawnCharacter(characterID, pos);
         }
     }
 }

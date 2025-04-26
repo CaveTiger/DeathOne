@@ -1,8 +1,10 @@
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
+
 
     private void Awake()
     {
@@ -10,7 +12,7 @@ public class GameManager : MonoBehaviour
 
         if (Instance != null && Instance != this)
         {
-            Debug.LogWarning("GameManager Áßº¹! »èÁ¦µÊ");
+            Debug.LogWarning("GameManager ì¤‘ë³µ! ì‚­ì œë¨");
             Destroy(gameObject);
             return;
         }
@@ -19,41 +21,12 @@ public class GameManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
 
         CharacterLoader.Instance.LoadAllCharacters();
-        if (CharacterData.characterDict != null)
-        {
-            Debug.Log("Ä³¸¯ÅÍ µ¥ÀÌÅÍ ·Îµù ¿Ï·á");
-        }
+        StageLoader.Instance.Initialize();
+        SkillLoader.Instance.Initialize();
     }
     private void Start()
     {
-        StageLoader.Instance.LoadStages();
-        foreach (var kvp in CharacterData.characterDict)
-        {
-            var data = kvp.Value;
-            Debug.Log($"[µñ¼Å³Ê¸® Ã¼Å©] ID: {data.ID}, HP: {data.Hp}, Atk: {data.Atk}, Def: {data.Def}, Speed{data.Speed}, Sprite: {data.Sprite}, EvasionRate{data.EvasionRate }, Accuracy{data.Accuracy}");
-        } //½ºÅ×ÀÌÁö Ã¼Å©
-        foreach (var kvp in StageManager.Instance.stageDict)
-        {
-            var stage = kvp.Value;
-            Debug.Log($"[½ºÅ×ÀÌÁö] ID: {stage.ID}, Label: {stage.Label}, Block ¼ö: {stage.Blocks.Count}");
-        }
-        //½ºÅ×ÀÌÁö ºí·Ï Ã¼Å©
-        foreach (var kvp in StageManager.Instance.stageBlockDict)
-        {
-            var block = kvp.Value;
-            Debug.Log($"[ºí·Ï] StageKey: {block.StageKey}, BlockType: {block.BlockType}, ParentBlockName: {block.ParentBlockName}");
 
-            if (block.EnemyIDs.Count > 0)
-                Debug.Log($" ¦± Àû ID: {string.Join(", ", block.EnemyIDs)}");
-
-            if (block.EventList.Count > 0)
-                Debug.Log($" ¦± ÀÌº¥Æ®: {string.Join(", ", block.EventList)}");
-
-            if (block.SpecialGuests.Count > 0)
-                Debug.Log($" ¦± ½ºÆä¼È °Ô½ºÆ®: {string.Join(", ", block.SpecialGuests)}");
-
-            if (!string.IsNullOrEmpty(block.FrontCutID) || !string.IsNullOrEmpty(block.BackCutID))
-                Debug.Log($" ¦± ÄÆ½Å: Front={block.FrontCutID}, Back={block.BackCutID}");
-        }
+        
     }
 }

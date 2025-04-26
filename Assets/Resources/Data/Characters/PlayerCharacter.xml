@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Characters>
-	<Character ID="000001" ParentID="000000">
+	<Character ID="000001">
 		<Label>오드</Label> <!--캐릭터의 이름-->
 		<Description>어둠의 신자</Description> <!---->
 		<Stats>

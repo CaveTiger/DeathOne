@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Stages>
+	<Block ID="060000">
+		<FrontCut>false</FrontCut><!--스테이지 진입시 컷이 나올지-->
+		<FrontCutID>None</FrontCutID><!--불러올 컷이 있을때 ID-->
+		<BackCut>false</BackCut><!--스테이지를 나갈때 컷이 나올지-->
+		<BackCutID>None</BackCutID>
+		<SetEnemy>
+			<li>000001</li><!-- 캐릭터 ID만 넣으면 끝-->	
+		</SetEnemy>
+		<NextBlock>
+			<!-- <li>060001</li> 다음 블록 ID를 적어넣기 -->
+		</NextBlock>
+		<Position x="0" y="0"/>
+	</Block>
+
+	<Block ID="060001" ParentId="060000">
+		<BlockLabel>튜토리얼</BlockLabel>
+		<BlockType>Battle</BlockType>
+		<FrontCut>true</FrontCut>
+		<FrontCutID>070001</FrontCutID>
+		<BackCut>true</BackCut>
+		<BackCutID>070002</BackCutID>
+		<SetEnemy>
+			<li>000004</li>
+			<li>000003</li>
+			<li>000002</li>
+		</SetEnemy>
+	</Block>
+</Stages>

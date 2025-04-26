@@ -129,6 +129,7 @@ GameObject:
   m_Component:
   - component: {fileID: 335800459}
   - component: {fileID: 335800458}
+  - component: {fileID: 335800460}
   m_Layer: 0
   m_Name: XmlLoader
   m_TagString: Untagged
@@ -157,12 +158,25 @@ Transform:
   m_GameObject: {fileID: 335800457}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -5.121479, y: 5.388305, z: 2.8232858}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &335800460
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 335800457}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 19314991c6992824d8f40a2bde786b32, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  additionalLoadPaths: []
 --- !u!1 &519420028
 GameObject:
   m_ObjectHideFlags: 0
@@ -493,9 +507,9 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 1527545564}
   - {fileID: 633993393}
   - {fileID: 818397110}
+  - {fileID: 1527545564}
   m_Father: {fileID: 1549818210}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 0}
@@ -633,6 +647,7 @@ GameObject:
   - component: {fileID: 1041420860}
   - component: {fileID: 1041420861}
   - component: {fileID: 1041420862}
+  - component: {fileID: 1041420863}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -681,7 +696,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   characterPrefab: {fileID: 1855962151722591943, guid: a8de4d3ad5df1b140b1967e6780c30be, type: 3}
   loader: {fileID: 335800458}
-  targetID: 000001
+  playerID: 000001
+  allyIDs: []
+  enemyIDs: []
+  enemyPrefab: {fileID: 1855962151722591943, guid: a8de4d3ad5df1b140b1967e6780c30be, type: 3}
 --- !u!114 &1041420861
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -694,6 +712,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bc50c529b1234644483a09a2aa9b83bf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  debugSelectedStageID: 
 --- !u!114 &1041420862
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -706,7 +725,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ba9af2ce63a081b459949fc6d9f07757, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  stageXmlFiles: []
+  additionalLoadPaths: []
+--- !u!114 &1041420863
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1041420857}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3f0e1b6441bb41748bccce5e3bef2a68, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1491571813
 GameObject:
   m_ObjectHideFlags: 0
@@ -798,6 +829,7 @@ GameObject:
   - component: {fileID: 1527545567}
   - component: {fileID: 1527545566}
   - component: {fileID: 1527545565}
+  - component: {fileID: 1527545568}
   m_Layer: 5
   m_Name: Button (Legacy)
   m_TagString: Untagged
@@ -868,7 +900,19 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1527545566}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 1527545568}
+        m_TargetAssemblyTypeName: SceneLoader, Assembly-CSharp
+        m_MethodName: LoadStage
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &1527545566
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -907,6 +951,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1527545563}
   m_CullTransparentMesh: 1
+--- !u!114 &1527545568
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1527545563}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff493a9c0049f334085fadc88a1baf0d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  StageToLoad: 
 --- !u!1 &1549818206
 GameObject:
   m_ObjectHideFlags: 0
@@ -1122,7 +1179,7 @@ MonoBehaviour:
   hoverColor: {r: 1, g: 1, b: 0.6, a: 1}
   clickColor: {r: 1, g: 0, b: 0, a: 1}
   stageStarterUI: {fileID: 1549818206}
-  stageID: 050002
+  stageID: 050001
 --- !u!212 &1900666381
 SpriteRenderer:
   m_ObjectHideFlags: 0

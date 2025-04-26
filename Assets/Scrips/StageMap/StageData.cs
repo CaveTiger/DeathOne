@@ -1,21 +1,21 @@
 using System.Collections.Generic;
+using UnityEngine;
 
 public class StageData
 {
     public string ID;
     public string ParentID;
-    public string Label;
-    public int TotalStageBlock;
-    public List<StageBlockData> Blocks = new();
+    public List<string> BlockIDs = new();
 }
+
 public class StageBlockData
 {
-    public string StageKey;
+    public string ID;
+    public string ParentID;
     public string BlockType;
-    public string ParentBlockName;
-    public List<string> EnemyIDs = new();
-    public List<string> EventList = new();
-    public List<string> SpecialGuests = new();
     public string FrontCutID;
     public string BackCutID;
+    public Vector2Int Position;
+    public List<string> EnemyIDs = new();
+    public List<string> NextBlockIDs = new(); // li∑Œ π≠¿Œ ∫Œ∫–
 }

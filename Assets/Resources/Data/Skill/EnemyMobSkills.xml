@@ -2,6 +2,7 @@
 <Skills>
 	<Skill ID ="010005" ParentID="010000">
 		<Name>기초적인 검격</Name>
+		<Icon></Icon>
 		<DamageMin>6</DamageMin>
 		<DamageMax>10</DamageMax>
 		<SkillEffect></SkillEffect>
@@ -19,6 +20,7 @@
 	
 	<Skill ID ="010006" ParentID="010000">
 		<Name>방어</Name>
+		<Icon></Icon>
 		<DamageMin>0</DamageMin>
 		<DamageMax>0</DamageMax>
 		<SkillEffect>0</SkillEffect>
@@ -27,9 +29,10 @@
 		<AttackPoint>Body</AttackPoint>
 		<AttackEffect>Buff</AttackEffect>
 	</Skill>
-	
+
 	<Skill ID ="010007" ParentID="010000">
 		<Name>참수</Name>
+		<Icon></Icon>
 		<DamageMin>1</DamageMin>
 		<DamageMax>18</DamageMax>
 		<SkillEffect>
@@ -44,6 +47,7 @@
 	
 	<Skill ID ="010008" ParentID="010000">
 		<Name>지목</Name>
+		<Icon></Icon>
 		<SkillEffect>
 			<li>020005</li>
 		</SkillEffect>
@@ -52,7 +56,26 @@
 	</Skill>
 	
 	<Skill ID ="010009" ParentID="010000">
-		<Name>예리한 칼날</Name>
+		<Name>성실히 갈아낸 날</Name>
+		<Icon></Icon>
+		<DamageMin>3</DamageMin>
+		<DamageMax>7</DamageMax>
+		<SkillEffect>
+			<li>020005</li>
+		</SkillEffect>
+		<SkillTarget>Enemy</SkillTarget>
+		<Motion>Attack</Motion>
+		<AttackPoint>Body</AttackPoint>
+		<AttackEffect>Cut</AttackEffect>
+		<ActiveCount>None</ActiveCount>
+		<ManaCost>0</ManaCost>
+		<CoolTime>1</CoolTime>
+		<priority>0</priority>
+	</Skill>
+	
+	<Skill ID ="010010" ParentID="010000">
+		<Name>녹슨 날</Name>
+		<Icon></Icon>
 		<DamageMin>3</DamageMin>
 		<DamageMax>7</DamageMax>
 		<SkillEffect>

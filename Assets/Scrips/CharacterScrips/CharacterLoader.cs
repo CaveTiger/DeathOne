@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.Xml.Linq;
 using System.Linq;
+using Unity.VisualScripting.Antlr3.Runtime;
+using Unity.VisualScripting;
 
 public enum RarityList
 {
@@ -15,32 +17,31 @@ public enum RarityList
 
 public class CharacterLoader : MonoBehaviour
 {
-
-    
     public static CharacterLoader Instance { get; private set; }
 
     private void Awake()
-    {
-
+    { 
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
             return;
         }
-
-
         Instance = this;
     }
 
     public void LoadAllCharacters()
     {
         TextAsset[] xmlFiles = Resources.LoadAll<TextAsset>("Data/Characters");
-        Debug.Log($"[·Îµå] Ä³¸¯ÅÍ XML ÆÄÀÏ °³¼ö: {xmlFiles.Length}");
+        Debug.Log($"[ë¡œë“œ] ìºë¦­í„° XML íŒŒì¼ ê°œìˆ˜: {xmlFiles.Length}");
+
+        List<CharacterData> rawList = new(); // 1ì°¨ ìˆ˜ì§‘ìš©
+        Dictionary<string, CharacterData> specimens = new(); // Specimenìš©
+
         foreach (TextAsset xml in xmlFiles)
         {
             XDocument doc = XDocument.Parse(xml.text);
 
-            var characters = doc.Descendants("Character").Select(x => new CharacterData
+            var parsed = doc.Descendants("Character").Select(x => new CharacterData
             {
                 ID = (string)x.Attribute("ID") ?? "",
                 ParentID = (string)x.Attribute("ParentID") ?? "",
@@ -50,6 +51,7 @@ public class CharacterLoader : MonoBehaviour
                 Description = (string)x.Element("Description") ?? "",
 
                 Hp = (int?)x.Element("Stats")?.Element("Hp") ?? 0,
+                MaxHp = (int?)x.Element("Stats")?.Element("Hp") ?? 0,
                 Atk = (int?)x.Element("Stats")?.Element("Atk") ?? 0,
                 Def = (int?)x.Element("Stats")?.Element("Def") ?? 0,
                 EvasionRate = (float?)x.Element("Stats")?.Element("Evasionrate") ?? 0f,
@@ -71,27 +73,73 @@ public class CharacterLoader : MonoBehaviour
                 Rarity = Enum.TryParse((string)x.Element("Rarity"), true, out RarityList rarity) ? rarity : RarityList.Normal,
                 Sprite = (string)x.Element("Sprite") ?? "",
                 Pattern = (string)x.Element("Pattern") ?? ""
+
             }).ToList();
-
-
-            foreach (var data in characters)
-            {
-                if (!CharacterData.characterDict.ContainsKey(data.ID))
-                    CharacterData.characterDict.Add(data.ID, data);
-                else
-                    Debug.LogWarning($"Áßº¹µÈ Ä³¸¯ÅÍ ID ¹ß°ß: {data.ID}");
-            }
-            foreach (var kvp in CharacterData.characterDict)
-            {
-                Debug.Log($"[Dict] µñ¼Å³Ê¸®¿¡ µé¾î°£ ID: '{kvp.Key}'");
-            }
-            Debug.Log($"[Load] Ä³¸¯ÅÍ ÃÑ {characters.Count}¸í ÆÄ½ÌµÊ");
-            foreach (var c in characters)
-            {
-                Debug.Log($"[Load] ÆÄ½ÌµÈ ID: '{c.ID}'");
-            }
-            Debug.Log($"Ä³¸¯ÅÍ ·Îµù ¿Ï·á. ÃÑ {CharacterData.characterDict.Count}°³");
+            rawList.AddRange(parsed);
             
         }
+
+        foreach (var data in rawList)
+        {
+            //Debug.Log($"[ë¡œë“œëœ ìºë¦­í„°] ID: {data.ID}, ParentID: {data.ParentID}, Specimen: {data.Specimen}");
+            if (data.Specimen)
+            {
+                //Debug.Log($"[ë¶€ëª¨ ë“±ë¡] {data.ID}");
+                specimens[data.ID] = data;
+            }
+        }
+
+        foreach (var data in rawList)
+        {
+            //Debug.Log($"[ë¡œë“œëœ ìºë¦­í„°] ID: {data.ID}, ParentID: {data.ParentID}, Specimen: {data.Specimen}");
+            if (data.Specimen) continue; //Debug.Log($"[ë¶€ëª¨ ë“±ë¡] {data.ID}");
+
+            CharacterData final;
+
+            if (!string.IsNullOrEmpty(data.ParentID))
+            {
+                if (specimens.TryGetValue(data.ParentID, out var parent))
+                {
+                    final = parent.Clone();
+                    OverrideCharacter(final, data);
+                }
+                else
+                {
+                    Debug.LogError($"[Loader] ë¶€ëª¨ ID '{data.ParentID}'ë¥¼ specimensì—ì„œ ì°¾ì„ ìˆ˜ ì—†ìŒ (ìì‹ ID: {data.ID})");
+                    continue;
+                }
+            }
+            else
+            {
+                final = data;
+            }
+
+            if (!CharacterData.characterDict.ContainsKey(final.ID))
+                CharacterData.characterDict.Add(final.ID, final);
+        }
+
+
+        Debug.Log($"[ë¡œë“œ] ìºë¦­í„° ë¡œë”© ì™„ë£Œ. ì´ {CharacterData.characterDict.Count}ê°œ");
+    }
+    void OverrideCharacter(CharacterData baseData, CharacterData overrideData)
+    {
+        if (!string.IsNullOrEmpty(overrideData.Label)) baseData.Label = overrideData.Label;
+        if (!string.IsNullOrEmpty(overrideData.Description)) baseData.Description = overrideData.Description;
+
+        if (overrideData.Hp != 0) baseData.Hp = overrideData.Hp;
+        if (overrideData.MaxHp != 0) baseData.MaxHp = overrideData.MaxHp;
+        if (overrideData.Atk != 0) baseData.Atk = overrideData.Atk;
+        if (overrideData.Def != 0) baseData.Def = overrideData.Def;
+        if (overrideData.EvasionRate != 0f) baseData.EvasionRate = overrideData.EvasionRate;
+        if (overrideData.Accuracy != 0f) baseData.Accuracy = overrideData.Accuracy;
+        if (overrideData.Speed != 0) baseData.Speed = overrideData.Speed;
+
+        if (overrideData.Skills.Count > 0) baseData.Skills = overrideData.Skills;
+        if (overrideData.Passives.Count > 0) baseData.Passives = overrideData.Passives;
+
+        if (!string.IsNullOrEmpty(overrideData.Sprite)) baseData.Sprite = overrideData.Sprite;
+        if (!string.IsNullOrEmpty(overrideData.Pattern)) baseData.Pattern = overrideData.Pattern;
+
+        baseData.Rarity = overrideData.Rarity;
     }
 }
