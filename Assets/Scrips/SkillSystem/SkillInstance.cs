@@ -5,7 +5,8 @@ using static UnityEngine.GraphicsBuffer;
 
 public class SkillInstance : MonoBehaviour
 {
-    private string skillID; //스킬 ID
+    [SerializeField] private string skillID; //스킬 ID
+
     private bool isActive; //스킬 사용가능 여부
     private float cooldownTime;
     private float currentCooldown;
@@ -18,28 +19,46 @@ public class SkillInstance : MonoBehaviour
     [SerializeField] private Image skillIconImage;
     [SerializeField] private Image cooldownImage;
     [SerializeField] private TextMeshProUGUI skillNameText;
+    [SerializeField] private GameObject csaterObject;
 
-    public void Initialize(string id, string group = "", int index = -1, CharacterStats owner = null)
+    public void SetSkillData(SkillData data)
     {
-        skillID = id;
-        groupName = group;
-        slotIndex = index;  // 슬롯 인덱스 설정
-        isActive = true;
-        currentCooldown = 0f;
-        caster = owner;
+        skillData = data;
+        // UI 등 갱신 코드 추가 가능
+    }
 
-        if (target == null)
-        {
-            Debug.LogWarning("타겟이 지정되지 않았습니다.");
-            return;
-        }
+    public void SetCaster(CharacterStats newCaster)
+    {
+        caster = newCaster;
+    }
+
+    private void Awake()
+    {
         if (SkillData.skillDict.TryGetValue(skillID, out skillData))
         {
+            groupName = skillData.Group;
             cooldownTime = skillData.Cooldown;
+            isActive = true;
+            currentCooldown = 0f;
+
+            Debug.Log($"SkillSlot: {skillID} 스킬 데이터 불러오기 성공");
         }
         else
         {
-            Debug.LogError($"[SkillSlotData] 스킬 ID {skillID}에 해당하는 SkillData를 찾을 수 없습니다.");
+            Debug.LogError($"SkillSlot: {skillID}에 해당하는 스킬 데이터를 찾지 못했습니다.");
+        }
+    }
+    private void Start()
+    {
+        GameObject player = GameObject.Find("Unit_000001");
+        if (player != null)
+        {
+            caster = player.GetComponent<CharacterStats>();
+            //Debug.Log($"[SkillInstance] 임시 캐스터 연결 성공: {caster?.Label}");
+        }
+        else
+        {
+            Debug.LogWarning("[SkillInstance] 임시 캐스터를 찾지 못했습니다.");
         }
     }
     public void UpdateTarget()
@@ -48,20 +67,34 @@ public class SkillInstance : MonoBehaviour
     }
     public void UseSkill()
     {
-        Debug.Log("스킬 눌림");
-
+        if (caster == null || !caster.IsMyTurn)
+        {
+            Debug.LogWarning("[UseSkill] 지금은 내 턴이 아닙니다. 스킬 발동 중지.");
+            return;
+        }
         if (!isActive || currentCooldown > 0 || skillData == null) return;
 
-        // 스킬 사용 로직
-        Debug.Log($"[SkillSlotData] 스킬 사용: {skillData.Name} (그룹: {groupName})");
-        Debug.Log($"데미지: {skillData.DamageMin} ~ {skillData.DamageMax}");
-        Debug.Log($"타겟: {skillData.SkillTarget}");
-        Debug.Log($"모션: {skillData.Motion}");
-        Debug.Log($"효과: {string.Join(", ", skillData.SkillEffects)}");
-        SkillManager.Instance.UseSkill(skillData, caster,target);
-        // 쿨다운 시작
-        currentCooldown = cooldownTime;
-        cooldownImage.fillAmount = 1f;
+        UpdateTarget();
+
+        // SkillTarget에 따라 target을 올바르게 지정
+        if (skillData.SkillTarget == "Me")
+        {
+            target = caster;
+        }
+        // "Ally"는 선택한 아군(본인 제외), "AllAllies"는 SkillManager에서 처리
+
+        if (target == null)
+        {
+            Debug.LogWarning("[UseSkill] 타겟이 없습니다. 스킬 발동 중지.");
+            return;
+        }
+
+        bool success = SkillManager.Instance.UseSkill(skillData, caster, target);
+
+        if (success)
+        {
+            TurnManager.Instance.EndTurn();
+        }
     }
 
     public void SetGroup(string newGroupName) //그룹을 지정하기

@@ -1,0 +1,123 @@
+# 프로젝트 컨텍스트
+project_type: turn_based_rpg
+language: csharp
+framework: unity
+
+.cursorrules는 직접수정외엔 수정하지 않음
+# 코드 스타일 규칙
+code_style:
+  - 모든 클래스와 메서드는 PascalCase로 작성
+  - 모든 변수는 camelCase로 작성
+  - 상수는 UPPER_CASE로 작성
+  - 이미 작성된 변수나 클래스 메서드의 이름은 변경하지 않음
+  - 이미 작성된 클래스 메서드의 내용을 변경할 때는 기능에 대한 상세한 스펙을 알려주며 어떤 용도 의도인지를 정확히 전해야함
+  - 대부분의 작성 명령은 이미 있는 프로젝트 내의 코드를 참고하여 작성
+  - 프로젝트 내에 없는 요소의 작성명령은 무관
+  - 코드 변경 요소는 부탁한 요소외에 부가적인 요소에 대한 과한 코드제공은 하지 않음
+  - 새로이 코드를 작성할 때는 기존코드를 참고를 하면서 부가적 요소에 대한 코드제공을 허용 더 많은 지식을 주면 좋음 다만 용도와 의도를 정확히 전해야함
+  - 코드를 제공해줄때 파일을 생성해주는 것은 직접 요구하지 않는 경우 생성하지 않음 (파일과 변수등 꼬여서 오류가 날 수 있음)
+
+# 네이밍 컨벤션
+naming:
+  - 스킬 관련: Skill 접미사 사용 (예: FireballSkill)
+  - 상태이상 관련: Effect 접미사 사용 (예: PoisonEffect)
+  - UI 관련: UI 접미사 사용 (예: BattleUI)
+  - 매니저 클래스: Manager 접미사 사용 (예: BattleManager)
+  - 스크립테이블 오브젝트: Data 접미사 사용 (예: SkillData)
+
+# 파일 구조 규칙
+file_structure:
+  - 스크립트는 Assets/Scripts 폴더에 위치
+  - 프리팹은 Assets/Prefabs 폴더에 위치
+  - 리소스는 Assets/Resources 폴더에 위치
+  - UI 관련 스크립트는 Assets/Scripts/UI 폴더에 위치
+
+# 전투 시스템 규칙
+combat_system:
+  - 턴제 전투 시스템 사용
+  - 상태이상 시스템 필수
+  - 스킬 시스템 필수
+  - 파티 시스템 필수
+
+# 세부 전투 시스템 규칙 턴
+  - 턴은 시작할때 모든 생존 개체들을 턴리스트에 저장 이걸 ResetTurn 메서드가 담당
+  - 이 구조는 턴주기가 시작될때 속도값의 변동을 잡아내기 위함
+  - 턴주기가 시작될때 속도값의 변동을 잡아내기 위해 턴리스트에 저장된 개체들의 속도값을 조회
+  - 조회된 턴리스트에서 첫번째 개체가 턴을 진행
+  - 턴이 끝나면 리셋으로 다시 돌아가 진행
+  - 이 과정을 반복
+
+# 세부 전투 시스템 규칙 스킬
+  - 플레이어의 전투 진행시 스킬슬롯4개중 하나의 스킬을 사용
+  - 플레이어 본체의 스킬은 언제든지 교체 가능하게 구현예정
+  - 플레이어 포함 모든 개체의 스킬은 생성된 CharacterStats 클래스에 리스트로 존재
+  - 스킬 동작시 플레이어 기준에선 SkillInstance 클래스를 통해 SkillManager 클래스에 있는 UseSkill 메서드를 호출
+  - 적의 경우는 즉시 SkillManager 클래스에 있는 UseSkill 메서드를 호출
+  - SkillManager의 UseSkill은 공격의 타입에 따라 작동방식 분류 Switch문으로 구현
+  - 추후 구현은 스킬버튼을 사용가능지점까지 옮긴 뒤 사용지점에서 버튼을 누르는 방식으로 구현 예정 현재는 그냥 버튼만 눌러도 작동
+
+# 세부 전투 시스템 규칙 상태이상
+  - 상태이상은 턴제 전투 시스템에서 턴이 끝나고 턴이 시작되기 전 상태이상 체크메서드 작성
+  - 상태이상은 종류에 따라 체크 타이밍이 다를 수 있다.
+  - 행동불가형 상태이상의 경우는 턴이 시작되기전 체크 IsAtive가 CharacterStats에 존재함으로 false로 변경후 해당 상태이상 삭제
+  - 2턴에 걸쳐서 작동하는 상태이상은 보이는 숫자와 실제 지속 숫자가 달라 홀수에만 작동하는 식으로 구현
+  - 상태이상은 프리팹으로 캐릭터 하단의 체력바 밑에 UI를 만들 예정
+  - 프리팹에서 스크립트를 가지고 직접작동하며 상태이상오브젝트의 소유자에게 영향을 주는 방식으로 구현
+  - 상태이상의 아이디를 정리할때 기준은 02으로 시작해 0000네 칸을 더 할애한다.
+  - 일반적인 공격성 상태이상의 경우 020000 부터 시작
+  - 버프성 상태이상의 경우 021000 부터 시작
+  - 디버프성 상태이상의 경우 022000 부터 시작
+  - 행동불가 상태이상의 경우 023000 부터 시작
+  - 별개의 기타 상태이상(특수기술)같은 경우 024000 부터 시작
+
+# 세부 전투 시스템 규칙 생성
+    전투가 시작되면 SpawnManager에서 BattleManager로 정보를 넘겨 전투 내에선 BattleManager가 유닛을 생성
+    
+# 클래스 구조 규칙
+class_structure:
+  - MonoBehaviour 상속 클래스는 컴포넌트로 사용
+  - ScriptableObject는 데이터 저장용
+  - 인터페이스는 기능 정의용
+  - 추상 클래스는 공통 기능 구현용
+
+# 주석 규칙
+comments:
+  - 모든 public 메서드에 XML 문서 주석 필수
+  - 복잡한 로직에 인라인 주석 추가
+  - TODO 주석은 반드시 해결 기한 명시
+
+# 에러 처리 규칙
+error_handling:
+  - null 체크 필수
+  - 예외 처리 try-catch 사용
+  - 디버그 로그는 Debug.Log 사용
+  - 릴리즈 빌드에서는 로그 제거
+
+# 성능 규칙
+performance:
+  - Update 메서드에서 무거운 연산 지양
+  - 오브젝트 풀링 사용
+  - 가비지 컬렉션 최소화
+  - 코루틴 적절히 사용
+
+  # Xml 파일 규칙
+  - Xml 파일은 Assets/Resources/Data의 하위 폴더에 위치
+  - Xml 파일에 ID를 기준으로 파일을 구분
+  - Xml 파일은 실제 쓰이는 데이터들이 존재 파싱을 거쳐야함
+  - 파싱 후 데이터는 데이터클래스를 거쳐 딕셔너리에 저장
+  - 딕셔너리는 데이터 클래스의 ID를 기준으로 저장
+
+  # 캐릭터 스탯의 변수명
+  - public string Label
+  - public int Hp, MaxHp, Atk, Def
+  - public float Evasion, Accuracy
+  - public int Speed
+  - public string[] Skills = new string[4]
+  - public bool IsDead = false
+  - public bool IsActive = true
+  - public bool IsMyTurn = false
+  - public bool IsPlayer = true
+  - public bool TurnChanse = false
+  - public PatternType Pattern
+  - public RarityList Rarity
+  - 위 변수들은 캐릭터 스탯 클래스에 존재 캐릭터 관련으로 변수명을 작성할때 필시 참고

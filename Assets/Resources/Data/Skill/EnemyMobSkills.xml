@@ -3,8 +3,8 @@
 	<Skill ID ="010005" ParentID="010000">
 		<Name>기초적인 검격</Name>
 		<Icon></Icon>
-		<DamageMin>6</DamageMin>
-		<DamageMax>10</DamageMax>
+		<DamageMin>5</DamageMin>
+		<DamageMax>8</DamageMax>
 		<SkillEffect></SkillEffect>
 		<SkillTarget>Enemy</SkillTarget>
 		<Motion>Attack</Motion>

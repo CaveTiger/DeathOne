@@ -83,21 +83,39 @@ public class SkillLoader : MonoBehaviour
                 StaminaCost = (int?)x.Element("StaminaCost") ?? 0,
                 HealthCost = (int?)x.Element("HealthCost") ?? 0,
                 healAmount = (int?)x.Element("healAmount") ?? 0,
-                SkillEffects = x.Element("SkillEffect")?.Elements("li")
-                    .Select(e => e.Value)
-                    .Where(s => !string.IsNullOrWhiteSpace(s))
-                    .ToList() ?? new List<string>(),
-                BuffEffects = x.Element("BuffEffect")?.Elements("li")
-                    .Select(e => e.Value)
-                    .Where(s => !string.IsNullOrWhiteSpace(s))
-                    .ToList() ?? new List<string>(),
-                DebuffEffects = x.Element("DebuffEffect")?.Elements("li")
-                    .Select(e => e.Value)
-                    .Where(s => !string.IsNullOrWhiteSpace(s))
-                    .ToList() ?? new List<string>()
+                skillEffects = x.Element("SkillEffect")?
+                    .Elements("li")
+                    .Select(li => {
+                        var effectIdElement = li.Element("EffectID");
+                        if (effectIdElement == null) return null;
+
+                        string effectId = (string)effectIdElement;
+                        if (string.IsNullOrWhiteSpace(effectId)) return null;
+
+                        int value = (int?)li.Element("Value") ?? 0;
+                        int duration = (int?)li.Element("Duration") ?? 0;
+
+                        return new SkillEffectInfo
+                        {
+                            EffectID = effectId.Trim(),
+                            Value = value,
+                            Duration = duration
+                        };
+                    })
+                    .Where(e => e != null)
+                    .ToList() ?? new List<SkillEffectInfo>()
             }).ToList();
             Debug.Log($"[SkillLoader] {xml.name}에서 파싱된 스킬 수: {parsed.Count}");
             rawList.AddRange(parsed);
+
+            // 파싱 직후 skillEffects 로그 출력
+            foreach (var skill in parsed)
+            {
+                foreach (var effect in skill.skillEffects)
+                {
+                    Debug.Log($"[SkillLoader] 파싱 직후: {skill.ID} EffectID: {effect.EffectID}, Value: {effect.Value}, Duration: {effect.Duration}");
+                }
+            }
         }
 
         // 추가 경로에서 파일 로드
@@ -131,21 +149,39 @@ public class SkillLoader : MonoBehaviour
                     StaminaCost = (int?)x.Element("StaminaCost") ?? 0,
                     HealthCost = (int?)x.Element("HealthCost") ?? 0,
                     healAmount = (int?)x.Element("healAmount") ?? 0,
-                    SkillEffects = x.Element("SkillEffect")?.Elements("li")
-                        .Select(e => e.Value)
-                        .Where(s => !string.IsNullOrWhiteSpace(s))
-                        .ToList() ?? new List<string>(),
-                    BuffEffects = x.Element("BuffEffect")?.Elements("li")
-                        .Select(e => e.Value)
-                        .Where(s => !string.IsNullOrWhiteSpace(s))
-                        .ToList() ?? new List<string>(),
-                    DebuffEffects = x.Element("DebuffEffect")?.Elements("li")
-                        .Select(e => e.Value)
-                        .Where(s => !string.IsNullOrWhiteSpace(s))
-                        .ToList() ?? new List<string>()
+                    skillEffects = x.Element("SkillEffect")?
+                        .Elements("li")
+                        .Select(li => {
+                            var effectIdElement = li.Element("EffectID");
+                            if (effectIdElement == null) return null;
+
+                            string effectId = (string)effectIdElement;
+                            if (string.IsNullOrWhiteSpace(effectId)) return null;
+
+                            int value = (int?)li.Element("Value") ?? 0;
+                            int duration = (int?)li.Element("Duration") ?? 0;
+
+                            return new SkillEffectInfo
+                            {
+                                EffectID = effectId.Trim(),
+                                Value = value,
+                                Duration = duration
+                            };
+                        })
+                        .Where(e => e != null)
+                        .ToList() ?? new List<SkillEffectInfo>()
                 }).ToList();
                 Debug.Log($"[SkillLoader] {xml.name}에서 파싱된 스킬 수: {parsed.Count}");
                 rawList.AddRange(parsed);
+
+                // 파싱 직후 skillEffects 로그 출력
+                foreach (var skill in parsed)
+                {
+                    foreach (var effect in skill.skillEffects)
+                    {
+                        Debug.Log($"[SkillLoader] 파싱 직후: {skill.ID} EffectID: {effect.EffectID}, Value: {effect.Value}, Duration: {effect.Duration}");
+                    }
+                }
             }
         }
 
@@ -168,13 +204,18 @@ public class SkillLoader : MonoBehaviour
             if (data.Specimen) continue;
 
             SkillData final;
+            string allEffects = "";
+
             if (!string.IsNullOrEmpty(data.ParentID))
             {
                 if (specimens.TryGetValue(data.ParentID, out var parent))
                 {
                     final = parent.Clone();
                     OverrideSkill(final, data);
-                    Debug.Log($"[SkillLoader] 스킬 상속 처리: {data.ID} (부모: {data.ParentID})");
+                    final.ID = data.ID;
+                    allEffects = string.Join(" | ", final.skillEffects.Select(e =>
+                        $"EffectID: {e.EffectID}, Value: {e.Value}, Duration: {e.Duration}"));
+                    Debug.Log($"[SkillLoader] 스킬 상속 처리: {data.ID} (부모: {data.ParentID}) | {allEffects}");
                 }
                 else
                 {
@@ -185,13 +226,22 @@ public class SkillLoader : MonoBehaviour
             else
             {
                 final = data;
+                allEffects = string.Join(" | ", final.skillEffects.Select(e =>
+                    $"EffectID: {e.EffectID}, Value: {e.Value}, Duration: {e.Duration}"));
             }
 
             if (!SkillData.skillDict.ContainsKey(final.ID))
             {
                 SkillData.skillDict.Add(final.ID, final);
-                Debug.Log($"[SkillLoader] 스킬 추가됨: {final.ID}");
+                Debug.Log($"[SkillLoader] SkillDict 추가 직전: {final.ID} | {allEffects}");
             }
+
+            foreach (var effect in final.skillEffects)
+            {
+                Debug.Log($"[SkillLoader] 파싱된 EffectID: {effect.EffectID}");
+            }
+
+            Debug.Log($"[SkillManager] 스킬ID:{final.ID}, 이름:{final.Name}, 타입:{final.Type}");
         }
     }
 
@@ -204,6 +254,17 @@ public class SkillLoader : MonoBehaviour
         if (!string.IsNullOrEmpty(overrideData.Motion)) baseData.Motion = overrideData.Motion;
         if (!string.IsNullOrEmpty(overrideData.AttackPoint)) baseData.AttackPoint = overrideData.AttackPoint;
         if (!string.IsNullOrEmpty(overrideData.AttackEffect)) baseData.AttackEffect = overrideData.AttackEffect;
-        if (overrideData.SkillEffects.Count > 0) baseData.SkillEffects = overrideData.SkillEffects;
+        if (!string.IsNullOrEmpty(overrideData.Group)) baseData.Group = overrideData.Group;
+        if (!string.IsNullOrEmpty(overrideData.Description)) baseData.Description = overrideData.Description;
+        if (overrideData.Cooldown != 0) baseData.Cooldown = overrideData.Cooldown;
+        if (overrideData.Range != 0) baseData.Range = overrideData.Range;
+        if (overrideData.ManaCost != 0) baseData.ManaCost = overrideData.ManaCost;
+        if (overrideData.StaminaCost != 0) baseData.StaminaCost = overrideData.StaminaCost;
+        if (overrideData.HealthCost != 0) baseData.HealthCost = overrideData.HealthCost;
+        if (overrideData.healAmount != 0) baseData.healAmount = overrideData.healAmount;
+        if (overrideData.currentCooldown != 0) baseData.currentCooldown = overrideData.currentCooldown;
+        baseData.Type = overrideData.Type;
+        if (overrideData.skillEffects != null && overrideData.skillEffects.Count > 0)
+            baseData.skillEffects = new List<SkillEffectInfo>(overrideData.skillEffects);
     }
 }

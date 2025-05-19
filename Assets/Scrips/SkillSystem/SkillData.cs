@@ -7,7 +7,9 @@ public enum SkillType
     Damage,
     Heal,
     linkage,
-    Piercing
+    Piercing,
+    Buff,
+    Debuff
 }
 public class SkillData
 {
@@ -18,6 +20,7 @@ public class SkillData
     public bool Specimen { get; set; }
     public string Name { get; set; }
     public string Icon { get; set; }
+    public string Group { get; set; }
     public string Description { get; set; }
     public int DamageMin { get; set; }
     public int DamageMax { get; set; }
@@ -27,9 +30,6 @@ public class SkillData
     public string Motion { get; set; }
     public string AttackPoint { get; set; }
     public string AttackEffect { get; set; }
-    public List<string> SkillEffects { get; set; } = new List<string>();
-    public List<string> BuffEffects { get; set; } = new List<string>();
-    public List<string> DebuffEffects { get; set; } = new List<string>();
     public int ManaCost { get; set; }
     public int StaminaCost { get; set; }
     public int HealthCost { get; set; }
@@ -37,6 +37,7 @@ public class SkillData
     public int currentCooldown {  get; set; }
     public int healAmount { get; set; }
     public SkillType Type { get; set; }
+    public List<SkillEffectInfo> skillEffects = new List<SkillEffectInfo>();
     public SkillData Clone()
     {
         return new SkillData
@@ -46,6 +47,7 @@ public class SkillData
             Specimen = this.Specimen,
             Name = this.Name,
             Icon = this.Icon,
+            Group = this.Group,
             Description = this.Description,
             DamageMin = this.DamageMin,
             DamageMax = this.DamageMax,
@@ -55,9 +57,7 @@ public class SkillData
             Motion = this.Motion,
             AttackPoint = this.AttackPoint,
             AttackEffect = this.AttackEffect,
-            SkillEffects = new List<string>(this.SkillEffects),
-            BuffEffects = new List<string>(this.BuffEffects),
-            DebuffEffects = new List<string>(this.DebuffEffects),
+            skillEffects = new List<SkillEffectInfo>(this.skillEffects),
             ManaCost = this.ManaCost,
             StaminaCost = this.StaminaCost,
             HealthCost = this.HealthCost,
@@ -67,5 +67,12 @@ public class SkillData
     {
         return currentCooldown <= 0;
     }
+}
+
+public class SkillEffectInfo
+{
+    public string EffectID;
+    public int Value;
+    public int Duration;
 }
 

@@ -10,15 +10,15 @@ public class CharacterClickHandler : MonoBehaviour
     }
     void OnMouseDown()
     {
-        Debug.Log($"Å¬¸¯µÊ: {gameObject.name}, Ã¼·Â: {stats?.Hp}");
+        //Debug.Log($"í´ë¦­ë¨: {gameObject.name}, ì²´ë ¥: {stats?.Hp}");
 
         if (stats != null)
         {
-            FindObjectOfType<TargetSelector>()?.SelectByClick(stats);
+            FindFirstObjectByType<TargetSelector>()?.SelectByClick(stats);
         }
         else
         {
-            Debug.LogWarning("CharacterStats°¡ ¿¬°áµÇÁö ¾ÊÀ½!");
+            Debug.LogWarning("CharacterStatsê°€ ì—°ê²°ë˜ì§€ ì•ŠìŒ!");
         }
     }
 }

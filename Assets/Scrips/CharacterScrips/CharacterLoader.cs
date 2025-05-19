@@ -8,11 +8,21 @@ using Unity.VisualScripting;
 
 public enum RarityList
 {
-    One,
     Normal,
+    One,
     Rare,
     Uniqu,
     Legend
+}
+public enum PatternType
+{
+    Default,
+    Attaker,
+    Defender,
+    Tactician,
+    Boss,
+    Gadian,
+    Hunter
 }
 
 public class CharacterLoader : MonoBehaviour
@@ -72,8 +82,7 @@ public class CharacterLoader : MonoBehaviour
 
                 Rarity = Enum.TryParse((string)x.Element("Rarity"), true, out RarityList rarity) ? rarity : RarityList.Normal,
                 Sprite = (string)x.Element("Sprite") ?? "",
-                Pattern = (string)x.Element("Pattern") ?? ""
-
+                Pattern = Enum.TryParse((string)x.Element("PatternType"), true, out PatternType pattern) ? pattern : PatternType.Default,
             }).ToList();
             rawList.AddRange(parsed);
             
@@ -137,8 +146,8 @@ public class CharacterLoader : MonoBehaviour
         if (overrideData.Skills.Count > 0) baseData.Skills = overrideData.Skills;
         if (overrideData.Passives.Count > 0) baseData.Passives = overrideData.Passives;
 
-        if (!string.IsNullOrEmpty(overrideData.Sprite)) baseData.Sprite = overrideData.Sprite;
-        if (!string.IsNullOrEmpty(overrideData.Pattern)) baseData.Pattern = overrideData.Pattern;
+        if (overrideData.Rarity != RarityList.Normal) baseData.Rarity = overrideData.Rarity;
+        if (overrideData.Pattern != PatternType.Default) baseData.Pattern = overrideData.Pattern;
 
         baseData.Rarity = overrideData.Rarity;
     }

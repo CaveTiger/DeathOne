@@ -5,9 +5,16 @@
 		<Icon></Icon>
 		<DamageMin>0</DamageMin>
 		<DamageMax>0</DamageMax>
+		<Type>Damage</Type>
 		<HealMin>0</HealMin>
 		<HealMax>0</HealMax>
-		<SkillEffect></SkillEffect>
+		<SkillEffect>
+			<li>
+				<EffectID></EffectID>
+				<Value>0</Value>
+				<Duration>0</Duration>
+			</li>
+		</SkillEffect>
 		<SkillTarget>All</SkillTarget>
 		<Motion>Stand</Motion>
 		<AttackPoint>Body</AttackPoint>
@@ -25,7 +32,7 @@
 		<Icon></Icon>
 		<DamageMin>9</DamageMin>
 		<DamageMax>16</DamageMax>
-		<SkillEffect>0</SkillEffect>
+		<SkillEffect></SkillEffect>
 		<SkillTarget>Enemy</SkillTarget>
 		<Motion>Attack</Motion>
 		<AttackPoint>Body</AttackPoint>
@@ -38,7 +45,11 @@
 		<DamageMin>4</DamageMin>
 		<DamageMax>9</DamageMax>
 		<SkillEffect>
-			<li>020004</li>
+			<li>
+				<EffectID>020001</EffectID>
+				<Value>4</Value>
+				<Duration>2</Duration>
+			</li>
 		</SkillEffect>
 		<SkillTarget>Enemy</SkillTarget>
 		<Motion>Attack</Motion>
@@ -49,8 +60,17 @@
 	<Skill ID ="010003" ParentID="010000">
 		<Name>여신의 축복</Name>
 		<Icon></Icon>
+		<Type>Buff</Type>
 		<SkillEffect>
-			<li>020005</li>
+			<li>
+				<EffectID>021001</EffectID>
+				<Value>2</Value>
+				<Duration>2</Duration>
+			</li>
+			<li>
+				<EffectID>021002</EffectID>
+				<Duration>2</Duration>
+			</li>
 		</SkillEffect>
 		<SkillTarget>Me</SkillTarget>
 		<Motion>Buff</Motion>

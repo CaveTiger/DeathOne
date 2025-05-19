@@ -21,6 +21,6 @@
 		</Passives>
 		<Rarity>Normal</Rarity>
 		<Sprite>None</Sprite> <!--스프라이트 주소를 찾아 적어넣기-->
-		<Pattern>Normal</Pattern> <!--행동 패턴 스크립트-->
+		<Pattern>Default</Pattern> <!--행동 패턴 스크립트-->
 	</Character>
 </Characters>

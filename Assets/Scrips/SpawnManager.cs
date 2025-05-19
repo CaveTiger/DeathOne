@@ -7,27 +7,29 @@ public class SpawnManager : MonoBehaviour
     public static SpawnManager Instance { get; private set; }
 
     public GameObject characterPrefab;
-    public CharacterLoader loader; // XML ÆÄ½ÌÇÏ´Â ÄÄÆ÷³ÍÆ®
+    public CharacterLoader loader; // XML íŒŒì‹±í•˜ëŠ” ì»´í¬ë„ŒíŠ¸
     public CharacterData data;
 
-    [Header("ÇÃ·¹ÀÌ¾î")]
-    public string playerID = "000001";  // Ç×»ó µîÀåÇÏ´Â ÇÃ·¹ÀÌ¾î
+    [Header("í”Œë ˆì´ì–´")]
+    public string playerID = "000001";  // í•­ìƒ ë“±ì¥í•˜ëŠ” í”Œë ˆì´ì–´
 
-    [Header("¾Æ±º À¯´Ö")]
+    [Header("ì•„êµ° ìœ ë‹›")]
     public List<string> allyIDs = new List<string>();
 
-    [Header("ÀúÀå¹ŞÀº Àû")]
+    [Header("ì €ì¥ë°›ì€ ì ")]
     public List<string> enemyIDs = new List<string>();
 
-    public GameObject enemyPrefab;   // ±âº» Àû ÇÁ¸®ÆÕ
+    public GameObject enemyPrefab;   // ê¸°ë³¸ ì  í”„ë¦¬íŒ¹
+
+    [SerializeField] private GameObject statusPopupPrefab;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
         {
-            Destroy(gameObject); // Áßº¹ ¹æÁö
+            Destroy(gameObject); // ì¤‘ë³µ ë°©ì§€
             return;
         }
         Instance = this;
     }
-
 }

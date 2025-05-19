@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3d8136f17356e4c4aae7b7ae6669b6a9, type: 3}
+  m_Name: StatusEffectPoisonData
+  m_EditorClassIdentifier: 
+  EffectID: 020002
+  effectType: 3
+  effectName: "\uC911\uB3C5"
+  description: "2\uD134\uB9C8\uB2E4 \uD53C\uD574\uB97C \uC785\uC2B5\uB2C8\uB2E4."
+  icon: {fileID: -4347532159779508366, guid: 1676d92c3ab10cf498df5ddd851d707e, type: 3}
+  effectPrefab: {fileID: 7092126939529423785, guid: 3cd90383bf078144e93e0313c33dd64e, type: 3}
+  duration: 0
+  value: 0
+  iconPath: StatusEffect/Poison

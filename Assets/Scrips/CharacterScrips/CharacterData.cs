@@ -17,7 +17,7 @@ public class CharacterData
 
     public RarityList Rarity;
     public string Sprite;
-    public string Pattern;
+    public PatternType Pattern;
 
     public static Dictionary<string, CharacterData> characterDict = new();
     public CharacterData Clone()

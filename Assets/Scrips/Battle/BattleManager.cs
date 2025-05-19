@@ -3,21 +3,33 @@ using UnityEngine;
 
 public class BattleManager : MonoBehaviour
 {
-    [Header("ÇÃ·¹ÀÌ¾î ½½·Ô")]
+    [Header("í”Œë ˆì´ì–´ ìŠ¬ë¡¯")]
     public Transform playerSlot;
 
-    [Header("¾Æ±º ½½·Ô")]
+    [Header("ì•„êµ° ìŠ¬ë¡¯")]
     public Transform[] allySlots;
 
-    [Header("ÀÛ¼ºµÉ Àû ¸ñ·Ï")]
+    [Header("ì‘ì„±ë  ì  ëª©ë¡")]
     public Transform[] enemySlots;
 
+    public List<CharacterStats> allCharacters; // ì „íˆ¬ì— ì°¸ì—¬í•˜ëŠ” ëª¨ë“  ìºë¦­í„°
+    public Transform skillSlotParent; // ìŠ¤í‚¬ ìŠ¬ë¡¯ UI ë¶€ëª¨ ì˜¤ë¸Œì íŠ¸
+    public GameObject skillInstancePrefab; // SkillInstance í”„ë¦¬íŒ¹
 
-    //¾ë ½Ì±ÛÅæÀ» ÇÏÁö ¾Ê´Â´Ù. ¹è¸Å´Â ¿À·ÎÁö ½ÇÇàÀÚ ¿ªÇÒ¸¸À» ¸Ã´Â´Ù.
+    //ì–œ ì‹±ê¸€í†¤ì„ í•˜ì§€ ì•ŠëŠ”ë‹¤. ë°°ë§¤ëŠ” ì˜¤ë¡œì§€ ì‹¤í–‰ì ì—­í• ë§Œì„ ë§¡ëŠ”ë‹¤.
     void Start()
     {
-        Debug.Log($"[Check] Ä³¸¯ÅÍ µñ¼Å³Ê¸® Count: {CharacterData.characterDict.Count}");
+        Debug.Log($"[Check] ìºë¦­í„° ë”•ì…”ë„ˆë¦¬ Count: {CharacterData.characterDict.Count}");
         SpawnAllUnits();
+
+        Debug.Log($"ì´ê²Œ ì „íˆ¬ ì‹œì‘ë¶€ë¶„  SkillDict í˜„ì¬ ë“±ë¡ëœ ìŠ¤í‚¬ ìˆ˜: {SkillData.skillDict.Count}");
+
+        foreach (var kvp in SkillData.skillDict)
+        {
+            Debug.Log($"SkillDict Key: {kvp.Key} / Skill ì´ë¦„: {kvp.Value.Name}");
+        }
+        
+        SetupSkillSlots();
     }
 
     void SpawnAllUnits()
@@ -25,40 +37,40 @@ public class BattleManager : MonoBehaviour
         var spawn = SpawnManager.Instance;
         var dict = CharacterData.characterDict;
 
-        // 1. ÇÃ·¹ÀÌ¾î À¯´Ö
+        // 1. í”Œë ˆì´ì–´ ìœ ë‹›
         if (playerSlot == null)
         {
-            Debug.LogError("[Spawn] playerSlotÀÌ ÇÒ´çµÇÁö ¾Ê¾Ò½À´Ï´Ù!");
+            Debug.LogError("[Spawn] playerSlotì´ í• ë‹¹ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤!");
         }
         else if (!CharacterData.characterDict.ContainsKey(spawn.playerID))
         {
-            Debug.LogError($"[Spawn] Ä³¸¯ÅÍ µñ¼Å³Ê¸®¿¡ {spawn.playerID} ¾øÀ½");
+            Debug.LogError($"[Spawn] ìºë¦­í„° ë”•ì…”ë„ˆë¦¬ì— {spawn.playerID} ì—†ìŒ");
         }
         else
         {
-            Debug.Log("[Spawn] ÇÃ·¹ÀÌ¾î »ı¼º ½Ãµµ Áß");
+            Debug.Log("[Spawn] í”Œë ˆì´ì–´ ìƒì„± ì‹œë„ ì¤‘");
             SpawnUnit(spawn.playerID, playerSlot);
         }
 
-        // 2. ¾Æ±º À¯´Ö
+        // 2. ì•„êµ° ìœ ë‹›
         for (int i = 0; i < spawn.allyIDs.Count && i < allySlots.Length; i++)
         {
             SpawnUnit(spawn.allyIDs[i], allySlots[i]);
         }
 
-        // 3. Àû±º À¯´Ö
+        // 3. ì êµ° ìœ ë‹›
         for (int i = 0; i < spawn.enemyIDs.Count && i < enemySlots.Length; i++)
         {
             SpawnUnitEnemy(spawn.enemyIDs[i], enemySlots[i]);
         }
-        Debug.Log($"[Spawn] ÇÃ·¹ÀÌ¾î ID: {spawn.playerID}");
+        Debug.Log($"[Spawn] í”Œë ˆì´ì–´ ID: {spawn.playerID}");
     }
 
     void SpawnUnit(string id, Transform slot)
     {
         if (!CharacterData.characterDict.TryGetValue(id, out var data))
         {
-            Debug.LogError($"[Spawn] ID {id} ¿¡ ÇØ´çÇÏ´Â Ä³¸¯ÅÍ µ¥ÀÌÅÍ ¾øÀ½.");
+            Debug.LogError($"[Spawn] ID {id} ì— í•´ë‹¹í•˜ëŠ” ìºë¦­í„° ë°ì´í„° ì—†ìŒ.");
             return;
         }
 
@@ -74,7 +86,7 @@ public class BattleManager : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("CharacterStats ÄÄÆ÷³ÍÆ®°¡ ÇÁ¸®ÆÕ¿¡ ¾ø½À´Ï´Ù.");
+            Debug.LogWarning("CharacterStats ì»´í¬ë„ŒíŠ¸ê°€ í”„ë¦¬íŒ¹ì— ì—†ìŠµë‹ˆë‹¤.");
         }
     }
 
@@ -82,7 +94,7 @@ public class BattleManager : MonoBehaviour
     {
         if (!CharacterData.characterDict.TryGetValue(id, out var data))
         {
-            Debug.LogError($"[Spawn] ID {id} ¿¡ ÇØ´çÇÏ´Â Ä³¸¯ÅÍ µ¥ÀÌÅÍ ¾øÀ½.");
+            Debug.LogError($"[Spawn] ID {id} ì— í•´ë‹¹í•˜ëŠ” ìºë¦­í„° ë°ì´í„° ì—†ìŒ.");
             return;
         }
 
@@ -92,14 +104,45 @@ public class BattleManager : MonoBehaviour
         obj.transform.localPosition = Vector3.zero;
         obj.tag = "Enemy";
 
+        if (obj.GetComponent<EnemyAIController>() == null)
+        {
+            obj.AddComponent<EnemyAIController>();
+        }
+
         var unit = obj.GetComponent<CharacterStats>();
         if (unit != null)
         {
+            unit.IsPlayer = false;
             unit.SetData(data);
         }
         else
         {
-            Debug.LogWarning("CharacterStats ÄÄÆ÷³ÍÆ®°¡ ÇÁ¸®ÆÕ¿¡ ¾ø½À´Ï´Ù.");
+            Debug.LogWarning("CharacterStats ì»´í¬ë„ŒíŠ¸ê°€ í”„ë¦¬íŒ¹ì— ì—†ìŠµë‹ˆë‹¤.");
+        }
+    }
+
+    public void StartBattle()
+    {
+        // ... ìºë¦­í„° ìƒì„± ë“± ê¸°íƒ€ ì´ˆê¸°í™” ...
+
+        SetupSkillSlots();
+    }
+
+    private void SetupSkillSlots()
+    {
+        foreach (var character in allCharacters)
+        {
+            for (int i = 0; i < character.Skills.Length; i++)
+            {
+                string skillId = character.Skills[i];
+                if (SkillData.skillDict.TryGetValue(skillId, out var skillData))
+                {
+                    var skillInstanceObj = Instantiate(skillInstancePrefab, skillSlotParent);
+                    var skillInstance = skillInstanceObj.GetComponent<SkillInstance>();
+                    skillInstance.SetSkillData(skillData);
+                    skillInstance.SetCaster(character);
+                }
+            }
         }
     }
 }

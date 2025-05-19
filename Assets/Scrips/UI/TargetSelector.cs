@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -12,26 +13,25 @@ public class TargetSelector : MonoBehaviour
     public GameObject SelectedTarget;
     [SerializeField] private RectTransform targetMarker;
     public RectTransform targetMarkerImage;
-    //ÇöÀç Å¸°Ù°ú °ÔÀÓ¿ÀºêÁ§Æ®·Î¼­ Å¸°ÙÀ» ÀÌÁßÀ¸·Î ¼±ÅÃ»óÅÂ·Î µĞ´Ù.
-    //ÀÌÁß °ÔÀÓ ¿ÀºêÁ§Æ®°¡ °¨ÁöµÇÁö ¾Ê´Â´ã ±×°É Á×Àº °É·Î º»´Ù.
+    //í˜„ì¬ íƒ€ê²Ÿê³¼ ê²Œì„ì˜¤ë¸Œì íŠ¸ë¡œì„œ íƒ€ê²Ÿì„ ì´ì¤‘ìœ¼ë¡œ ì„ íƒìƒíƒœë¡œ ë‘”ë‹¤.
+    //ì´ì¤‘ ê²Œì„ ì˜¤ë¸Œì íŠ¸ê°€ ê°ì§€ë˜ì§€ ì•ŠëŠ”ë‹´ ê·¸ê±¸ ì£½ì€ ê±¸ë¡œ ë³¸ë‹¤.
 
     void Awake()
     {
         Instance = this;
         if (targetMarker == null)
         {
-            // ÀÚ½Ä Áß¿¡¼­ "TargetMarker"¶ó´Â ÀÌ¸§À» °¡Áø UI ¿ÀºêÁ§Æ® ÀÚµ¿ ÇÒ´ç
-            Transform found = transform.Find("TargetMarker"); // °æ·Î ¼öÁ¤ °¡´É
+            // ìì‹ ì¤‘ì—ì„œ "TargetMarker"ë¼ëŠ” ì´ë¦„ì„ ê°€ì§„ UI ì˜¤ë¸Œì íŠ¸ ìë™ í• ë‹¹
+            Transform found = transform.Find("TargetMarker"); // ê²½ë¡œ ìˆ˜ì • ê°€ëŠ¥
             if (found != null)
                 targetMarker = found.GetComponent<RectTransform>();
         }
-       
     }
     public void AutoSelectTarget(List<CharacterStats> enemySlots)
     {
         foreach (var enemy in enemySlots)
         {
-            if (enemy != null && enemy.Hp > 0)
+            if (enemy != null && enemy.gameObject != null)
             {
                 CurrentTarget = enemy;
                 SelectedTarget = enemy.gameObject;
@@ -39,32 +39,27 @@ public class TargetSelector : MonoBehaviour
             }
         }
 
-        CurrentTarget = null; // ÀüºÎ Á×¾úÀ» °æ¿ì
+        CurrentTarget = null; // ì „ë¶€ ì£½ì—ˆì„ ê²½ìš°
     }
-    public void SelectByClick(CharacterStats clicked) //¾ê´Â Å¸°ÙÀ» º»°İÀûÀ¸·Î ÁöÁ¤ÇÏ±â À§ÇØ
+    public void SelectByClick(CharacterStats clicked) //ì–˜ëŠ” íƒ€ê²Ÿì„ ë³¸ê²©ì ìœ¼ë¡œ ì§€ì •í•˜ê¸° ìœ„í•´
     {
-        Debug.Log($"[DEBUG] ¼±ÅÃµÈ ´ë»ó: {clicked.name}, ÅÂ±×: {clicked.tag}, Ã¼·Â: {clicked.Hp}");
+        //Debug.Log($"[DEBUG] ì„ íƒëœ ëŒ€ìƒ: {clicked.name}, íƒœê·¸: {clicked.tag}, ì²´ë ¥: {clicked.Hp}");
         if (clicked == null || clicked.Hp <= 0)
         {
-            Debug.Log("Å¸°Ù ¹«È¿ (null ¶Ç´Â Ã¼·Â 0ÀÌÇÏ)");
+            Debug.Log("íƒ€ê²Ÿ ë¬´íš¨ (null ë˜ëŠ” ì²´ë ¥ 0ì´í•˜)");
             return;
         }
-        if (!clicked.CompareTag("Enemy"))
-        {
-            Debug.Log("ÀûÀÌ ¾Æ´Ô Å¸°Ù ¹«½Ã");
-            return;
-        }
-        Debug.Log($"Àû Å¬¸¯µÊ:{clicked.name}");
+        //Debug.Log($"ì  í´ë¦­ë¨:{clicked.name}");
         CurrentTarget = clicked;
         SelectedTarget = clicked.gameObject;
         SetTarget(clicked);
     }
-    public CharacterStats GetCurrentTarget() //¾ê´Â Å¬¸¯ÈÄ Å¸°Ù Á¤º¸¸¦ ½ºÅ³·Î º¸³»´Â ¾Ö
+    public CharacterStats GetCurrentTarget() //ì–˜ëŠ” í´ë¦­í›„ íƒ€ê²Ÿ ì •ë³´ë¥¼ ìŠ¤í‚¬ë¡œ ë³´ë‚´ëŠ” ì• 
     {
         if (CurrentTarget != null && CurrentTarget.Hp > 0)
             return CurrentTarget;
 
-        return null; // Á×¾ú°Å³ª ÁöÁ¤µÇÁö ¾ÊÀº °æ¿ì
+        return null; // ì£½ì—ˆê±°ë‚˜ ì§€ì •ë˜ì§€ ì•Šì€ ê²½ìš°
     }
 
     public void ClearTarget() => CurrentTarget = null;
@@ -82,6 +77,38 @@ public class TargetSelector : MonoBehaviour
         Vector3 screenPos = Camera.main.WorldToScreenPoint(CurrentTarget.transform.position);
         screenPos.y += 200f;
         targetMarkerImage.position = screenPos;
-        targetMarkerImage.gameObject.SetActive(true);
+        targetMarker.gameObject.SetActive(true);
+    }
+    public void HideSelector()//ì–˜ëŠ” í„´ìª½ì—ì„œ ë¶ˆëŸ¬ì˜¬ ë©”ì„œë“œ
+    {
+        targetMarker.gameObject.SetActive(false);
+        CurrentTarget = null;
+    }
+
+    public void ShowSelector()
+    {
+        targetMarker.gameObject.SetActive(true);
+    }
+
+    public void AutoSelectFirstEnemy()
+    {
+        CharacterStats firstTarget = TurnManager.Instance.allSlots
+        .Select(slot => slot.currentCharacter)
+        .FirstOrDefault(c =>
+            c != null &&
+            !c.Equals(null) &&
+            c.IsPlayer == false &&
+            !c.IsDead);
+
+        if (firstTarget != null)
+        {
+            //Debug.Log($"[ìë™ íƒ€ê²ŸíŒ… ëŒ€ìƒ] {firstTarget.name}");
+            SetTarget(firstTarget);
+        }
+        else
+        {
+            Debug.LogWarning("íƒ€ê²ŸíŒ… ê°€ëŠ¥í•œ ì ì´ ì—†ìŒ");
+            targetMarkerImage.gameObject.SetActive(false); // ë§ˆì»¤ ê°ì¶”ê¸°
+        }
     }
 }
