@@ -2,21 +2,21 @@ using System.Collections.Generic;
 using UnityEngine;
 public class PartySlot
 {
-    public int SlotIndex;         // ¿¹: 0~3
-    public Vector2 Position;      // ¾À ³» ½ÇÁ¦ À§Ä¡
-    public string CharacterID;    // ÇöÀç ½½·Ô¿¡ ´©±¸ ¹èÁ¤µÆ´ÂÁö
+    public int SlotIndex;         // ì˜ˆ: 0~3
+    public Vector2 Position;      // ì”¬ ë‚´ ì‹¤ì œ ìœ„ì¹˜
+    public string CharacterID;    // í˜„ì¬ ìŠ¬ë¡¯ì— ëˆ„êµ¬ ë°°ì •ëëŠ”ì§€
 }
 
 public class InStageCharacterData
 {
     public string CharacterID;
     public int CurrentHP;
-    // ³ªÁß¿¡ È®Àå °¡´É: »óÅÂÀÌ»ó, ½ºÅ³ ÄğÅ¸ÀÓ µî
+    // ë‚˜ì¤‘ì— í™•ì¥ ê°€ëŠ¥: ìƒíƒœì´ìƒ, ìŠ¤í‚¬ ì¿¨íƒ€ì„ ë“±
 }
 
 public class InStageData
 {
     public List<PartySlot> Slots = new();
-    public Dictionary<string, InStageCharacterData> Characters = new(); // CharacterID ±âÁØ
+    public Dictionary<string, InStageCharacterData> Characters = new(); // CharacterID ê¸°ì¤€
 }
 

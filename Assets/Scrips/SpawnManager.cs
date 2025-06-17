@@ -23,6 +23,8 @@ public class SpawnManager : MonoBehaviour
 
     [SerializeField] private GameObject statusPopupPrefab;
 
+    public string currentBlockID; // 현재 전투 중인 블록 ID
+
     private void Awake()
     {
         if (Instance != null && Instance != this)

@@ -9,7 +9,7 @@ public class CharacterData
     public string Label;
     public string Description;
 
-    public int Hp, MaxHp,Atk, Def, Speed;
+    public int Hp, MaxHp, KDP, MaxKDP, Atk, Def, Speed;
     public float EvasionRate, Accuracy;
 
     public List<string> Skills = new();
@@ -18,6 +18,8 @@ public class CharacterData
     public RarityList Rarity;
     public string Sprite;
     public PatternType Pattern;
+
+    public float Scale { get; set; } = 1.0f; // 기본값 1.0
 
     public static Dictionary<string, CharacterData> characterDict = new();
     public CharacterData Clone()
@@ -32,6 +34,8 @@ public class CharacterData
 
             Hp = this.Hp,
             MaxHp = this.MaxHp,
+            KDP = this.KDP,
+            MaxKDP = this.MaxKDP,
             Atk = this.Atk,
             Def = this.Def,
             EvasionRate = this.EvasionRate,

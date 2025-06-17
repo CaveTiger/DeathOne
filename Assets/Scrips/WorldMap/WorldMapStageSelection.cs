@@ -4,53 +4,130 @@ public class WorldMapStageSelection : MonoBehaviour
 {
     private Renderer rend;
     private Color originalColor;
+    private int originalLayer;
+    private static bool isAnyUIOpen = false;  // UI ì—´ë¦¼ ìƒíƒœ ì¶”ì 
 
     public Color hoverColor = new Color(1f, 1f, 0.6f);
     public Color clickColor = Color.red;
 
     public GameObject stageStarterUI;
+    [SerializeField] private StageCameraUI stageCameraUI;
 
-    [Header("ÀÌ ¿ÀºêÁ§Æ®¿¡ ´ëÀÀÇÏ´Â ½ºÅ×ÀÌÁö ID")]
+    [Header("ì´ ì˜¤ë¸Œì íŠ¸ì— ëŒ€ì‘í•˜ëŠ” ìŠ¤í…Œì´ì§€ ID")]
     public string stageID;
 
     private void Start()
     {
         rend = GetComponent<Renderer>();
         originalColor = rend.material.color;
+        originalLayer = gameObject.layer;
+
+        // StageCameraUIê°€ ì—†ìœ¼ë©´ ì°¾ì•„ì„œ í• ë‹¹
+        if (stageCameraUI == null)
+            stageCameraUI = FindObjectOfType<StageCameraUI>();
     }
+
     private void OnMouseEnter()
     {
-        rend.material.color = hoverColor; //¸¶¿ì½º°¡ À§Ä¡¿¡ µé¾î°¨
+        if (isAnyUIOpen) return;
+        rend.material.color = hoverColor;
     }
+
     private void OnMouseExit()
     {
-        rend.material.color = originalColor; //¸¶¿ì½º°¡ À§Ä¡¸¦ ºüÁ®³ª¿È
+        rend.material.color = originalColor;
     }
 
     void OnMouseDown()
     {
+        if (isAnyUIOpen) return;
+        
         rend.material.color = clickColor;
-        Debug.Log($"½ºÅ×ÀÌÁö Å¬¸¯µÊ: {stageID}");
-        // ¾À ÀÌµ¿ or ¼¼ºÎ Á¤º¸ Ç¥½Ã µî
-        Debug.Log($"[½ºÅ×ÀÌÁö ¼±ÅÃ] ID: {stageID}");
+        Debug.Log($"ìŠ¤í…Œì´ì§€ í´ë¦­ë¨: {stageID}");
         StageManager.Instance.SelectStage(stageID);
+
+        if (stageCameraUI != null)
+            stageCameraUI.OnStageIconClick(transform.position);
     }
+
     private void OnMouseUp()
     {
-        rend.material.color = hoverColor; // Å¬¸¯ ÈÄ ´Ù½Ã hover »óÅÂ
-        Debug.Log($"½ºÅ×ÀÌÁö Å¬¸¯ ¿Ï¼ö: {stageID}");
-        
-        if (stageStarterUI == null) //½ºÅ×ÀÌÁö½ºÅ¸ÅÍ°¡ ¾øÀ½ °æ°í¸¦ À§ÇÑ ÀÌÇÁ
+        if (stageStarterUI == null)
         {
-            Debug.LogWarning("stageStarterUI°¡ ¿¬°áµÇÁö ¾Ê¾Ò½À´Ï´Ù!");
+            Debug.LogWarning("stageStarterUIê°€ ì—°ê²°ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤!");
             return;
         }
-        else if (stageStarterUI.activeSelf)
-        {
-            StageManager.Instance.ClearSelectedStage();
-        }
+        stageStarterUI.GetComponentInChildren<WorldMapReturnButton>().targetStageSelection = this;
+        rend.material.color = hoverColor;
+        Debug.Log($"ìŠ¤í…Œì´ì§€ í´ë¦­ ì™„ìˆ˜: {stageID}");
+
         bool isOpen = stageStarterUI.activeSelf;
+
+        // ìŠ¤í…Œì´ì§€ ë°ì´í„° ê°€ì ¸ì˜¤ê¸°
+        var stage = StageManager.Instance.GetStage(stageID);
+
+        if (isOpen)
+        {
+            // UI ë‹«í ë•Œ
+            SetAllStageButtonColliders(true);
+            gameObject.layer = originalLayer;
+            isAnyUIOpen = false;
+
+            // ë”•ì…”ë„ˆë¦¬ì—ì„œ ì œê±°
+            if (stage != null)
+                StageManager.Instance.UnregisterStageBlocks(stage.BlockIDs);
+        }
+        else
+        {
+            // UI ì—´ë¦´ ë•Œ
+            SetAllStageButtonColliders(false);
+            gameObject.layer = LayerMask.NameToLayer("UI");
+            isAnyUIOpen = true;
+
+            // í˜¹ì‹œ ì´ì „ ìŠ¤í…Œì´ì§€ ë¸”ë¡ì´ ë‚¨ì•„ìˆë‹¤ë©´ ì •ë¦¬
+            StageManager.Instance.ClearAllBlockStates();
+
+            // ë”•ì…”ë„ˆë¦¬ì— ë“±ë¡
+            if (stage != null)
+                StageManager.Instance.RegisterStageBlocks(stage.BlockIDs);
+        }
+
         stageStarterUI.SetActive(!isOpen);
-        Debug.Log(isOpen ? "UI ´İÈû" : "UI ¿­¸²");
+        Debug.Log(isOpen ? "UI ë‹«í˜" : "UI ì—´ë¦¼");
+    }
+
+    // ëª¨ë“  Stage ë²„íŠ¼ì˜ Colliderë¥¼ ì¼ê´„ë¡œ ì¼œê±°ë‚˜ ë„ëŠ” static ë©”ì„œë“œ ì¶”ê°€
+    public static void SetAllStageButtonColliders(bool enabled)
+    {
+        foreach (var btn in FindObjectsOfType<WorldMapStageSelection>())
+        {
+            var col = btn.GetComponent<Collider2D>();
+            if (col != null) col.enabled = enabled;
+        }
+    }
+
+    void Update()
+    {
+        if (isAnyUIOpen && Input.GetKeyDown(KeyCode.Escape))
+        {
+            ReturnToWorldMap();
+        }
+    }
+
+    public void ReturnToWorldMap()
+    {
+        // ì¹´ë©”ë¼ ì¤Œì•„ì›ƒ
+        if (stageCameraUI != null)
+            stageCameraUI.ResetCamera();
+
+        // ì„ íƒ í•´ì œ
+        StageManager.Instance.ClearSelectedStage();
+
+        // UI ë‹«ê¸°
+        stageStarterUI.SetActive(false);
+
+        // ì›”ë“œë§µ ë²„íŠ¼ Collider ë‹¤ì‹œ í™œì„±í™”
+        WorldMapStageSelection.SetAllStageButtonColliders(true);
+        isAnyUIOpen = false;
     }
 }

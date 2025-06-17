@@ -184,7 +184,6 @@ GameObject:
   m_Component:
   - component: {fileID: 7560509225047070096}
   - component: {fileID: 5037247682933201643}
-  - component: {fileID: 8865848922513373111}
   m_Layer: 0
   m_Name: StatusEffectSlot
   m_TagString: Untagged
@@ -192,26 +191,22 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!224 &7560509225047070096
-RectTransform:
+--- !u!4 &7560509225047070096
+Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1048704567597751665}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: -3.6, z: 0}
   m_LocalScale: {x: 2, y: 0.5, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 6250249881520206898}
   m_Father: {fileID: 6687409447441985608}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -3.6}
-  m_SizeDelta: {x: 100, y: 100}
-  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &5037247682933201643
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -225,32 +220,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   statusEffectIconPrefab: {fileID: 7092126939529423785, guid: 3cd90383bf078144e93e0313c33dd64e, type: 3}
---- !u!114 &8865848922513373111
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1048704567597751665}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 30649d3a9faa99c48a7b1166b86bf2a0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_Padding:
-    m_Left: 0
-    m_Right: 0
-    m_Top: 0
-    m_Bottom: 0
-  m_ChildAlignment: 0
-  m_Spacing: 0
-  m_ChildForceExpandWidth: 1
-  m_ChildForceExpandHeight: 1
-  m_ChildControlWidth: 1
-  m_ChildControlHeight: 1
-  m_ChildScaleWidth: 0
-  m_ChildScaleHeight: 0
-  m_ReverseArrangement: 0
 --- !u!1 &1855962151722591943
 GameObject:
   m_ObjectHideFlags: 0
@@ -264,6 +233,8 @@ GameObject:
   - component: {fileID: 3825755510215081776}
   - component: {fileID: 7519716597198004936}
   - component: {fileID: -6167106495371780598}
+  - component: {fileID: 8454516886041490247}
+  - component: {fileID: 2477537123385222566}
   m_Layer: 0
   m_Name: CreatedUnit
   m_TagString: Unit
@@ -284,10 +255,10 @@ Transform:
   m_LocalScale: {x: 0.6, y: 0.6, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 9031192409561051385}
-  - {fileID: 8942725197077945152}
   - {fileID: 6321165411996151354}
   - {fileID: 7560509225047070096}
+  - {fileID: 9031192409561051385}
+  - {fileID: 8942725197077945152}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1303492468868299621
@@ -309,6 +280,7 @@ MonoBehaviour:
   Def: 0
   Evasion: 0
   Accuracy: 0
+  CollapseChance: 0
   Speed: 0
   Skills:
   - 
@@ -322,9 +294,14 @@ MonoBehaviour:
   TurnChanse: 0
   Pattern: 0
   Rarity: 0
+  CharacterId: 
+  CharacterFolder: 
+  CharacterName: 
   spriteRenderer: {fileID: 6954389184149028876}
   HpUI: {fileID: 8837311371104763567}
   statusEffectArea: {fileID: 7560509225047070096}
+  effectType: 0
+  effectPrefab: {fileID: 0}
 --- !u!114 &3825755510215081776
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -411,6 +388,38 @@ Rigidbody2D:
   m_SleepingMode: 1
   m_CollisionDetection: 0
   m_Constraints: 0
+--- !u!114 &8454516886041490247
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1855962151722591943}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 01dc38fae643ae9498928f24edb2e321, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spriteRenderer: {fileID: 6954389184149028876}
+  characterStats: {fileID: 1303492468868299621}
+  battlePoint: {fileID: 0}
+--- !u!114 &2477537123385222566
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1855962151722591943}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 31e05c09ef8379e498093b8cafcf21d3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  cDamageEffectPrefab: {fileID: 7092126939529423785, guid: 3cd90383bf078144e93e0313c33dd64e, type: 3}
+  reactionEffectPrefab: {fileID: 4257483028304872767, guid: 15ada45c27d31344ea652bedf46c1920, type: 3}
+  buffEffectPrefab: {fileID: 6510473027615198677, guid: a44f1f832a7cce84082ca673649c9bbb, type: 3}
+  deBuffEffectPrefab: {fileID: 0}
+  statusEffectArea: {fileID: 7560509225047070096}
 --- !u!1 &2067346046474746358
 GameObject:
   m_ObjectHideFlags: 0
@@ -473,7 +482,7 @@ GameObject:
   - component: {fileID: 6954389184149028876}
   m_Layer: 0
   m_Name: Sprite
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -582,7 +591,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 10
   m_Sprite: {fileID: 21300000, guid: 132cc4f2dc929a145ae750d548c7feb0, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
@@ -619,7 +628,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4858605481425788888}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0

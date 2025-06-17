@@ -238,6 +238,24 @@ public class StageLoader : MonoBehaviour
             block.FrontCutID = (string)blockEl.Element("FrontCutID") ?? block.FrontCutID;
             block.BackCutID = (string)blockEl.Element("BackCutID") ?? block.BackCutID;
 
+            // Last 속성 파싱
+            var lastEl = blockEl.Element("Last");
+            if (lastEl != null)
+            {
+                if (bool.TryParse(lastEl.Value, out var isLast))
+                {
+                    block.Last = isLast;
+                    if (isLast)
+                    {
+                        Debug.Log($"[StageLoader] 블록 {block.ID}가 클리어 가능 블록으로 설정되었습니다.");
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning($"[StageLoader] 블록 {block.ID}의 Last 속성 파싱 실패: {lastEl.Value}");
+                }
+            }
+
             // Debug.Log(Encoding.UTF8.GetString(Encoding.UTF8.GetBytes(
             //     $"[StageLoader] 블록 기본 정보:\n" +
             //     $"  - BlockType: {block.BlockType}\n" +
@@ -334,7 +352,10 @@ public class StageLoader : MonoBehaviour
             BackCutID = original.BackCutID,
             Position = original.Position,
             EnemyIDs = new List<string>(original.EnemyIDs),
-            NextBlockIDs = new List<string>(original.NextBlockIDs)
+            NextBlockIDs = new List<string>(original.NextBlockIDs),
+            Last = original.Last,
+            Cleared = original.Cleared,
+            Locked = original.Locked
         };
     }
 

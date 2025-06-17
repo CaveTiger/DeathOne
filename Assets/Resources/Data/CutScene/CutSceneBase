@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Cutscene>
+	<CutFlow ID="070000"  Specimen="True">
+		<CutName>Base</CutName>
+		<Bgm></Bgm>
+		<li>
+			<CutImage>Resources/Cut/tuto1</CutImage>
+			<Dialogue>
+				<li>
+					<Character>None</Character>
+					<CharacterImage>None</CharacterImage> <!--이미지 주소 넣기-->
+					<Line>예시</Line>
+					<Sound>None</Sound> <!--사운드 주소 넣기-->
+				</li>
+			</Dialogue>
+		</li>
+	</CutFlow>
+	
+	<CutFlow ID="070001"  ParentID="070000">
+		<CutName>튜토리얼</CutName>
+		<li>
+			<CutImage>Resources/Cut/tuto1</CutImage>
+			<Dialogue>
+				<li>
+					<Character>None</Character>
+					<CharacterImage>None</CharacterImage>
+					<Line>마차의 덜컹거림과 하늘에 불길한 보랏빛이 도는 구름들</Line>
+				</li>
+				<li>
+					<Character>None</Character>
+					<CharacterImage>None</CharacterImage>
+					<Line>어째선지 따라오는듯한 느낌에 길을 서두르고 있었다.</Line>
+				</li>
+			</Dialogue>
+		</li>
+		<li>
+			<CutImage>Resources/Cut/tuto2</CutImage>
+			<Dialogue>
+				<li>
+					<Character>None</Character>
+					<CharacterImage>None</CharacterImage>
+					<Line>마차를 끄는 두 사내는 생각했지</Line>
+				</li>
+				<li>
+					<Character>호송병</Character>
+					<CharacterImage>None</CharacterImage>
+					<Line>역시 불길한 녀석이라 그런가 우리 셋으로 무슨 일 생기는거 아닌가 싶어져.</Line>
+				</li>
+				<li>
+					<Character>신병</Character>
+					<CharacterImage>None</CharacterImage>
+					<Line>저, 저도 그렇게 생각하긴 하다만 괜히 그런생각 하는게 아닌가 싶군요.</Line>
+				</li>
+			</Dialogue>
+		</li>
+		<li>
+			<CutImage>Resources/Cut/tuto3</CutImage>
+			<Dialogue>
+				<li>
+					<Character>None</Character>
+					<CharacterImage>None</CharacterImage>
+					<Line>이윽고 보랏빛이 점멸하더니 쾅 하며 번개가 내리쳤지</Line>
+				</li>
+				<li>
+					<Character>호송병</Character>
+					<CharacterImage>None</CharacterImage>
+					<Line>젠장!</Line>
+				</li>
+				<li>
+					<Character>신병</Character>
+					<CharacterImage>None</CharacterImage>
+					<Line>스텔리님 죄수를 으헉...</Line>
+				</li>
+			</Dialogue>
+		</li>
+		<li>
+			<CutImage>Resources/Cut/tuto4</CutImage>
+			<Dialogue>
+				<li>
+					<Character>스텔리</Character>
+					<CharacterImage>None</CharacterImage>
+					<Line>제길 오드... 잘 있?</Line>
+				</li>
+				<li>
+					<Character>???</Character>
+					<CharacterImage>None</CharacterImage>
+					<Line>저 아이는 네가 풀려난 거에 당황해보이는구나</Line>
+				</li>
+				<li>
+					<Character>오드</Character>
+					<CharacterImage>None</CharacterImage>
+					<Line>그래요. 별 수 없죠 신님의 뜻대로 행할 수 밖에.</Line>
+				</li>
+			</Dialogue>
+		</li>
+		<li>
+			<CutImage>Resources/Cut/tuto5</CutImage>
+			<Dialogue>
+				<li>
+					<Character>스텔리</Character>
+					<CharacterImage>None</CharacterImage>
+					<Line>풀려났잖아?</Line>
+				</li>
+				<li>
+					<Character>신병</Character>
+					<CharacterImage>None</CharacterImage>
+					<Line>스텔리님 밧줄이 완전이 타버렸습니다.</Line>
+				</li>
+				<li>
+					<Character>호송병</Character>
+					<CharacterImage>None</CharacterImage>
+					<Line>번개가 그렇게 정확히 밧줄만 태웠다고?!</Line>
+				</li>
+				<li>
+					<Character>스텔리</Character>
+					<CharacterImage>None</CharacterImage>
+					<Line>신, 죽음의 신이 오드를 구했어.</Line>
+				</li>
+				<li>
+					<Character>신병</Character>
+					<CharacterImage>None</CharacterImage>
+					<Line>역시 녀석은 죽음의 신의 신도 저희와 애초에 엮일 수 없었습니다!</Line>
+				</li>
+			</Dialogue>
+		</li>
+		<li>
+			<CutImage>Resources/Cut/tuto6</CutImage>
+			<Dialogue>
+				<li>
+					<Character>스텔리</Character>
+					<CharacterImage>None</CharacterImage>
+					<Line>젠장 오드! 이젠 어쩔 수 없어 죽음의 신의 힘을 받아들인 이상 즉결 처형 해야해, 더이상 난 널 구할 수 없어...</Line>
+				</li>
+				<li>
+					<Character>신병</Character>
+					<CharacterImage>None</CharacterImage>
+					<Line>죽음의 신도야 그러길래 생명의 신께 구원을 빌었어야지!!!</Line>
+				</li>
+				<li>
+					<Character>호송병</Character>
+					<CharacterImage>None</CharacterImage>
+					<Line>생명의 신이시여 저흴 돌보소서...</Line>
+				</li>
+				<li>
+					<Character>스텔리</Character>
+					<CharacterImage>None</CharacterImage>
+					<Line>미안, 소꿉친구의 정도 여기 까지겠네.</Line>
+				</li>
+				<li>
+					<Character>죽음의 신</Character>
+					<CharacterImage>None</CharacterImage>
+					<Line>널 지켜주겠다던 아이도 결국 그 신앙 하나에 널 죽이려 드는 구나.</Line>
+				</li>
+			</Dialogue>
+		</li>
+	</CutFlow>
+</Cutscene>

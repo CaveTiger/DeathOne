@@ -5,6 +5,7 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
 
+    public bool IsPaused => Time.timeScale == 0f;
 
     private void Awake()
     {
@@ -24,9 +25,23 @@ public class GameManager : MonoBehaviour
         StageLoader.Instance.Initialize();
         SkillLoader.Instance.Initialize();
     }
+
+    public void PauseGame()
+    {
+        Time.timeScale = 0f;
+        // 필요시: AudioListener.pause = true;
+        Debug.Log("게임 일시정지");
+    }
+
+    public void ResumeGame()
+    {
+        Time.timeScale = 1f;
+        // 필요시: AudioListener.pause = false;
+        Debug.Log("게임 재개");
+    }
+
     private void Start()
     {
-
         
     }
 }

@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using static UnityEngine.GraphicsBuffer;
+using System.Collections;
 
 public class SkillInstance : MonoBehaviour
 {
@@ -24,7 +25,6 @@ public class SkillInstance : MonoBehaviour
     public void SetSkillData(SkillData data)
     {
         skillData = data;
-        // UI 등 갱신 코드 추가 가능
     }
 
     public void SetCaster(CharacterStats newCaster)
@@ -89,12 +89,7 @@ public class SkillInstance : MonoBehaviour
             return;
         }
 
-        bool success = SkillManager.Instance.UseSkill(skillData, caster, target);
-
-        if (success)
-        {
-            TurnManager.Instance.EndTurn();
-        }
+        SkillManager.Instance.UseSkill(skillData, caster, target, skillData);
     }
 
     public void SetGroup(string newGroupName) //그룹을 지정하기

@@ -2,11 +2,13 @@ using System.Collections.Generic;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class StageBlockSelection : MonoBehaviour
 {
     private Renderer rend;
     private Color originalColor;
+    private bool isInteractable = true;
 
     public Color hoverColor = new Color(1f, 1f, 0.6f);
     public Color clickColor = Color.red;
@@ -15,13 +17,13 @@ public class StageBlockSelection : MonoBehaviour
 
     public string blockType;
 
-    [Header("ÀÌ ¿ÀºêÁ§Æ®¿¡ ´ëÀÀÇÏ´Â ºí·Ï ID")]
+    [Header("ì´ ì˜¤ë¸Œì íŠ¸ì— ëŒ€ì‘í•˜ëŠ” ë¸”ë¡ ID")]
     public string blockID;
 
-    [Header("ÀÌ ÀüÅõ ºí·ÏÀÇ Àû ¸ñ·Ï")]
+    [Header("ì´ ë¸”ë¡ì— ë°°ì¹˜ë  ì  ë¦¬ìŠ¤íŠ¸")]
     public List<string> enemyID = new List<string>();
 
-    [Header("ÀüÅõ ÄÆ½Å")]
+    [Header("ì»·ì‹  ì•/ë’¤ ID")]
     public string frontCutID;
     public string backCutID;
 
@@ -30,57 +32,76 @@ public class StageBlockSelection : MonoBehaviour
         rend = GetComponent<Renderer>();
         originalColor = rend.material.color;
 
-        //»ı¼ºµÇ°í ¾Ë¸Â´Â Á¤º¸¸¦ ³Ö±â
         if (string.IsNullOrEmpty(blockID)) return;
-        //ID¸¦ °¨ÁöÇØ ÇÏÀ§ µ¥ÀÌÅÍ¸¦ ºÒ·¯¿Â´Ù.
+
+        bool isLocked = StageManager.Instance.IsBlockLocked(blockID);
+        if (isLocked)
+        {
+            rend.material.color = Color.gray;
+            isInteractable = false;
+        }
+
         if (StageManager.Instance.stageBlockDict.TryGetValue(blockID, out var data))
         {
             blockType = data.BlockType;
             enemyID = new List<string>(data.EnemyIDs);
             frontCutID = data.FrontCutID;
             backCutID = data.BackCutID;
+        }
+    }
 
-            Debug.Log($"[{blockID}] ºí·Ï µ¥ÀÌÅÍ Àû¿ë ¿Ï·á");
+    private void OnMouseEnter()
+    {
+        if (!isInteractable) return;
+        rend.material.color = hoverColor;
+    }
+
+    private void OnMouseExit()
+    {
+        if (!isInteractable) return;
+        rend.material.color = originalColor;
+    }
+
+    private void OnMouseDown()
+    {
+        if (!isInteractable) return;
+        rend.material.color = clickColor;
+        Debug.Log($"ìŠ¤í…Œì´ì§€ë¸”ë¡ í´ë¦­: {blockID}");
+        GetInstance().GetBlock(blockID);
+    }
+
+    private void OnMouseUp()
+    {
+        if (!isInteractable) return;
+        rend.material.color = hoverColor;
+        Debug.Log($"ìŠ¤í…Œì´ì§€ë¸”ë¡ í´ë¦­ ì™„ìˆ˜: {blockID}");
+
+        if (blockID != null)
+        {
+            SpawnManager.Instance.enemyIDs = this.enemyID;
+            SpawnManager.Instance.currentBlockID = this.blockID; // í˜„ì¬ ì„ íƒëœ ë¸”ë¡ ID ì €ì¥
+            
+            // blockIDê°€ '060001'ì¼ ë•Œë§Œ ì»·ì‹  ì¶œë ¥, ê·¸ ì™¸ì—ëŠ” ë°”ë¡œ ì „íˆ¬ ì‹œì‘
+            // if (blockID == "060001" && CutsceneManager.Instance != null)
+            // {
+            //     CutsceneManager.Instance.PlayCutscene("íŠœí† ë¦¬ì–¼", () => {
+            //         // ì»·ì‹  ì¢…ë£Œ í›„ ì „íˆ¬ ì‹œì‘
+            //         SceneManager.LoadScene("TestBattle");
+            //     });
+            // }
+            // else
+            // {
+                SceneManager.LoadScene("TestBattle");
+            // }
         }
         else
         {
-            Debug.LogWarning($"[{blockID}] ¿¡ ÇØ´çÇÏ´Â ºí·Ï µ¥ÀÌÅÍ¸¦ Ã£À» ¼ö ¾ø½À´Ï´Ù.");
+            Debug.LogWarning("ìŠ¤í…Œì´ì§€ IDê°€ ì„¤ì •ë˜ì§€ ì•ŠìŒ");
         }
-    }
-    private void OnMouseEnter()
-    {
-        rend.material.color = hoverColor; //¸¶¿ì½º°¡ À§Ä¡¿¡ µé¾î°¨
-    }
-    private void OnMouseExit()
-    {
-        rend.material.color = originalColor; //¸¶¿ì½º°¡ À§Ä¡¸¦ ºüÁ®³ª¿È
-    }
-
-    void OnMouseDown()
-    {
-        rend.material.color = clickColor;
-        Debug.Log($"½ºÅ×ÀÌÁöºí·Ï Å¬¸¯µÊ: {blockID}");
-        GetInstance().GetBlock(blockID);
     }
 
     private static StageManager GetInstance()
     {
         return StageManager.Instance;
-    }
-
-    private void OnMouseUp()
-    {
-        rend.material.color = hoverColor; // Å¬¸¯ ÈÄ ´Ù½Ã hover »óÅÂ
-        Debug.Log($"½ºÅ×ÀÌÁöºí·Ï Å¬¸¯ ¿Ï¼ö: {blockID}");
-
-        if (blockID != null)
-        {
-            SpawnManager.Instance.enemyIDs = this.enemyID;
-            SceneManager.LoadScene("TestBattle");
-        }
-        else
-        {
-            Debug.LogWarning("½ºÅ×ÀÌÁö ID°¡ µé¾î¿ÀÁö ¾ÊÀ½");
-        }
     }
 }

@@ -116,19 +116,8 @@ public class StatusEffectInstance : MonoBehaviour
         if (remainingTurns <= 0)
         {
             // 효과 해제(복구)
-            if (effectApplied)
+            if (effectApplied && owner != null)
             {
-                switch (effectData.effectType)
-                {
-                    case StatusEffectType.Buff:
-                        owner.Def -= value;
-                        Debug.Log($"[StatusEffect] {owner.Label}: 방어력 버프 해제! 현재 방어력: {owner.Def}");
-                        break;
-                    case StatusEffectType.Debuff:
-                        owner.Def += value;
-                        Debug.Log($"[StatusEffect] {owner.Label}: 방어력 디버프 해제! 현재 방어력: {owner.Def}");
-                        break;
-                }
                 effectApplied = false;
             }
             isActive = false;
@@ -143,91 +132,27 @@ public class StatusEffectInstance : MonoBehaviour
     /// <param name="target">효과가 적용될 대상</param>
     public bool OnTurnStart()
     {
+        Debug.Log($"[StatusEffectInstance] OnTurnStart: {effectData.effectName}, {effectData.effectType}, {effectData.description}");
         if (!isActive || owner == null) return false;
         if (!owner.IsMyTurn) return false;
 
-        if (!effectApplied)
-        {
-            switch (effectData.effectType)
-            {
-                case StatusEffectType.Buff:
-                    owner.Def += value;
-                    Debug.Log($"[StatusEffect] {owner.Label}: 방어력 {value} 증가! 현재 방어력: {owner.Def}");
-                    break;
-                case StatusEffectType.Debuff:
-                    owner.Def -= value;
-                    Debug.Log($"[StatusEffect] {owner.Label}: 방어력 {value} 감소! 현재 방어력: {owner.Def}");
-                    break;
-                case StatusEffectType.ContinuousDamage:
-                    // 지속피해는 매 턴마다 적용
-                    break;
-            }
-            effectApplied = true;
-        }
+        // 지속피해 효과만 적용
+        owner.Hp -= value;
+        Debug.Log($"[StatusEffect] {owner.Label}: {effectData.effectName} 지속 피해 {value}, 남은 HP: {owner.Hp}");
+        owner.HpUI.UpdateHpBar(owner.Hp, owner.MaxHp);
 
-        if (effectData.effectType == StatusEffectType.ContinuousDamage)
+        owner.Deathcheck();
+        owner.DeathAction();
+        if (owner.IsDead)
         {
-            owner.Hp -= value;
-            Debug.Log($"[StatusEffect] {owner.Label}: {effectData.effectName} 지속 피해 {value}, 남은 HP: {owner.Hp}");
-            owner.HpUI.UpdateHpBar(owner.Hp, owner.MaxHp);
+            // 사망 시 턴 종료를 명확히 호출
+            TurnManager.Instance.EndTurn();
+            return true; // 더 이상 처리하지 않음
         }
 
         effectData.OnSpecialEffect(owner, this);
 
         return true;
-    }
-
-    private void OnMouseEnter()
-    {
-        Debug.Log("마우스 들어감");
-        if (statusEffectPopupInstance != null && effectData != null)
-        {
-            statusEffectPopupInstance.SetActive(true); //팝업창을 활성
-            var popupHandler = statusEffectPopupInstance.GetComponent<StatusPopupHandler>(); //컴포넌트 받아내기
-            if (popupHandler != null) //팝업핸들러가 비지 않았을때
-            {
-                popupHandler.ShowStatusPopup(
-                    effectData.icon,
-                    effectData.description,
-                    value,
-                    remainingTurns
-                ); //내부 데이터 채워넣기 위한 매개변수
-            }
-            // 팝업 위치를 상태이상 아이콘 근처로 이동
-            statusEffectPopupInstance.transform.position = this.transform.position + new Vector3(1, 1, 0);
-        }
-    }
-
-    private void OnMouseExit()
-    {
-        if (statusEffectPopupInstance != null) //이 역시조건은 안전장치
-        {
-            statusEffectPopupInstance.SetActive(false); //비활성화
-        }
-    }
-
-    /// <summary>
-    /// 피격 시 호출되는 상태이상 효과 처리 메서드
-    /// </summary>
-    /// <param name="damage">참조로 전달되는 피해량</param>
-    /// <returns>피해를 무시하면 true, 아니면 false</returns>
-    public virtual bool OnTakeDamage(ref int damage)
-    {
-        // 피해무시 효과(EffectID == "021002" && triggerCount > 0)일 때만 동작
-        if (effectData != null && effectData.EffectID == "021002" && triggerCount > 0)
-        {
-            triggerCount--;
-            Debug.Log($"[피해무시] {owner.Label}가 피해를 무시했습니다! 남은 횟수: {triggerCount}");
-            damage = 0;
-            if (triggerCount <= 0)
-            {
-                remainingTurns = 0;
-                OnTurnEnd();
-            }
-            return true;
-        }
-        // 기본은 아무 효과 없음
-        return false;
     }
 
     private void ShowPopup()

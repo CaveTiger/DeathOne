@@ -63,9 +63,11 @@ public class StageSetting : MonoBehaviour
     public InStageData inStageData = new(); // 여기서 관리
 
     private StageBlockData stageData;
+    private List<GameObject> spawnedBlocks = new List<GameObject>();
 
-    private void Awake() //이 녀석은 실제로 이 씬에서 자릴 지키면서 스테이지만 불러와줘야한다.
+    private void Awake()
     {
+        Debug.Log("[StageSetting] Awake 호출됨");
         if (Instance == null)
         {
             Instance = this;
@@ -77,31 +79,45 @@ public class StageSetting : MonoBehaviour
 
     private void Start()
     {
+        Debug.Log("[StageSetting] Start 호출됨");
         SpawnStageBlocks(settingID);
     }
 
 
     public void SettingStart()
     {
-        Debug.Log($"[StageSetting] StageManager에 등록된 키 수: {StageManager.Instance.stageDict.Count}");
-        settingID = StageManager.Instance.SelectedStageID; //받아낸 ID를 실제로 쓸 변수쪽에 넣어주기
+        Debug.Log($"[StageSetting] SettingStart 호출, StageManager.SelectedStageID: {StageManager.Instance.SelectedStageID}");
+        settingID = StageManager.Instance.SelectedStageID;
     }
 
     public void SpawnStageBlocks(string settingID)
     {
+        Debug.Log($"[StageSetting] SpawnStageBlocks 호출, settingID: {settingID}");
+
+        // 기존 블록들 비활성화
+        foreach (var block in spawnedBlocks)
+        {
+            if (block != null)
+            {
+                Destroy(block);
+            }
+        }
+        spawnedBlocks.Clear();
 
         if (!StageManager.Instance.stageDict.TryGetValue(settingID, out var stage))
         {
             Debug.LogError($"[StageObjectSpawner] 스테이지 ID '{settingID}'를 찾을 수 없습니다.");
             return;
         }
-        Debug.Log($"[확인용] 블록 ID 수: {stage.BlockIDs.Count}");
+        Debug.Log($"[StageSetting] BlockIDs: {string.Join(",", stage.BlockIDs)}");
+
+        // 1. 모든 블록 오브젝트 생성
         foreach (string blockID in stage.BlockIDs)
         {
-            Debug.Log($"[확인용] 블록 ID: {blockID}");
-        }
-        foreach (string blockID in stage.BlockIDs)
-        {
+            bool isCleared = StageManager.Instance.IsBlockCleared(blockID);
+            bool isLocked = StageManager.Instance.IsBlockLocked(blockID);
+            Debug.Log($"[StageSetting] 블록ID: {blockID}, Cleared: {isCleared}, Locked: {isLocked}");
+
             if (!StageManager.Instance.stageBlockDict.TryGetValue(blockID, out var blockData))
             {
                 Debug.LogWarning($"[StageObjectSpawner] 블록 ID '{blockID}'를 찾을 수 없습니다.");
@@ -115,8 +131,29 @@ public class StageSetting : MonoBehaviour
             GameObject obj = Instantiate(stageBlock, spawnPos, Quaternion.identity);
             obj.name = $"Block_{blockData.ID}"; //프리팹 이름 바꾸기
             obj.GetComponent<StageBlockSelection>().blockID = blockData.ID; //그 프리팹에 블록 id 넣어주기
-            
+            spawnedBlocks.Add(obj);
         }
+    }
+
+    // 전투 종료 후 체력 업데이트
+    public void UpdatePartyHP(Dictionary<string, (int hp, int maxHp)> partyHPData)
+    {
+        foreach (var data in partyHPData)
+        {
+            inStageData.AddOrUpdate(data.Key, data.Value.hp, data.Value.maxHp);
+        }
+        Debug.Log("[StageSetting] 파티 체력 데이터 업데이트 완료");
+    }
+
+    // 스테이지 시작 시 체력 데이터 초기화
+    public void InitializePartyHP(Dictionary<string, (int hp, int maxHp)> initialHPData)
+    {
+        inStageData.hpDataList.Clear();
+        foreach (var data in initialHPData)
+        {
+            inStageData.AddOrUpdate(data.Key, data.Value.hp, data.Value.maxHp);
+        }
+        Debug.Log("[StageSetting] 파티 체력 데이터 초기화 완료");
     }
 }
 

@@ -20,7 +20,7 @@
 		<Passives>
 		</Passives>
 		<Rarity>Normal</Rarity>
-		<Sprite>UnitSprite/MobA/MobA_Stand</Sprite> <!--스프라이트 주소를 찾아 적어넣기-->
+		<Sprite>UnitSprite/MobA</Sprite> <!--스프라이트 주소를 찾아 적어넣기-->
 		<Pattern>Normal</Pattern> <!--행동 패턴 스크립트-->
 	</Character>
 	
@@ -44,7 +44,7 @@
 		<Passives>
 		</Passives>
 		<Rarity>Normal</Rarity>
-		<Sprite>UnitSprite/MobA/MobA_Stand</Sprite> <!--스프라이트 주소를 찾아 적어넣기-->
+		<Sprite>UnitSprite/MobB</Sprite> <!--스프라이트 주소를 찾아 적어넣기-->
 		<Pattern>Normal</Pattern> <!--행동 패턴 스크립트-->
 	</Character>
 </Characters>

@@ -83,6 +83,7 @@ public class SkillLoader : MonoBehaviour
                 StaminaCost = (int?)x.Element("StaminaCost") ?? 0,
                 HealthCost = (int?)x.Element("HealthCost") ?? 0,
                 healAmount = (int?)x.Element("healAmount") ?? 0,
+                KnockdownMultiplier = (float?)x.Element("KnockdownMultiplier") ?? 1.0f,
                 skillEffects = x.Element("SkillEffect")?
                     .Elements("li")
                     .Select(li => {
@@ -149,6 +150,7 @@ public class SkillLoader : MonoBehaviour
                     StaminaCost = (int?)x.Element("StaminaCost") ?? 0,
                     HealthCost = (int?)x.Element("HealthCost") ?? 0,
                     healAmount = (int?)x.Element("healAmount") ?? 0,
+                    KnockdownMultiplier = (float?)x.Element("KnockdownMultiplier") ?? 1.0f,
                     skillEffects = x.Element("SkillEffect")?
                         .Elements("li")
                         .Select(li => {
@@ -262,6 +264,7 @@ public class SkillLoader : MonoBehaviour
         if (overrideData.StaminaCost != 0) baseData.StaminaCost = overrideData.StaminaCost;
         if (overrideData.HealthCost != 0) baseData.HealthCost = overrideData.HealthCost;
         if (overrideData.healAmount != 0) baseData.healAmount = overrideData.healAmount;
+        if (overrideData.KnockdownMultiplier != 1.0f) baseData.KnockdownMultiplier = overrideData.KnockdownMultiplier;
         if (overrideData.currentCooldown != 0) baseData.currentCooldown = overrideData.currentCooldown;
         baseData.Type = overrideData.Type;
         if (overrideData.skillEffects != null && overrideData.skillEffects.Count > 0)

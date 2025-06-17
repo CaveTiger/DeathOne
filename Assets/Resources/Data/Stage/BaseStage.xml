@@ -12,4 +12,19 @@
 			<li>060001</li>
 		</StageBlock>
 	</Stage>
+	<Stage ID="050002" ParentID="050000">
+		<Label>Boss1</Label>
+		<StageBlock>
+			<li>060002</li>
+		</StageBlock>
+	</Stage>
+	<Stage ID="050100" ParentID="050000">
+		<Label>테스트 스테이지</Label>
+		<StageBlock>
+			<li>060100</li>
+			<li>060101</li>
+			<li>060102</li>
+			<li>060103</li>
+		</StageBlock>
+	</Stage>
 </Stages>

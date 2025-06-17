@@ -15,7 +15,7 @@ public class EnemyAIController : MonoBehaviour
             yield break; // 이미 파괴된 대상이면 행동 중단
         }
 
-        yield return new WaitForSeconds(0.5f); // 턴 시작 전 텀
+        yield return new WaitForSeconds(1.5f); // 턴 시작 전 텀
 
         var ai = enemy.GetComponent<EnemyAIController>();
         if (ai == null)
@@ -74,21 +74,24 @@ public class EnemyAIController : MonoBehaviour
     }
     public void UseSkill(string skillID, CharacterStats caster, CharacterStats target)
     {
-        //Debug.Log($"[AI] {caster.name}가 선택한 스킬: {skillID}, 타겟: {target?.name}");
-
-        if (string.IsNullOrEmpty(skillID))
+        if (caster == null || !caster.IsMyTurn)
         {
-            Debug.LogWarning("[AI] 스킬 ID가 비어있습니다.");
+            Debug.LogWarning("[UseSkill] 지금은 내 턴이 아닙니다. 스킬 발동 중지.");
             return;
         }
-
         if (!SkillData.skillDict.TryGetValue(skillID, out var skill))
         {
             Debug.LogWarning($"[AI] 존재하지 않는 스킬 ID: {skillID}");
             return;
         }
 
-        SkillManager.Instance.UseSkill(skill, caster, target);
+        if (target == null)
+        {
+            Debug.LogWarning("[UseSkill] 타겟이 없습니다. 스킬 발동 중지.");
+            return;
+        }
+
+        SkillManager.Instance.UseSkill(skill, caster, target, skill);
     }
 
     public void SkipTurn()

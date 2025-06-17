@@ -13,6 +13,7 @@ public class TargetSelector : MonoBehaviour
     public GameObject SelectedTarget;
     [SerializeField] private RectTransform targetMarker;
     public RectTransform targetMarkerImage;
+    [SerializeField] private CharacterInfoEnemy enemyInfoUI; // 인스펙터에서 할당
     //현재 타겟과 게임오브젝트로서 타겟을 이중으로 선택상태로 둔다.
     //이중 게임 오브젝트가 감지되지 않는담 그걸 죽은 걸로 본다.
 
@@ -69,10 +70,15 @@ public class TargetSelector : MonoBehaviour
         {
             targetMarker.gameObject.SetActive(false);
             CurrentTarget = null;
+            if (enemyInfoUI != null) enemyInfoUI.HideInfo();
             return;
         }
 
         CurrentTarget = newTarget;
+
+        // UI 정보 갱신
+        if (enemyInfoUI != null)
+            enemyInfoUI.SetCharacterStats(CurrentTarget);
 
         Vector3 screenPos = Camera.main.WorldToScreenPoint(CurrentTarget.transform.position);
         screenPos.y += 200f;

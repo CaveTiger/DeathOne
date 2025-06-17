@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System.Collections;
 
 public class SkillManager : MonoBehaviour
 {
@@ -8,9 +9,11 @@ public class SkillManager : MonoBehaviour
     void Awake() { Instance = this; }
 
     [SerializeField] GameObject CharacterUnit;
-    public bool UseSkill(SkillData skill, CharacterStats caster, CharacterStats target)
+    public CharacterInfoPlayer playerInfoUI; // 인스펙터에서 PlayerInfo 오브젝트 할당
+
+    public void UseSkill(SkillData skill, CharacterStats caster, CharacterStats target, SkillData motionData)
     {
-        if (!skill.IsUsable()) return false;
+        if (!skill.IsUsable()) return;
         skill.currentCooldown = skill.cooldown;
 
         // 공격 스킬: 아군 타겟 불가
@@ -18,7 +21,7 @@ public class SkillManager : MonoBehaviour
             && target != null && target.IsPlayer == caster.IsPlayer)
         {
             Debug.LogWarning("[SkillManager] 공격 스킬은 아군을 타겟팅할 수 없습니다.");
-            return false;
+            return;
         }
 
         // 버프/힐 스킬: 적 타겟 불가 (단, 'Me'는 본인만)
@@ -27,54 +30,121 @@ public class SkillManager : MonoBehaviour
             && target != null && target.IsPlayer != caster.IsPlayer)
         {
             Debug.LogWarning("[SkillManager] 버프/힐 스킬은 적을 타겟팅할 수 없습니다.");
-            return false;
+            return;
         }
 
-        // 실제 스킬 효과 실행
+        // 연출 시작
+        StartCoroutine(PlaySkillEffect(skill, caster, target, motionData));
+    }
+
+    private IEnumerator PlaySkillEffect(SkillData skill, CharacterStats caster, CharacterStats target, SkillData motionData)
+    {
+        // 1. 초기 대기
+        yield return new WaitForSeconds(0.7f);
+        BattleUIManager.Instance.ChangeUIBattle();
+        // 2. 카메라 줌인
+        yield return StartCoroutine(BattleCamera.Instance.CameraZoom(2.4f, 0.4f));
+
+        var casterMotion = caster.GetComponent<CharacterMotionController>();
+        if (casterMotion == null)
+            casterMotion = caster.GetComponentInChildren<CharacterMotionController>();
+
+        var targetMotion = target.GetComponent<CharacterMotionController>();
+        if (targetMotion == null)
+            targetMotion = target.GetComponentInChildren<CharacterMotionController>();
+
+        // 3. 피해/효과 처리
         switch (skill.Type)
         {
+            case SkillType.Damage:
+            case SkillType.Piercing:
+                int damage = CalculateDamage(skill, caster, target);
+                target.TakeDamage(damage, caster.Accuracy, skill);
+                ApplyStatusEffects(skill, target);
+                break;
             case SkillType.Buff:
                 ApplyBuffEffects(skill, caster, target);
+                ApplyStatusEffects(skill, target);
                 break;
             case SkillType.Heal:
                 target.Heal(skill.healAmount);
-                break;
-            case SkillType.Piercing:
-                ApplyPiercingDamage(skill, caster, target);
-                break;
-            case SkillType.linkage:
-                //ApplyLinkageDamage(skill, caster, target);
-                break;
-            case SkillType.Damage:
-                int damage = CalculateDamage(skill, caster, target);
-                target.TakeDamage(damage, caster.Accuracy, skill);
                 ApplyStatusEffects(skill, target);
                 break;
             case SkillType.Debuff:
                 ApplyStatusEffects(skill, target);
                 break;
+            case SkillType.linkage:
+                // 연계 스킬 특수 처리
+                break;
             default:
                 Debug.LogWarning("알 수 없는 스킬 타입입니다.");
                 break;
         }
-        return true;
+
+        
+
+        // 4. 캐릭터 이동
+        if (casterMotion != null)
+            casterMotion.MoveToBattlePosition();
+        if (targetMotion != null)
+            targetMotion.MoveToBattlePosition();
+
+            yield return new WaitForSeconds(0.5f);
+
+        if (casterMotion != null)
+            casterMotion.PlaySkillMotion(motionData.Motion);
+        if (targetMotion != null)
+            targetMotion.PlayHitMotion();
+
+        yield return new WaitForSeconds(0.7f);
+
+        // 5. 모션 리셋
+        if (casterMotion != null)
+            casterMotion.ResetMotion();
+        if (targetMotion != null)
+            targetMotion.ResetMotion();
+        if (casterMotion != null)
+            casterMotion.ResetPosition();
+        if (targetMotion != null)
+            targetMotion.ResetPosition();
+
+        // 6. 카메라 줌아웃
+        yield return StartCoroutine(BattleCamera.Instance.CameraZoom(5f, 0.3f));
+
+        BattleUIManager.Instance.ChangeUINormal();
+
+        if (caster.IsPlayer)
+            TurnManager.Instance.EndTurn();
     }
 
     private void ApplyStatusEffects(SkillData skill, CharacterStats target)
     {
-        Debug.Log($"[SkillManager] ApplyStatusEffects: target={target?.Label}");
+        Debug.Log($"[SkillManager] ApplyStatusEffects: target={target?.Label}, skill={skill?.Name}");
         if (skill?.skillEffects == null || target == null)
+        {
+            Debug.LogWarning("[SkillManager] 스킬 효과 또는 타겟이 null입니다.");
             return;
+        }
 
         foreach (var effect in skill.skillEffects)
         {
-            Debug.Log($"[SkillManager] 적용 시도 EffectID: {effect.EffectID}");
+            Debug.Log($"[SkillManager] 적용 시도 EffectID: {effect.EffectID}, Value: {effect.Value}, Duration: {effect.Duration}");
             if (effect == null || string.IsNullOrEmpty(effect.EffectID))
+            {
+                Debug.LogWarning("[SkillManager] 유효하지 않은 효과 데이터");
                 continue;
+            }
 
             var effectData = StatusEffectManager.Instance.GetById(effect.EffectID);
             if (effectData != null)
+            {
+                Debug.Log($"[SkillManager] 상태이상 데이터 로드 성공: {effectData.effectName}");
                 target.AddStatusEffectPrefab(effectData, effect.Duration, effect.Value);
+            }
+            else
+            {
+                Debug.LogWarning($"[SkillManager] 상태이상 데이터를 찾을 수 없음: {effect.EffectID}");
+            }
         }
     }
 

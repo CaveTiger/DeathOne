@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Stages>
-	<Block ID="060000">
+	<Block ID="060000"  Specimen="True">
 		<FrontCut>false</FrontCut><!--스테이지 진입시 컷이 나올지-->
 		<FrontCutID>None</FrontCutID><!--불러올 컷이 있을때 ID-->
 		<BackCut>false</BackCut><!--스테이지를 나갈때 컷이 나올지-->
@@ -21,10 +21,80 @@
 		<FrontCutID>070001</FrontCutID>
 		<BackCut>true</BackCut>
 		<BackCutID>070002</BackCutID>
+		<Last>true</Last>
 		<SetEnemy>
 			<li>000004</li>
 			<li>000003</li>
 			<li>000002</li>
 		</SetEnemy>
+	</Block>
+
+	<Block ID="060002" ParentId="060000">
+		<BlockLabel>AdeliaBoss</BlockLabel>
+		<BlockType>Battle</BlockType>
+		<FrontCut>false</FrontCut>
+		<BackCut>false</BackCut>
+		<Last>true</Last>
+		<SetEnemy>
+			<li>000005</li>
+		</SetEnemy>
+	</Block>
+
+	<!-- 테스트용 스테이지 블록 -->
+	<Block ID="060100" ParentId="060000">
+		<BlockLabel>테스트 스테이지 1</BlockLabel>
+		<BlockType>Battle</BlockType>
+		<FrontCut>false</FrontCut>
+		<BackCut>false</BackCut>
+		<SetEnemy>
+			<li>000004</li>
+		</SetEnemy>
+		<NextBlock>
+			<li>060101</li>
+			<li>060102</li>
+		</NextBlock>
+		<Position x="0" y="0"/>
+	</Block>
+
+	<Block ID="060101" ParentId="060000">
+		<BlockLabel>테스트 전투 1</BlockLabel>
+		<BlockType>Battle</BlockType>
+		<FrontCut>false</FrontCut>
+		<BackCut>false</BackCut>
+		<SetEnemy>
+			<li>000002</li>
+			<li>000003</li>
+		</SetEnemy>
+		<NextBlock>
+			<li>060103</li>
+		</NextBlock>
+		<Position x="1" y="0"/>
+	</Block>
+
+	<Block ID="060102" ParentId="060000">
+		<BlockLabel>테스트 전투 2</BlockLabel>
+		<BlockType>Battle</BlockType>
+		<FrontCut>false</FrontCut>
+		<BackCut>false</BackCut>
+		<SetEnemy>
+			<li>000003</li>
+			<li>000004</li>
+		</SetEnemy>
+		<NextBlock>
+			<li>060103</li>
+		</NextBlock>
+		<Position x="1" y="1"/>
+	</Block>
+
+	<Block ID="060103" ParentId="060000">
+		<BlockLabel>테스트 보스</BlockLabel>
+		<BlockType>Battle</BlockType>
+		<FrontCut>false</FrontCut>
+		<BackCut>false</BackCut>
+		<Last>true</Last>
+		<SetEnemy>
+			<li>000005</li>
+		</SetEnemy>
+		<Position x="2" y="0"/>
 	</Block>
 </Stages>

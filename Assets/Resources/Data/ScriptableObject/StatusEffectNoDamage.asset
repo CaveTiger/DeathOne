@@ -17,8 +17,9 @@ MonoBehaviour:
   effectName: "\uD53C\uD574\uBB34\uC2DC"
   description: "\uD55C \uBC88\uC758 \uD53C\uD574\uB97C \uC644\uC804\uD788 \uBB34\uC2DC\uD569\uB2C8\uB2E4."
   icon: {fileID: 21300000, guid: ff0264f9b8561614da58d492140b89ee, type: 3}
-  effectPrefab: {fileID: 7092126939529423785, guid: 3cd90383bf078144e93e0313c33dd64e, type: 3}
+  effectPrefab: {fileID: 4257483028304872767, guid: 15ada45c27d31344ea652bedf46c1920, type: 3}
   duration: 0
   value: 0
   iconPath: StatusEffect/IgnoreDamage
   maxTriggerCount: 1
+  statType: 0

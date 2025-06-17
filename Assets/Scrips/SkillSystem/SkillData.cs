@@ -38,6 +38,7 @@ public class SkillData
     public int healAmount { get; set; }
     public SkillType Type { get; set; }
     public List<SkillEffectInfo> skillEffects = new List<SkillEffectInfo>();
+    public float KnockdownMultiplier { get; set; } = 1.0f;
     public SkillData Clone()
     {
         return new SkillData
@@ -61,6 +62,7 @@ public class SkillData
             ManaCost = this.ManaCost,
             StaminaCost = this.StaminaCost,
             HealthCost = this.HealthCost,
+            KnockdownMultiplier = this.KnockdownMultiplier,
         };
     }
     public bool IsUsable()

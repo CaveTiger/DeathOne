@@ -5,7 +5,18 @@ public enum StatusEffectType
     None,
     Buff,
     Debuff,
-    ContinuousDamage
+    ContinuousDamage,
+    Stun,
+    Token
+}
+
+public enum StatType
+{
+    Def,
+    Atk,
+    Speed,
+    Evasion,
+    Accuracy
 }
 
 [CreateAssetMenu(fileName = "StatusEffect", menuName = "Scriptable Objects/StatusEffect")]
@@ -21,12 +32,20 @@ public class StatusEffectData : ScriptableObject
     public int value;                    // 피해량 
     public string iconPath = "StatusEffect/Bleed";
     public int maxTriggerCount = 0; // 사용 횟수 제한(0이면 횟수제한 없음)
+    public StatType statType;
 
     // 특수 효과가 필요할 때 오버라이드
     public virtual void OnSpecialEffect(CharacterStats target, StatusEffectInstance instance)
     {
         // 기본은 아무것도 안 함
     }
+
+    // StatusEffect에서 이전된 메서드
+    public virtual void Apply(CharacterStats target, int value, int duration)
+    {
+        // 기본 구현은 비어있음
+    }
+
     public Sprite GetIcon()
     {
         return Resources.Load<Sprite>(iconPath);

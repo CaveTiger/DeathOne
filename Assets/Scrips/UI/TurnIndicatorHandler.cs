@@ -7,6 +7,7 @@ public class TurnIndicatorHandler : MonoBehaviour
     public Vector3 offset = new Vector3(0, 1f, 0); // 떠있는 위치
     public RectTransform canvasRectTransform;
     public Camera targetCamera;  // 명시적으로 카메라 지정
+    [SerializeField] private CharacterInfoPlayer playerInfoUI;
 
     public static TurnIndicatorHandler Instance { get; private set; }
 
@@ -37,6 +38,9 @@ public class TurnIndicatorHandler : MonoBehaviour
         {
             UpdateIndicatorPosition();
         }
+
+        if (target.gameObject.GetComponent<CharacterStats>() != null && target.gameObject.GetComponent<CharacterStats>().IsPlayer && playerInfoUI != null)
+            playerInfoUI.SetCharacterStats(target.gameObject.GetComponent<CharacterStats>());
     }
 
     private void UpdateIndicatorPosition()
@@ -49,5 +53,11 @@ public class TurnIndicatorHandler : MonoBehaviour
 
         selectorUI.GetComponent<RectTransform>().position = screenPos;
         //Debug.Log($"[TurnIndicatorHandler] UI 위치 업데이트: {screenPos} (대상: {currentTarget.name})");
+    }
+
+    void LateUpdate()
+    {
+        if (selectorUI.activeSelf)
+            UpdateIndicatorPosition();
     }
 }

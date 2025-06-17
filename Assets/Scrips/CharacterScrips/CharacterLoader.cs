@@ -62,6 +62,8 @@ public class CharacterLoader : MonoBehaviour
 
                 Hp = (int?)x.Element("Stats")?.Element("Hp") ?? 0,
                 MaxHp = (int?)x.Element("Stats")?.Element("Hp") ?? 0,
+                KDP = (int?)x.Element("Stats")?.Element("KDP") ?? 0,
+                MaxKDP = (int?)x.Element("Stats")?.Element("MaxKDP") ?? 0,
                 Atk = (int?)x.Element("Stats")?.Element("Atk") ?? 0,
                 Def = (int?)x.Element("Stats")?.Element("Def") ?? 0,
                 EvasionRate = (float?)x.Element("Stats")?.Element("Evasionrate") ?? 0f,
@@ -83,6 +85,8 @@ public class CharacterLoader : MonoBehaviour
                 Rarity = Enum.TryParse((string)x.Element("Rarity"), true, out RarityList rarity) ? rarity : RarityList.Normal,
                 Sprite = (string)x.Element("Sprite") ?? "",
                 Pattern = Enum.TryParse((string)x.Element("PatternType"), true, out PatternType pattern) ? pattern : PatternType.Default,
+                Scale = (float?)x.Element("Scale") ?? 1.0f
+
             }).ToList();
             rawList.AddRange(parsed);
             
@@ -137,6 +141,8 @@ public class CharacterLoader : MonoBehaviour
 
         if (overrideData.Hp != 0) baseData.Hp = overrideData.Hp;
         if (overrideData.MaxHp != 0) baseData.MaxHp = overrideData.MaxHp;
+        if (overrideData.KDP != 0) baseData.KDP = overrideData.KDP;
+        if (overrideData.MaxKDP != 0) baseData.MaxKDP = overrideData.MaxKDP;
         if (overrideData.Atk != 0) baseData.Atk = overrideData.Atk;
         if (overrideData.Def != 0) baseData.Def = overrideData.Def;
         if (overrideData.EvasionRate != 0f) baseData.EvasionRate = overrideData.EvasionRate;
@@ -148,6 +154,8 @@ public class CharacterLoader : MonoBehaviour
 
         if (overrideData.Rarity != RarityList.Normal) baseData.Rarity = overrideData.Rarity;
         if (overrideData.Pattern != PatternType.Default) baseData.Pattern = overrideData.Pattern;
+
+        if (overrideData.Scale != 1.0f) baseData.Scale = overrideData.Scale;
 
         baseData.Rarity = overrideData.Rarity;
     }
