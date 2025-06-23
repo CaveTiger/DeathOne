@@ -25,6 +25,42 @@ public class SkillInstance : MonoBehaviour
     public void SetSkillData(SkillData data)
     {
         skillData = data;
+        if (skillData != null)
+        {
+            groupName = skillData.Group;
+            cooldownTime = skillData.Cooldown;
+            isActive = true;
+            currentCooldown = 0f;
+
+            UpdateSkillUI();
+            
+            Debug.Log($"[SkillInstance] 스킬 데이터 설정 완료: {skillData.Name}");
+        }
+    }
+
+    private void UpdateSkillUI()
+    {
+        if (skillData == null) return;
+
+        // 이름 업데이트
+        if (skillNameText != null)
+        {
+            skillNameText.text = skillData.Name;
+        }
+
+        // 아이콘 업데이트
+        if (skillIconImage != null && !string.IsNullOrEmpty(skillData.Icon))
+        {
+            Sprite iconSprite = Resources.Load<Sprite>(skillData.Icon);
+            if (iconSprite != null)
+            {
+                skillIconImage.sprite = iconSprite;
+            }
+            else
+            {
+                Debug.LogWarning($"[SkillInstance] 스킬 아이콘을 찾을 수 없습니다: {skillData.Icon}");
+            }
+        }
     }
 
     public void SetCaster(CharacterStats newCaster)
@@ -34,37 +70,29 @@ public class SkillInstance : MonoBehaviour
 
     private void Awake()
     {
-        if (SkillData.skillDict.TryGetValue(skillID, out skillData))
+        // skillID가 Inspector에서 설정된 경우에만 로드
+        if (!string.IsNullOrEmpty(skillID) && SkillData.skillDict.TryGetValue(skillID, out skillData))
         {
             groupName = skillData.Group;
             cooldownTime = skillData.Cooldown;
             isActive = true;
             currentCooldown = 0f;
+            UpdateSkillUI();
 
             Debug.Log($"SkillSlot: {skillID} 스킬 데이터 불러오기 성공");
         }
         else
         {
-            Debug.LogError($"SkillSlot: {skillID}에 해당하는 스킬 데이터를 찾지 못했습니다.");
+            // skillID가 비어있으면 SetSkillData로 나중에 설정될 예정
+            Debug.Log("[SkillInstance] skillID가 비어있거나 스킬 데이터를 찾지 못했습니다. SetSkillData로 설정될 예정입니다.");
         }
     }
-    private void Start()
-    {
-        GameObject player = GameObject.Find("Unit_000001");
-        if (player != null)
-        {
-            caster = player.GetComponent<CharacterStats>();
-            //Debug.Log($"[SkillInstance] 임시 캐스터 연결 성공: {caster?.Label}");
-        }
-        else
-        {
-            Debug.LogWarning("[SkillInstance] 임시 캐스터를 찾지 못했습니다.");
-        }
-    }
+
     public void UpdateTarget()
     {
         target = TargetSelector.Instance.GetCurrentTarget();
     }
+
     public void UseSkill()
     {
         if (caster == null || !caster.IsMyTurn)

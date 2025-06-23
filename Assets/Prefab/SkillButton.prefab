@@ -123,9 +123,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
-        m_TargetAssemblyTypeName: Debuger, Assembly-CSharp
-        m_MethodName: OnStartBattleButton
+      - m_Target: {fileID: 2905569966132159947}
+        m_TargetAssemblyTypeName: SkillInstance, Assembly-CSharp
+        m_MethodName: UseSkill
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -160,9 +160,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 494bc76589fd7934da5d2ce393889844, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  skillID: 
   skillIconImage: {fileID: 0}
   cooldownImage: {fileID: 0}
   skillNameText: {fileID: 0}
+  csaterObject: {fileID: 0}
 --- !u!1 &4885747186200173272
 GameObject:
   m_ObjectHideFlags: 0

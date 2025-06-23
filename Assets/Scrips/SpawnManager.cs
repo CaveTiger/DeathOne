@@ -33,5 +33,6 @@ public class SpawnManager : MonoBehaviour
             return;
         }
         Instance = this;
+        DontDestroyOnLoad(gameObject); // 씬이 바뀌어도 파괴되지 않도록 설정
     }
 }

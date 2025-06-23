@@ -29,7 +29,7 @@
 	
 	<Skill ID ="010001" ParentID="010000">
 		<Name>단검베기</Name>
-		<Icon></Icon>
+		<Icon>SkillIcon/Sample0</Icon>
 		<DamageMin>9</DamageMin>
 		<DamageMax>16</DamageMax>
 		<SkillEffect></SkillEffect>
@@ -41,7 +41,7 @@
 	
 	<Skill ID ="010002" ParentID="010000">
 		<Name>발목 노리기</Name>
-		<Icon></Icon>
+		<Icon>SkillIcon/Sample1</Icon>
 		<DamageMin>4</DamageMin>
 		<DamageMax>9</DamageMax>
 		<SkillEffect>
@@ -59,7 +59,7 @@
 	
 	<Skill ID ="010003" ParentID="010000">
 		<Name>여신의 축복</Name>
-		<Icon></Icon>
+		<Icon>SkillIcon/Sample2</Icon>
 		<Type>Buff</Type>
 		<SkillEffect>
 			<li>
@@ -78,7 +78,7 @@
 	
 	<Skill ID ="010004" ParentID="010000">
 		<Name>주변 살피기</Name>
-		<Icon></Icon>
+		<Icon>SkillIcon/Sample3</Icon>
 		<SkillEffect>
 			<li>020005</li>
 		</SkillEffect>

@@ -86,6 +86,10 @@ public class BattleManager : MonoBehaviour
                     unit.Hp = savedHp;
                 }
             }
+
+            // allCharacters 리스트에 추가
+            allCharacters.Add(unit);
+            Debug.Log($"[Spawn] 플레이어/아군 추가됨: {unit.Label} (총 {allCharacters.Count}명)");
         }
         else
         {
@@ -122,6 +126,10 @@ public class BattleManager : MonoBehaviour
             unit.IsPlayer = false;
             unit.SetData(data);
             obj.transform.localScale = Vector3.one * data.Scale;
+
+            // allCharacters 리스트에 추가
+            allCharacters.Add(unit);
+            Debug.Log($"[Spawn] 적군 추가됨: {unit.Label} (총 {allCharacters.Count}명)");
         }
         else
         {
@@ -131,6 +139,9 @@ public class BattleManager : MonoBehaviour
 
     public void StartBattle()
     {
+        // allCharacters 리스트 초기화
+        allCharacters.Clear();
+        
         Debug.Log($"[Check] 캐릭터 딕셔너리 Count: {CharacterData.characterDict.Count}");
         SpawnAllUnits();
 
@@ -142,26 +153,6 @@ public class BattleManager : MonoBehaviour
         foreach (var kvp in SkillData.skillDict)
         {
             Debug.Log($"SkillDict Key: {kvp.Key} / Skill 이름: {kvp.Value.Name}");
-        }
-        
-        SetupSkillSlots();
-    }
-
-    private void SetupSkillSlots()
-    {
-        foreach (var character in allCharacters)
-        {
-            for (int i = 0; i < character.Skills.Length; i++)
-            {
-                string skillId = character.Skills[i];
-                if (SkillData.skillDict.TryGetValue(skillId, out var skillData))
-                {
-                    var skillInstanceObj = Instantiate(skillInstancePrefab, skillSlotParent);
-                    var skillInstance = skillInstanceObj.GetComponent<SkillInstance>();
-                    skillInstance.SetSkillData(skillData);
-                    skillInstance.SetCaster(character);
-                }
-            }
         }
     }
 
@@ -202,17 +193,34 @@ public class BattleManager : MonoBehaviour
 
     public void CreateAllSkillButtons(List<CharacterStats> partyMembers)
     {
+        // [진단용] skillSetRoot가 할당되었는지 확인
+        if (skillSetRoot == null)
+        {
+            Debug.LogError("[SkillGen-Error] 'Skill Set Root' 변수가 비어있습니다! BattleManager 인스펙터에서 할당해야 합니다.");
+            return;
+        }
+        
         Debug.Log($"[SkillGen] 파티원 수: {partyMembers.Count}");
         for (int slotIdx = 0; slotIdx < 4; slotIdx++)
         {
             Transform slot = skillSetRoot.Find($"SkillSlot{slotIdx+1}");
-            if (slot == null) continue;
+            if (slot == null)
+            {
+                Debug.LogWarning($"[SkillGen] SkillSlot{slotIdx+1}를 찾을 수 없습니다.");
+                continue;
+            }
 
             // 기존 버튼 삭제(필요시)
             foreach (Transform child in slot) Destroy(child.gameObject);
 
             foreach (var character in partyMembers)
             {
+                // 플레이어/아군만 스킬 버튼 생성
+                if (!character.IsPlayer) continue;
+
+                // [진단용 로그] 캐릭터의 전체 스킬 목록을 출력
+                Debug.Log($"[SkillGen-Check] 캐릭터: {character.Label}, 스킬 목록: [{string.Join(", ", character.Skills)}]");
+                
                 string skillId = character.Skills[slotIdx];
                 Debug.Log($"[SkillGen] 캐릭터: {character.Label}, 슬롯: {slotIdx}, 스킬ID: {skillId}");
                 if (!string.IsNullOrEmpty(skillId) && SkillData.skillDict.TryGetValue(skillId, out var skillData))
