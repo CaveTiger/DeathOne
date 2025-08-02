@@ -10,7 +10,7 @@ public class StageManager : MonoBehaviour
 
     public Dictionary<string, StageData> stageDict = new();
     public Dictionary<string, StageBlockData> stageBlockDict = new();
-    private Dictionary<string, StageProgressData> stageProgressDict = new();
+    public Dictionary<string, StageProgressData> stageProgressDict = new();
     
     private string SavePath => $"{Application.persistentDataPath}/stage_progress.json";
     private const string GAME_VERSION = "1.0.0"; // 게임 버전 관리
@@ -42,13 +42,14 @@ public class StageManager : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance == null)
+        if (Instance != null && Instance != this)
         {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-            LoadStageProgress(); // 게임 시작시 진행 상태 로드
+            Destroy(gameObject);
+            return;
         }
-        else Destroy(gameObject);
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+        LoadStageProgress(); // 게임 시작시 진행 상태 로드
     }
 
     public bool AddBlock(StageBlockData block)
@@ -66,7 +67,6 @@ public class StageManager : MonoBehaviour
         }
 
         stageBlockDict[block.ID] = block;
-        Debug.Log($"[StageManager] 블록 {block.ID} 추가 완료 (Last: {block.Last})");
         return true;
     }
 
@@ -121,8 +121,6 @@ public class StageManager : MonoBehaviour
         SelectedStageID = id;
         debugSelectedStageID = id; // 인스펙터에 반영
         OnStageEnter?.Invoke(id);
-
-        Debug.Log($"[StageManager] 스테이지 선택됨: {id}");
     }
 
     public void ClearSelectedStage()
@@ -130,10 +128,35 @@ public class StageManager : MonoBehaviour
         if (!string.IsNullOrEmpty(SelectedStageID))
         {
             OnStageExit?.Invoke(SelectedStageID);
-            Debug.Log($"[StageManager] 스테이지 초기화: {SelectedStageID}");
         }
         SelectedStageID = "";
         debugSelectedStageID = "";
+    }
+
+    /// <summary>
+    /// 스테이지를 클리어 상태로 표시하고 저장
+    /// </summary>
+    public void MarkStageAsCleared(string stageId)
+    {
+        if (string.IsNullOrEmpty(stageId))
+        {
+            Debug.LogWarning("[StageManager] 스테이지 ID가 비어있습니다.");
+            return;
+        }
+
+        // 스테이지 진행 데이터에 클리어 정보 저장
+        if (!stageProgressDict.ContainsKey(stageId))
+        {
+            stageProgressDict[stageId] = new StageProgressData { stageId = stageId };
+        }
+
+        stageProgressDict[stageId].isCleared = true;
+
+        // 클리어 이벤트 발생
+        OnStageClear?.Invoke(stageId);
+
+        // 진행 데이터 저장
+        SaveStageProgress();
     }
 
     // 스테이지 진행 상태 저장
@@ -152,7 +175,6 @@ public class StageManager : MonoBehaviour
 
             string json = JsonUtility.ToJson(wrapper, true); // true로 설정하여 가독성 있는 JSON 생성
             File.WriteAllText(SavePath, json);
-            Debug.Log($"[StageManager] 스테이지 진행 데이터 저장 완료: {SavePath}");
         }
         catch (Exception e)
         {
@@ -175,7 +197,6 @@ public class StageManager : MonoBehaviour
                 // 버전 체크 및 마이그레이션 로직
                 if (wrapper.gameVersion != GAME_VERSION)
                 {
-                    Debug.Log($"[StageManager] 게임 버전 변경 감지: {wrapper.gameVersion} -> {GAME_VERSION}");
                     // TODO: 버전별 데이터 마이그레이션 로직 추가
                 }
 
@@ -183,9 +204,6 @@ public class StageManager : MonoBehaviour
                 {
                     stageProgressDict[progress.stageId] = progress;
                 }
-
-                Debug.Log($"[StageManager] 마지막 플레이: {wrapper.lastPlayedDate}");
-                Debug.Log($"[StageManager] 총 클리어 수: {wrapper.totalClearCount}");
             }
             else
             {
@@ -389,7 +407,6 @@ public class StageManager : MonoBehaviour
 
     public void RegisterStageBlocks(List<string> blockIDs)
     {
-        Debug.Log($"[RegisterStageBlocks] 호출됨. blockIDs: {string.Join(",", blockIDs)}");
         foreach (var blockID in blockIDs)
         {
             if (!blockStates.ContainsKey(blockID))
@@ -399,14 +416,12 @@ public class StageManager : MonoBehaviour
                     Cleared = false,
                     Locked = true // 기본값: 잠금
                 };
-                Debug.Log($"[RegisterStageBlocks] blockStates에 등록: {blockID}");
             }
         }
         // 시작 블록만 해금
         if (blockIDs.Count > 0)
         {
             blockStates[blockIDs[0]].Locked = false;
-            Debug.Log($"[RegisterStageBlocks] 시작 블록 해금: {blockIDs[0]}");
         }
     }
 
@@ -437,7 +452,6 @@ public class StageManager : MonoBehaviour
             if (blockStates.ContainsKey(blockID))
             {
                 blockStates.Remove(blockID);
-                Debug.Log($"[UnregisterStageBlocks] blockStates에서 제거: {blockID}");
             }
         }
     }

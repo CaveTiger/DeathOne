@@ -6,7 +6,7 @@ using System.Collections;
 
 public class SkillInstance : MonoBehaviour
 {
-    [SerializeField] private string skillID; //스킬 ID
+    [SerializeField] public string skillID; //스킬 ID
 
     private bool isActive; //스킬 사용가능 여부
     private float cooldownTime;
@@ -90,7 +90,24 @@ public class SkillInstance : MonoBehaviour
 
     public void UpdateTarget()
     {
+        if (TargetSelector.Instance == null)
+        {
+            Debug.LogWarning("[SkillInstance] TargetSelector를 찾을 수 없습니다.");
+            target = null;
+            return;
+        }
+
         target = TargetSelector.Instance.GetCurrentTarget();
+        
+        // 스킬 타겟에 따른 추가 검증
+        if (skillData != null && skillData.SkillTarget == "Me")
+        {
+            target = caster; // 본인 타겟팅 스킬은 항상 시전자를 타겟으로
+        }
+        else if (target == null && skillData != null && skillData.SkillTarget != "Me")
+        {
+            Debug.LogWarning($"[SkillInstance] 타겟이 선택되지 않았습니다. 스킬: {skillData.Name}");
+        }
     }
 
     public void UseSkill()
@@ -103,13 +120,6 @@ public class SkillInstance : MonoBehaviour
         if (!isActive || currentCooldown > 0 || skillData == null) return;
 
         UpdateTarget();
-
-        // SkillTarget에 따라 target을 올바르게 지정
-        if (skillData.SkillTarget == "Me")
-        {
-            target = caster;
-        }
-        // "Ally"는 선택한 아군(본인 제외), "AllAllies"는 SkillManager에서 처리
 
         if (target == null)
         {
@@ -143,6 +153,15 @@ public class SkillInstance : MonoBehaviour
     public SkillData GetSkillData()
     {
         return skillData;
+    }
+
+    /// <summary>
+    /// 이 스킬의 시전자를 반환합니다.
+    /// </summary>
+    /// <returns>스킬 시전자</returns>
+    public CharacterStats GetCaster()
+    {
+        return caster;
     }
 }
 

@@ -78,21 +78,20 @@ public class StageBlockSelection : MonoBehaviour
 
         if (blockID != null)
         {
+            // 1. 슬롯 기반 스킬ID 배열 전달
+            if (BattleSettingManager.Instance != null)
+            {
+                var slotSkillIDs = BattleSettingManager.Instance.GetPartySkillIDsFromSlots();
+                SpawnManager.Instance.partySkillIDs = slotSkillIDs;
+                Debug.Log($"[SpawnSkill][StageBlockSelection] 슬롯 기반 partySkillIDs: {string.Join(",", slotSkillIDs)}");
+            }
+
+            // 2. 기존 적 정보, 블록ID 전달
             SpawnManager.Instance.enemyIDs = this.enemyID;
-            SpawnManager.Instance.currentBlockID = this.blockID; // 현재 선택된 블록 ID 저장
-            
-            // blockID가 '060001'일 때만 컷신 출력, 그 외에는 바로 전투 시작
-            // if (blockID == "060001" && CutsceneManager.Instance != null)
-            // {
-            //     CutsceneManager.Instance.PlayCutscene("튜토리얼", () => {
-            //         // 컷신 종료 후 전투 시작
-            //         SceneManager.LoadScene("TestBattle");
-            //     });
-            // }
-            // else
-            // {
-                SceneManager.LoadScene("TestBattle");
-            // }
+            SpawnManager.Instance.currentBlockID = this.blockID;
+
+            // 3. 전투씬 이동
+            SceneManager.LoadScene("TestBattle");
         }
         else
         {

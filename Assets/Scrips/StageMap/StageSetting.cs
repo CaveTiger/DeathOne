@@ -7,7 +7,7 @@ public class StageSetting : MonoBehaviour
     //해당 스크립트는 스테이지 매니저에게 호출될 메서드를 작성한다.
 
     public static StageSetting Instance { get; private set; }
-    [SerializeField, Tooltip("현재 스테이지의 ID")] string settingID = StageManager.Instance.SelectedStageID;
+    [SerializeField, Tooltip("현재 스테이지의 ID")] string settingID = ""; // 초기값을 빈 문자열로 설정
 
     [SerializeField] private GameObject stageBlock;
 
@@ -86,13 +86,29 @@ public class StageSetting : MonoBehaviour
 
     public void SettingStart()
     {
-        Debug.Log($"[StageSetting] SettingStart 호출, StageManager.SelectedStageID: {StageManager.Instance.SelectedStageID}");
-        settingID = StageManager.Instance.SelectedStageID;
+        // StageManager가 null인 경우 처리
+        if (StageManager.Instance != null)
+        {
+            Debug.Log($"[StageSetting] SettingStart 호출, StageManager.SelectedStageID: {StageManager.Instance.SelectedStageID}");
+            settingID = StageManager.Instance.SelectedStageID;
+        }
+        else
+        {
+            Debug.LogWarning("[StageSetting] StageManager.Instance가 null입니다. settingID를 빈 문자열로 설정합니다.");
+            settingID = "";
+        }
     }
 
     public void SpawnStageBlocks(string settingID)
     {
         Debug.Log($"[StageSetting] SpawnStageBlocks 호출, settingID: {settingID}");
+
+        // StageManager가 null인 경우 처리
+        if (StageManager.Instance == null)
+        {
+            Debug.LogError("[StageSetting] StageManager.Instance가 null입니다. 스테이지 블록을 생성할 수 없습니다.");
+            return;
+        }
 
         // 기존 블록들 비활성화
         foreach (var block in spawnedBlocks)

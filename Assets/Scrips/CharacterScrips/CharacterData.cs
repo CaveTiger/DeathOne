@@ -22,8 +22,11 @@ public class CharacterData
     public PatternType Pattern;
 
     public bool IsCustomized = false;
+    public bool IsUnlocked = false;
 
     public float Scale { get; set; } = 1.0f; // 기본값 1.0
+
+    public int maxPassiveCost = 10; // 기본값 10, 필요시 XML/에디터에서 지정
 
     public static Dictionary<string, CharacterData> characterDict = new();
 
@@ -94,7 +97,9 @@ public class CharacterData
             Sprite = this.Sprite,
             Pattern = this.Pattern,
             Scale = this.Scale,
-            IsCustomized = this.IsCustomized
+            IsCustomized = this.IsCustomized,
+            IsUnlocked = this.IsUnlocked,
+            maxPassiveCost = this.maxPassiveCost
         };
 
         // 등급에 따른 스탯 조절

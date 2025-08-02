@@ -2,7 +2,7 @@
 <Skills>
 	<Skill ID ="010005" ParentID="010000">
 		<Name>기초적인 검격</Name>
-		<Icon></Icon>
+		<Icon>SkillIcon/010005</Icon>
 		<DamageMin>5</DamageMin>
 		<DamageMax>8</DamageMax>
 		<SkillEffect></SkillEffect>
@@ -20,7 +20,7 @@
 	
 	<Skill ID ="010006" ParentID="010000">
 		<Name>방어</Name>
-		<Icon></Icon>
+		<Icon>SkillIcon/010006</Icon>
 		<DamageMin>0</DamageMin>
 		<DamageMax>0</DamageMax>
 		<SkillEffect>0</SkillEffect>
@@ -32,7 +32,7 @@
 
 	<Skill ID ="010007" ParentID="010000">
 		<Name>참수</Name>
-		<Icon></Icon>
+		<Icon>SkillIcon/010007</Icon>
 		<DamageMin>1</DamageMin>
 		<DamageMax>18</DamageMax>
 		<SkillEffect>
@@ -47,7 +47,7 @@
 	
 	<Skill ID ="010008" ParentID="010000">
 		<Name>지목</Name>
-		<Icon></Icon>
+		<Icon>SkillIcon/010008</Icon>
 		<SkillEffect>
 			<li>020005</li>
 		</SkillEffect>
@@ -57,7 +57,7 @@
 	
 	<Skill ID ="010009" ParentID="010000">
 		<Name>성실히 갈아낸 날</Name>
-		<Icon></Icon>
+		<Icon>SkillIcon/010009</Icon>
 		<DamageMin>3</DamageMin>
 		<DamageMax>7</DamageMax>
 		<SkillEffect>
@@ -75,7 +75,7 @@
 	
 	<Skill ID ="010010" ParentID="010000">
 		<Name>녹슨 날</Name>
-		<Icon></Icon>
+		<Icon>SkillIcon/010010</Icon>
 		<DamageMin>3</DamageMin>
 		<DamageMax>7</DamageMax>
 		<SkillEffect>

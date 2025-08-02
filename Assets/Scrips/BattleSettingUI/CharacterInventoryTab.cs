@@ -1,78 +1,112 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine.EventSystems;
 
-public class CharacterInventoryTab : MonoBehaviour
+public class CharacterInventoryTab : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
+    public static CharacterInventoryTab Instance { get; private set; }
     [Header("UI 연결")]
-    [SerializeField] private Transform characterListContainer;
+    [SerializeField] public Transform characterListContainer;
     [SerializeField] private CharacterBlock characterBlockPrefab;
 
     private List<CharacterBlock> characterBlocks = new List<CharacterBlock>();
+    public bool isPointerOver = false;
+    private bool isInitialized = false;
+
+    private void Awake()
+    {
+        Instance = this;
+    }
 
     private void OnEnable()
     {
-        RefreshInventory();
+        if (!isInitialized)
+        {
+            RefreshInventory();
+            isInitialized = true;
+        }
     }
 
     public void RefreshInventory()
     {
         Debug.Log("[Debug] 3. RefreshInventory: 캐릭터 블록 생성을 시작합니다.");
-        if (GameProgressManager.Instance == null)
+        
+        try
         {
-            Debug.LogError("[Debug] RefreshInventory 실패: GameProgressManager를 찾을 수 없습니다!");
-            return;
-        }
-
-        var inventory = GameProgressManager.Instance.CharacterInventory;
-        Debug.Log($"[Debug] 4. RefreshInventory: GameProgressManager로부터 총 {inventory.Count}개의 캐릭터 데이터를 가져왔습니다.");
-
-        ClearCharacterList();
-
-        if (inventory.Count == 0)
-        {
-            Debug.LogWarning("[Debug] RefreshInventory: 인벤토리가 비어있어, 캐릭터 블록을 생성하지 않았습니다.");
-            return;
-        }
-
-        // 1. 순정(IsCustomized == false) 캐릭터 그룹화 및 수량 계산
-        var standardCharacters = inventory
-            .Where(c => !c.IsCustomized)
-            .GroupBy(c => c.ID)
-            .ToDictionary(g => g.Key, g => g.Count());
-
-        // 2. 강화(IsCustomized == true) 캐릭터 리스트
-        var customizedCharacters = inventory.Where(c => c.IsCustomized).ToList();
-
-        int createdCount = 0;
-
-        // 3. 순정 캐릭터 블록 생성
-        foreach (var kvp in standardCharacters)
-        {
-            string characterId = kvp.Key;
-            int count = kvp.Value;
-
-            if (CharacterData.characterDict.TryGetValue(characterId, out var characterData))
+            if (GameProgressManager.Instance == null)
             {
-                CharacterBlock newBlock = Instantiate(characterBlockPrefab, characterListContainer);
-                newBlock.Initialize(characterData, count);
-                newBlock.name = $"Block_{characterData.Label} (x{count})";
-                characterBlocks.Add(newBlock);
-                createdCount++;
+                Debug.LogError("[Debug] RefreshInventory 실패: GameProgressManager를 찾을 수 없습니다!");
+                return;
             }
-        }
 
-        // 4. 강화된 개별 캐릭터 블록 생성
-        foreach (var characterData in customizedCharacters)
+            if (characterBlockPrefab == null)
+            {
+                Debug.LogError("[Debug] RefreshInventory 실패: characterBlockPrefab이 null입니다!");
+                return;
+            }
+
+            if (characterListContainer == null)
+            {
+                Debug.LogError("[Debug] RefreshInventory 실패: characterListContainer가 null입니다!");
+                return;
+            }
+
+            var inventory = GameProgressManager.Instance.CharacterInventory;
+            if (inventory == null)
+            {
+                Debug.LogError("[Debug] RefreshInventory 실패: CharacterInventory가 null입니다!");
+                return;
+            }
+            
+            Debug.Log($"[Debug] 4. RefreshInventory: GameProgressManager로부터 총 {inventory.Count}개의 캐릭터 데이터를 가져왔습니다.");
+
+            ClearCharacterList();
+
+            if (inventory.Count == 0)
+            {
+                Debug.LogWarning("[Debug] RefreshInventory: 인벤토리가 비어있어, 캐릭터 블록을 생성하지 않았습니다.");
+                return;
+            }
+
+            // 해금된 캐릭터만 블록 생성
+            int createdCount = 0;
+            foreach (var characterData in inventory)
+            {
+                if (characterData == null)
+                {
+                    Debug.LogWarning("[Debug] RefreshInventory: null 캐릭터 데이터 발견, 건너뜀");
+                    continue;
+                }
+                
+                if (!characterData.IsUnlocked) continue; // 해금된 캐릭터만 표시
+                
+                try
+                {
+                    CharacterBlock newBlock = Instantiate(characterBlockPrefab, characterListContainer);
+                    if (newBlock != null)
+                    {
+                        newBlock.Initialize(characterData);
+                        newBlock.name = $"Block_{characterData.Label}";
+                        characterBlocks.Add(newBlock);
+                        createdCount++;
+                    }
+                    else
+                    {
+                        Debug.LogError("[Debug] RefreshInventory: CharacterBlock 생성 실패");
+                    }
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogError($"[Debug] RefreshInventory: 캐릭터 블록 생성 중 오류 - {characterData.Label}: {e.Message}");
+                }
+            }
+            Debug.Log($"[Debug] 7. RefreshInventory: 총 {createdCount}개의 해금된 캐릭터 블록을 생성하고 프로세스를 완료했습니다.");
+        }
+        catch (System.Exception e)
         {
-            CharacterBlock newBlock = Instantiate(characterBlockPrefab, characterListContainer);
-            newBlock.Initialize(characterData, 1);
-            newBlock.name = $"Block_{characterData.Label} (Customized)";
-            characterBlocks.Add(newBlock);
-            createdCount++;
+            Debug.LogError($"[Debug] RefreshInventory: 전체 프로세스 중 오류 발생: {e.Message}");
         }
-
-        Debug.Log($"[Debug] 7. RefreshInventory: 총 {createdCount}개의 캐릭터 블록을 생성하고 프로세스를 완료했습니다.");
     }
 
     private void ClearCharacterList()
@@ -85,17 +119,108 @@ public class CharacterInventoryTab : MonoBehaviour
         characterBlocks.Clear();
     }
 
+    /// <summary>
+    /// 캐릭터 블록을 인벤토리로 반환합니다.
+    /// </summary>
     public void ReturnCharacterBlock(CharacterBlock block)
     {
         if (block == null) return;
 
         block.gameObject.SetActive(true);
-        block.transform.SetParent(characterListContainer);
+        block.transform.SetParent(characterListContainer, true);
+        
+        // RectTransform 속성을 명시적으로 설정
+        var rectTransform = block.GetComponent<RectTransform>();
+        if (rectTransform != null)
+        {
+            rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+            rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            rectTransform.anchoredPosition = Vector2.zero;
+            
+            Debug.Log($"[Inventory] 블록 반환 RectTransform 설정 - anchorMin: {rectTransform.anchorMin}, anchorMax: {rectTransform.anchorMax}, pivot: {rectTransform.pivot}, anchoredPosition: {rectTransform.anchoredPosition}");
+        }
+        
         if (!characterBlocks.Contains(block))
         {
             characterBlocks.Add(block);
         }
+        
+        Debug.Log($"[Inventory] 캐릭터 블록 반환: {block.characterData.Label}");
+    }
+
+    /// <summary>
+    /// 인벤토리 리스트에서 특정 CharacterBlock을 제거합니다.
+    /// </summary>
+    public void RemoveBlockFromList(CharacterBlock block)
+    {
+        if (block == null)
+        {
+            Debug.LogWarning("[Inventory] 제거 시도: null 블록");
+            return;
+        }
+
+        if (characterBlocks.Contains(block))
+        {
+            characterBlocks.Remove(block);
+            Debug.Log($"[Inventory] 블록 제거 완료: {block.name}");
+        }
+        else
+        {
+            Debug.LogWarning($"[Inventory] 제거 시도: 인벤토리에 없는 블록 - {block.name}");
+        }
+    }
+
+    /// <summary>
+    /// 특정 캐릭터가 인벤토리에 있는지 확인합니다.
+    /// </summary>
+    public bool HasCharacter(string characterId)
+    {
+        if (GameProgressManager.Instance == null) return false;
+
+        var inventory = GameProgressManager.Instance.CharacterInventory;
+        return inventory.Any(c => c.ID == characterId && c.IsUnlocked);
+    }
+
+    /// <summary>
+    /// 특정 캐릭터의 데이터를 반환합니다.
+    /// </summary>
+    public CharacterData GetCharacterData(string characterId)
+    {
+        if (GameProgressManager.Instance == null) return null;
+
+        var inventory = GameProgressManager.Instance.CharacterInventory;
+        return inventory.FirstOrDefault(c => c.ID == characterId && c.IsUnlocked);
+    }
+
+    /// <summary>
+    /// 해금된 모든 캐릭터 데이터를 반환합니다.
+    /// </summary>
+    public List<CharacterData> GetUnlockedCharacters()
+    {
+        if (GameProgressManager.Instance == null) return new List<CharacterData>();
+
+        var inventory = GameProgressManager.Instance.CharacterInventory;
+        return inventory.Where(c => c.IsUnlocked).ToList();
+    }
+
+    /// <summary>
+    /// 캐릭터 ID로 CharacterBlock을 찾아 반환합니다.
+    /// </summary>
+    public CharacterBlock GetCharacterBlockByID(string characterId)
+    {
+        return characterBlocks.FirstOrDefault(b => b.characterData != null && b.characterData.ID == characterId);
     }
 
     // 필요시 캐릭터 선택, 상세정보, 강화 등 이벤트/메서드 추가
+
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        isPointerOver = true;
+    }
+
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        isPointerOver = false;
+    }
 }

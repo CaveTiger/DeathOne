@@ -35,7 +35,7 @@
 			<KDP>256</KDP>
 			<Evasionrate>0.1</Evasionrate>
 			<Accuracy>0.0</Accuracy>
-			<Speed>12</Speed>
+			<Speed>22</Speed>
 		</Stats>
 		<Skills>
 			<li>010001</li>
@@ -47,7 +47,7 @@
 		</Passives>
 		<Rarity>Normal</Rarity>
 		<Sprite>UnitSprite/Adelia</Sprite> <!--스프라이트 주소를 찾아 적어넣기-->
-		<Pattern>Normal</Pattern> <!--행동 패턴 스크립트-->
+		<Pattern>Adelia</Pattern> <!--행동 패턴 스크립트-->
 		<Scale>1.2</Scale>
 	</Character>
 </Characters>

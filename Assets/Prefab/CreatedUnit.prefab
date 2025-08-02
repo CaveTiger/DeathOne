@@ -200,8 +200,8 @@ Transform:
   m_GameObject: {fileID: 1048704567597751665}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -3.6, z: 0}
-  m_LocalScale: {x: 2, y: 0.5, z: 1}
+  m_LocalPosition: {x: 0, y: -3.8, z: 0}
+  m_LocalScale: {x: 2, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 6250249881520206898}
@@ -220,6 +220,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   statusEffectIconPrefab: {fileID: 7092126939529423785, guid: 3cd90383bf078144e93e0313c33dd64e, type: 3}
+  cellSize: {x: 0.5, y: 0.5}
+  maxPerRow: 5
+  maxRows: 2
+  moreIconPrefab: {fileID: 0}
+  maxDisplayCount: 9
 --- !u!1 &1855962151722591943
 GameObject:
   m_ObjectHideFlags: 0
@@ -297,11 +302,35 @@ MonoBehaviour:
   CharacterId: 
   CharacterFolder: 
   CharacterName: 
+  data:
+    ID: 
+    ParentID: 
+    Specimen: 0
+    Label: 
+    Description: 
+    Hp: 0
+    MaxHp: 0
+    KDP: 0
+    MaxKDP: 0
+    Atk: 0
+    Def: 0
+    Speed: 0
+    EvasionRate: 0
+    Accuracy: 0
+    Skills: []
+    Passives: []
+    Rarity: 0
+    Sprite: 
+    Pattern: 0
+    IsCustomized: 0
+    IsUnlocked: 0
+    maxPassiveCost: 10
   spriteRenderer: {fileID: 6954389184149028876}
   HpUI: {fileID: 8837311371104763567}
+  hpBarObject: {fileID: 2067346046474746358}
   statusEffectArea: {fileID: 7560509225047070096}
   effectType: 0
-  effectPrefab: {fileID: 0}
+  effectPrefab: {fileID: 8350251405544458453, guid: 677329de562b2884fa69ce24aae2f1f9, type: 3}
 --- !u!114 &3825755510215081776
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -420,6 +449,7 @@ MonoBehaviour:
   buffEffectPrefab: {fileID: 6510473027615198677, guid: a44f1f832a7cce84082ca673649c9bbb, type: 3}
   deBuffEffectPrefab: {fileID: 0}
   statusEffectArea: {fileID: 7560509225047070096}
+  activeEffectPrefabs: []
 --- !u!1 &2067346046474746358
 GameObject:
   m_ObjectHideFlags: 0

@@ -67,16 +67,35 @@ public class CharacterInfoPopup : MonoBehaviour
             // 캐릭터 이미지 업데이트
             if (characterImage != null)
             {
-                string spritePath = $"UnitSprite/{characterData.Label}/Stand";
-                Sprite characterSprite = Resources.Load<Sprite>(spritePath);
-                if (characterSprite != null)
+                // CharacterData의 Sprite 필드를 우선 사용
+                if (!string.IsNullOrEmpty(characterData.Sprite))
                 {
-                    characterImage.sprite = characterSprite;
+                    string spritePath = $"{characterData.Sprite}/Stand";
+                    Sprite characterSprite = Resources.Load<Sprite>(spritePath);
+                    if (characterSprite != null)
+                    {
+                        characterImage.sprite = characterSprite;
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"캐릭터 스프라이트를 찾을 수 없습니다: {spritePath}");
+                        characterImage.sprite = null;
+                    }
                 }
                 else
                 {
-                    Debug.LogWarning($"캐릭터 스프라이트를 찾을 수 없습니다: {spritePath}");
-                    characterImage.sprite = null;
+                    // Sprite 필드가 없으면 ID 기반으로 시도
+                    string spritePath = $"UnitSprite/{characterData.ID}/Stand";
+                    Sprite characterSprite = Resources.Load<Sprite>(spritePath);
+                    if (characterSprite != null)
+                    {
+                        characterImage.sprite = characterSprite;
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"캐릭터 스프라이트를 찾을 수 없습니다: ID={characterData.ID}, Sprite={characterData.Sprite}");
+                        characterImage.sprite = null;
+                    }
                 }
             }
 

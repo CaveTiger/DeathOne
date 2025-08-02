@@ -77,17 +77,20 @@ public class StatusEffectInstance : MonoBehaviour
         owner = target;
         triggerCount = data.maxTriggerCount;
 
+        // 능동형 아이콘 시스템 적용
+        Sprite dynamicIcon = effectData.GetDynamicIcon(effectValue);
+
         // 월드 스프라이트 갱신
-        if (iconRenderer != null && effectData.icon != null)
-            iconRenderer.sprite = effectData.icon;
+        if (iconRenderer != null && dynamicIcon != null)
+            iconRenderer.sprite = dynamicIcon;
 
         // UI 아이콘 갱신
-        if (effectIcon != null && effectData.icon != null)
-            effectIcon.sprite = effectData.icon;
+        if (effectIcon != null && dynamicIcon != null)
+            effectIcon.sprite = dynamicIcon;
 
         UpdateUI();
 
-        Debug.Log($"[StatusEffectInstance] Initialize: {effectData.effectName}, {effectData.effectType}, {effectData.description}");
+        Debug.Log($"[StatusEffectInstance] Initialize: {effectData.effectName}, {effectData.effectType}, {effectData.description}, 동적 아이콘 적용 (값: {effectValue})");
     }
 
     /// <summary>
@@ -145,8 +148,8 @@ public class StatusEffectInstance : MonoBehaviour
         owner.DeathAction();
         if (owner.IsDead)
         {
-            // 사망 시 턴 종료를 명확히 호출
-            TurnManager.Instance.EndTurn();
+            // 사망 시 턴 종료는 외부에서 처리됨 (중복 호출 방지)
+            Debug.Log($"[StatusEffect] {owner.Label} 사망으로 인한 턴 종료는 외부에서 처리됨");
             return true; // 더 이상 처리하지 않음
         }
 

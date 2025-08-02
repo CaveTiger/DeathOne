@@ -2,6 +2,7 @@ using UnityEngine;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq; // Added for .Select()
 
 public class GameProgressManager : MonoBehaviour
 {
@@ -18,11 +19,21 @@ public class GameProgressManager : MonoBehaviour
         public int totalPlayTime;
         public int totalClearCount;
         public List<CharacterData> characterInventory = new List<CharacterData>(); // 모든 캐릭터 데이터 관리
-        public List<string> unlockedSkills = new List<string>();
+        public List<string> unlockedSkills = new List<string>(); // 해금된 스킬 ID 목록
+        public List<string> unlockedCharacters = new List<string>(); // 해금된 캐릭터 ID 목록
         public Dictionary<string, int> itemInventory = new Dictionary<string, int>();
         public Dictionary<string, bool> achievements = new Dictionary<string, bool>();
         public List<string> currentParty = new List<string>(); // 현재 파티 구성
+        
+        // 슬롯 기반 프리셋 저장용
+        public string[] savedSkillPreset = new string[4] { "", "", "", "" };
+        
+        // 재화 필드 추가
+        public int soulDust = 0; // 영혼먼지
+        public int essence = 0; // 강자의 정수
     }
+
+    private List<CharacterBlockData> partyData; // 캐릭터ID, skillIDs 등 구조체/클래스
 
     private const int MAX_SAVE_SLOTS = 3;
     private GameProgressData[] saveSlots = new GameProgressData[MAX_SAVE_SLOTS];
@@ -41,6 +52,11 @@ public class GameProgressManager : MonoBehaviour
         }
     }
 
+    public int CurrentSlot
+    {
+        get { return currentSlot; }
+    }
+
     private string GetSavePath(int slot)
     {
         return $"{Application.persistentDataPath}/save_slot_{slot}.json";
@@ -50,14 +66,8 @@ public class GameProgressManager : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        Instance = this;
-        DontDestroyOnLoad(gameObject);
+        if (Instance == null) { Instance = this; DontDestroyOnLoad(gameObject); }
+        else Destroy(gameObject);
         LoadAllSaveSlots();
     }
 
@@ -77,8 +87,6 @@ public class GameProgressManager : MonoBehaviour
     /// </summary>
     private void SetupTestInventory()
     {
-        Debug.LogWarning("[Debug] 1. SetupTestInventory: 테스트 인벤토리 생성을 시작합니다.");
-        
         // 현재 슬롯의 인벤토리 데이터를 가져오거나 새로 만듭니다.
         var inventory = CurrentSaveData.characterInventory;
         if (inventory == null)
@@ -86,14 +94,32 @@ public class GameProgressManager : MonoBehaviour
             inventory = new List<CharacterData>();
             CurrentSaveData.characterInventory = inventory;
         }
-        inventory.Clear();
-
-        // 테스트용 캐릭터 추가 (ID, 수량)
-        AddCharacterToInventory("000001", 1);
-        AddCharacterToInventory("000002", 2);
-        AddCharacterToInventory("000005", 1);
         
-        Debug.LogWarning($"[Debug] 2. SetupTestInventory: 인벤토리 생성이 완료되었습니다. 인벤토리에 있는 캐릭터 수: {CurrentSaveData.characterInventory.Count}개");
+        // 기존 인벤토리를 비우지 않고, 테스트용 캐릭터가 없으면 추가
+        var existingIDs = inventory.Select(c => c.ID).ToList();
+        
+        // 테스트용 캐릭터 추가 (ID, 수량) - 중복 방지
+        if (!existingIDs.Contains("000001")) AddCharacterToInventory("000001", 1);
+        if (!existingIDs.Contains("000002")) AddCharacterToInventory("000002", 1);
+        if (!existingIDs.Contains("000005")) AddCharacterToInventory("000005", 1);
+        
+        // 테스트용 스킬 해금 (중복 방지)
+        // 기본 스킬들
+        UnlockSkill("010001"); // 단검베기
+        UnlockSkill("010002"); // 발목 노리기
+        UnlockSkill("010003"); // 여신의 축복
+        UnlockSkill("010004"); // 주변 살피기
+        
+        // 테스트용 스킬들 (999xxx 시리즈)
+        UnlockSkill("999001"); // 능동형 아이콘 테스트
+        UnlockSkill("999002"); // 전체 회복
+        UnlockSkill("999003"); // 전체 공격
+        UnlockSkill("999004"); // 인접 공격
+        UnlockSkill("999005"); // 인접 회복
+        UnlockSkill("999006"); // 랜덤 공격
+        UnlockSkill("999007"); // 약점 공격
+        UnlockSkill("999008"); // 응급 치료
+        UnlockSkill("999009"); // 호환성 테스트
     }
 
     private void OnApplicationQuit()
@@ -130,7 +156,17 @@ public class GameProgressManager : MonoBehaviour
             data.gameVersion = GAME_VERSION;
             data.lastPlayedDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             data.totalPlayTime = (int)(Time.time - Time.timeSinceLevelLoad);
-            data.totalClearCount = StageManager.Instance.GetTotalClearCount();
+            
+            // StageManager가 null인 경우 처리
+            if (StageManager.Instance != null)
+            {
+                data.totalClearCount = StageManager.Instance.GetTotalClearCount();
+            }
+            else
+            {
+                data.totalClearCount = 0; // 기본값 설정
+                Debug.LogWarning("[GameProgressManager] StageManager.Instance가 null입니다. totalClearCount를 0으로 설정합니다.");
+            }
 
             string json = JsonUtility.ToJson(data, true);
             File.WriteAllText(GetSavePath(slot), json);
@@ -204,28 +240,30 @@ public class GameProgressManager : MonoBehaviour
     // 캐릭터 해금 관련
     public void UnlockCharacter(string characterId)
     {
-        if (!saveSlots[currentSlot].unlockedSkills.Contains(characterId))
+        if (!saveSlots[currentSlot].unlockedCharacters.Contains(characterId))
         {
-            saveSlots[currentSlot].unlockedSkills.Add(characterId);
+            saveSlots[currentSlot].unlockedCharacters.Add(characterId);
             SaveGameProgress(currentSlot);
         }
     }
 
     public bool IsCharacterUnlocked(string characterId)
     {
-        return saveSlots[currentSlot].unlockedSkills.Contains(characterId);
+        return saveSlots[currentSlot].unlockedCharacters.Contains(characterId);
     }
 
     // 파티 구성 관련
-    public void SavePartyConfiguration(List<string> partyMemberIds)
+    public void SavePartyData(List<CharacterBlock> blocks)
     {
-        saveSlots[currentSlot].currentParty = new List<string>(partyMemberIds);
-        SaveGameProgress(currentSlot);
+        partyData = blocks.Select(b => new CharacterBlockData {
+            characterID = b.characterData.ID,
+            skillIDs = (string[])b.skillIDs.Clone()
+        }).ToList();
     }
 
-    public List<string> GetCurrentPartyConfiguration()
+    public List<CharacterBlockData> GetPartyData()
     {
-        return new List<string>(saveSlots[currentSlot].currentParty);
+        return partyData;
     }
 
     // 스킬 해금 관련
@@ -290,6 +328,7 @@ public class GameProgressManager : MonoBehaviour
             {
                 // 원본 데이터를 복제하여 고유한 인스턴스를 인벤토리에 추가
                 CharacterData newCharacter = originalData.Clone();
+                newCharacter.IsUnlocked = true; // 인벤토리에 들어오는 순간 해금 처리
                 CurrentSaveData.characterInventory.Add(newCharacter);
             }
             SaveGameProgress(currentSlot);
@@ -352,4 +391,80 @@ public class GameProgressManager : MonoBehaviour
     {
         get { return CurrentSaveData.characterInventory; }
     }
+
+    // 영혼먼지 관련 메서드
+    public void AddSoulDust(int amount)
+    {
+        int beforeAmount = CurrentSaveData.soulDust;
+        CurrentSaveData.soulDust += amount;
+        SaveGameProgress(currentSlot);
+        Debug.Log($"[영혼먼지] 추가: +{amount} (이전: {beforeAmount} → 현재: {CurrentSaveData.soulDust})");
+    }
+
+    public int GetSoulDust()
+    {
+        int currentAmount = CurrentSaveData.soulDust;
+        Debug.Log($"[영혼먼지] 현재 보유량: {currentAmount}");
+        return currentAmount;
+    }
+
+    public bool SpendSoulDust(int amount)
+    {
+        int beforeAmount = CurrentSaveData.soulDust;
+        if (CurrentSaveData.soulDust >= amount)
+        {
+            CurrentSaveData.soulDust -= amount;
+            SaveGameProgress(currentSlot);
+            Debug.Log($"[영혼먼지] 소모: -{amount} (이전: {beforeAmount} → 현재: {CurrentSaveData.soulDust})");
+            return true;
+        }
+        Debug.LogWarning($"[영혼먼지] 부족: 필요 {amount}, 보유 {CurrentSaveData.soulDust}");
+        return false;
+    }
+
+    /// <summary>
+    /// 영혼먼지 상태를 상세히 출력하는 디버그 메서드
+    /// </summary>
+    public void DebugSoulDustStatus()
+    {
+        Debug.Log($"[영혼먼지][상태] 현재 보유량: {CurrentSaveData.soulDust}");
+        Debug.Log($"[영혼먼지][상태] 현재 슬롯: {currentSlot}");
+        Debug.Log($"[영혼먼지][상태] 세이브 데이터 존재: {CurrentSaveData != null}");
+        if (CurrentSaveData != null)
+        {
+            Debug.Log($"[영혼먼지][상태] 세이브 데이터 영혼먼지: {CurrentSaveData.soulDust}");
+        }
+    }
+
+    // 강자의 정수 관련 메서드
+    public void AddEssence(int amount)
+    {
+        CurrentSaveData.essence += amount;
+        SaveGameProgress(currentSlot);
+        Debug.Log($"[GameProgressManager] 강자의 정수 추가: +{amount} (총 {CurrentSaveData.essence})");
+    }
+
+    public int GetEssence()
+    {
+        return CurrentSaveData.essence;
+    }
+
+    public bool SpendEssence(int amount)
+    {
+        if (CurrentSaveData.essence >= amount)
+        {
+            CurrentSaveData.essence -= amount;
+            SaveGameProgress(currentSlot);
+            Debug.Log($"[GameProgressManager] 강자의 정수 소모: -{amount} (남은 {CurrentSaveData.essence})");
+            return true;
+        }
+        Debug.LogWarning($"[GameProgressManager] 강자의 정수 부족: 필요 {amount}, 보유 {CurrentSaveData.essence}");
+        return false;
+    }
+} 
+
+public class CharacterBlockData
+{
+    public string characterID;
+    public string[] skillIDs;
 } 

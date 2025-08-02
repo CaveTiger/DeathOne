@@ -23,41 +23,66 @@ public class TurnIndicatorHandler : MonoBehaviour
 
     public void SetIndicator(Transform target, bool enable)
     {
+        Debug.Log($"[AI개선] SetIndicator 시작 - 타겟: {target?.name}, 활성화: {enable}");
+        float startTime = Time.realtimeSinceStartup;
+        
         if (target == null)
         {
-            Debug.LogError("[TurnIndicatorHandler] 타겟이 null입니다.");
-            selectorUI.SetActive(false);
+            // null을 받는 것은 정상적인 상황 (인디케이터 숨기기)
+            if (selectorUI != null)
+                selectorUI.SetActive(false);
+            Debug.Log("[AI개선] SetIndicator - 타겟이 null, 인디케이터 숨김");
+            return;
+        }
+
+        // GameObject가 파괴되었는지 확인
+        if (target.gameObject == null)
+        {
+            Debug.LogWarning("[TurnIndicatorHandler] 타겟 GameObject가 파괴되었습니다.");
+            if (selectorUI != null)
+                selectorUI.SetActive(false);
             return;
         }
 
         //Debug.Log($"[TurnIndicatorHandler] {target.name}의 턴");
         currentTarget = target;
-        selectorUI.SetActive(enable);
+        if (selectorUI != null)
+            selectorUI.SetActive(enable);
 
         if (enable)
         {
             UpdateIndicatorPosition();
         }
 
-        if (target.gameObject.GetComponent<CharacterStats>() != null && target.gameObject.GetComponent<CharacterStats>().IsPlayer && playerInfoUI != null)
-            playerInfoUI.SetCharacterStats(target.gameObject.GetComponent<CharacterStats>());
+        // CharacterStats 컴포넌트 접근 시 추가 null 체크
+        if (target.gameObject != null)
+        {
+            CharacterStats characterStats = target.gameObject.GetComponent<CharacterStats>();
+            if (characterStats != null && characterStats.IsPlayer && playerInfoUI != null)
+                playerInfoUI.SetCharacterStats(characterStats);
+        }
+        
+        float endTime = Time.realtimeSinceStartup;
+        Debug.Log($"[AI개선] SetIndicator 완료 - 소요시간: {(endTime - startTime) * 1000:F2}ms");
     }
 
     private void UpdateIndicatorPosition()
     {
-        if (currentTarget == null || !selectorUI.activeSelf) return;
+        if (currentTarget == null || currentTarget.gameObject == null || selectorUI == null || !selectorUI.activeSelf) return;
 
         // 월드 위치를 스크린 위치로 변환
         Vector3 screenPos = targetCamera.WorldToScreenPoint(currentTarget.position);
         screenPos.y += 200f; // 타겟 UI와 동일하게 y 오프셋 적용
 
-        selectorUI.GetComponent<RectTransform>().position = screenPos;
+        RectTransform rectTransform = selectorUI.GetComponent<RectTransform>();
+        if (rectTransform != null)
+            rectTransform.position = screenPos;
         //Debug.Log($"[TurnIndicatorHandler] UI 위치 업데이트: {screenPos} (대상: {currentTarget.name})");
     }
 
     void LateUpdate()
     {
-        if (selectorUI.activeSelf)
+        if (selectorUI != null && selectorUI.activeSelf)
             UpdateIndicatorPosition();
     }
 }

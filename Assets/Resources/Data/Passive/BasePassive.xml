@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Passives>
+    <Passive ID="080000" Specimen="True">
+        <Name>기본 패시브</Name>
+        <Description>기본 패시브입니다.</Description>
+        <Type>None</Type>
+        <TargetStat>None</TargetStat> <!-- 단순 스탯증가류 패시브의 경우 -->
+        <Value>0</Value>
+        <FloatValue>0.0</FloatValue>
+        <GrantsMana>False</GrantsMana>
+        <MaxMana>0</MaxMana>
+        <ManaRegenInterval>0</ManaRegenInterval>
+        <Rarity>Normal</Rarity>
+        <Cost>0</Cost>
+        <ScriptClass>none</ScriptClass>
+    </Passive>
+    
+    <Passive ParentID="080000" ID="080001">
+        <Name>체력 강화</Name>
+        <Description>최대 체력이 20 증가합니다.</Description>
+        <Type>None</Type>
+        <TargetStat>MaxHp</TargetStat>
+        <Value>20</Value>
+        <FloatValue>0.0</FloatValue>
+        <GrantsMana>False</GrantsMana>
+        <MaxMana>0</MaxMana>
+        <ManaRegenInterval>0</ManaRegenInterval>
+        <Rarity>Normal</Rarity>
+        <Cost>8</Cost>
+    </Passive>
+    
+    <Passive ParentID="080000" ID="080002">
+        <Name>공격력 강화</Name>
+        <Description>공격도이 1 증가합니다.</Description>
+        <Type>None</Type>
+        <TargetStat>Atk</TargetStat>
+        <Value>1</Value>
+        <FloatValue>0.0</FloatValue>
+        <GrantsMana>False</GrantsMana>
+        <MaxMana>0</MaxMana>
+        <ManaRegenInterval>0</ManaRegenInterval>
+        <Rarity>Normal</Rarity>
+        <Cost>4</Cost>
+    </Passive>
+    
+    <Passive ParentID="080000" ID="080003">
+        <Name>방어력 강화</Name>
+        <Description>방어도이 1 증가합니다.</Description>
+        <Type>None</Type>
+        <TargetStat>Def</TargetStat>
+        <Value>1</Value>
+        <FloatValue>0.0</FloatValue>
+        <GrantsMana>False</GrantsMana>
+        <MaxMana>0</MaxMana>
+        <ManaRegenInterval>0</ManaRegenInterval>
+        <Rarity>Normal</Rarity>
+        <Cost>4</Cost>
+    </Passive>
+    
+    <Passive ParentID="080000" ID="080004">
+        <Name>마나 수련</Name>
+        <Description>마나 시스템을 활성화하고 최대 마나 3을 부여합니다.</Description>
+        <Type>ManaBoost</Type>
+        <Value>0</Value>
+        <FloatValue>0.0</FloatValue>
+        <GrantsMana>True</GrantsMana>
+        <MaxMana>1</MaxMana>
+        <ManaRegenInterval>2</ManaRegenInterval>
+        <Rarity>Rare</Rarity>
+        <Cost>10</Cost>
+    </Passive>
+</Passives> 

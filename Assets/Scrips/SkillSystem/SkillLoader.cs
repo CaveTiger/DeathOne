@@ -82,7 +82,9 @@ public class SkillLoader : MonoBehaviour
                 ManaCost = (int?)x.Element("ManaCost") ?? 0,
                 StaminaCost = (int?)x.Element("StaminaCost") ?? 0,
                 HealthCost = (int?)x.Element("HealthCost") ?? 0,
-                healAmount = (int?)x.Element("healAmount") ?? 0,
+                healAmount = 0, // 힐량은 사용 시점에 계산
+                HealMin = GetHealRange(x).healMin,
+                HealMax = GetHealRange(x).healMax,
                 KnockdownMultiplier = (float?)x.Element("KnockdownMultiplier") ?? 1.0f,
                 skillEffects = x.Element("SkillEffect")?
                     .Elements("li")
@@ -149,9 +151,11 @@ public class SkillLoader : MonoBehaviour
                     ManaCost = (int?)x.Element("ManaCost") ?? 0,
                     StaminaCost = (int?)x.Element("StaminaCost") ?? 0,
                     HealthCost = (int?)x.Element("HealthCost") ?? 0,
-                    healAmount = (int?)x.Element("healAmount") ?? 0,
-                    KnockdownMultiplier = (float?)x.Element("KnockdownMultiplier") ?? 1.0f,
-                    skillEffects = x.Element("SkillEffect")?
+                    healAmount = 0, // 힐량은 사용 시점에 계산
+                    HealMin = GetHealRange(x).healMin,
+                    HealMax = GetHealRange(x).healMax,
+                KnockdownMultiplier = (float?)x.Element("KnockdownMultiplier") ?? 1.0f,
+                skillEffects = x.Element("SkillEffect")?
                         .Elements("li")
                         .Select(li => {
                             var effectIdElement = li.Element("EffectID");
@@ -247,9 +251,32 @@ public class SkillLoader : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// XML에서 HealMin과 HealMax를 읽어서 범위 힐량을 설정합니다.
+    /// </summary>
+    private (int healMin, int healMax) GetHealRange(System.Xml.Linq.XElement skillElement)
+    {
+        int healMin = (int?)skillElement.Element("HealMin") ?? 0;
+        int healMax = (int?)skillElement.Element("HealMax") ?? 0;
+        
+        // 기존 healAmount 필드가 있으면 범위로 설정
+        if (healMin == 0 && healMax == 0)
+        {
+            int healAmount = (int?)skillElement.Element("healAmount") ?? 0;
+            if (healAmount > 0)
+            {
+                healMin = healAmount;
+                healMax = healAmount;
+            }
+        }
+        
+        return (healMin, healMax);
+    }
+
     private void OverrideSkill(SkillData baseData, SkillData overrideData)
     {
         if (!string.IsNullOrEmpty(overrideData.Name)) baseData.Name = overrideData.Name;
+        if (!string.IsNullOrEmpty(overrideData.Icon)) baseData.Icon = overrideData.Icon;
         if (overrideData.DamageMin != 0) baseData.DamageMin = overrideData.DamageMin;
         if (overrideData.DamageMax != 0) baseData.DamageMax = overrideData.DamageMax;
         if (!string.IsNullOrEmpty(overrideData.SkillTarget)) baseData.SkillTarget = overrideData.SkillTarget;
@@ -264,9 +291,12 @@ public class SkillLoader : MonoBehaviour
         if (overrideData.StaminaCost != 0) baseData.StaminaCost = overrideData.StaminaCost;
         if (overrideData.HealthCost != 0) baseData.HealthCost = overrideData.HealthCost;
         if (overrideData.healAmount != 0) baseData.healAmount = overrideData.healAmount;
+        if (overrideData.HealMin != 0) baseData.HealMin = overrideData.HealMin;
+        if (overrideData.HealMax != 0) baseData.HealMax = overrideData.HealMax;
         if (overrideData.KnockdownMultiplier != 1.0f) baseData.KnockdownMultiplier = overrideData.KnockdownMultiplier;
         if (overrideData.currentCooldown != 0) baseData.currentCooldown = overrideData.currentCooldown;
         baseData.Type = overrideData.Type;
+        
         if (overrideData.skillEffects != null && overrideData.skillEffects.Count > 0)
             baseData.skillEffects = new List<SkillEffectInfo>(overrideData.skillEffects);
     }

@@ -20,7 +20,7 @@ public enum PatternType
     Attaker,
     Defender,
     Tactician,
-    Boss,
+    Adelia,
     Gadian,
     Hunter
 }
@@ -84,8 +84,9 @@ public class CharacterLoader : MonoBehaviour
 
                 Rarity = Enum.TryParse((string)x.Element("Rarity"), true, out RarityList rarity) ? rarity : RarityList.Normal,
                 Sprite = (string)x.Element("Sprite") ?? "",
-                Pattern = Enum.TryParse((string)x.Element("PatternType"), true, out PatternType pattern) ? pattern : PatternType.Default,
-                Scale = (float?)x.Element("Scale") ?? 1.0f
+                Pattern = Enum.TryParse((string)x.Element("Pattern"), true, out PatternType pattern) ? pattern : PatternType.Default,
+                Scale = (float?)x.Element("Scale") ?? 1.0f,
+                maxPassiveCost = (int?)x.Element("MaxPassiveCost") ?? 10
 
             }).ToList();
             rawList.AddRange(parsed);
@@ -148,14 +149,12 @@ public class CharacterLoader : MonoBehaviour
         if (overrideData.EvasionRate != 0f) baseData.EvasionRate = overrideData.EvasionRate;
         if (overrideData.Accuracy != 0f) baseData.Accuracy = overrideData.Accuracy;
         if (overrideData.Speed != 0) baseData.Speed = overrideData.Speed;
-
         if (overrideData.Skills.Count > 0) baseData.Skills = overrideData.Skills;
         if (overrideData.Passives.Count > 0) baseData.Passives = overrideData.Passives;
-
         if (overrideData.Rarity != RarityList.Normal) baseData.Rarity = overrideData.Rarity;
         if (overrideData.Pattern != PatternType.Default) baseData.Pattern = overrideData.Pattern;
-
         if (overrideData.Scale != 1.0f) baseData.Scale = overrideData.Scale;
+        if (overrideData.maxPassiveCost != 10) baseData.maxPassiveCost = overrideData.maxPassiveCost;
 
         baseData.Rarity = overrideData.Rarity;
     }

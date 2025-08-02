@@ -1,12 +1,27 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class BattleSettingManager : MonoBehaviour
 {
     public static BattleSettingManager Instance { get; private set; }
 
-    [SerializeField] private List<BattleSttingCharacterSlot> playerSlots;
+    [Header("파티 슬롯 직접 등록")]
+    public BattleSettingCharacterSlot slot1;
+    public BattleSettingCharacterSlot slot2;
+    public BattleSettingCharacterSlot slot3;
+    public BattleSettingCharacterSlot slot4;
+
     [SerializeField] private CharacterInventoryTab inventoryTab;
+
+    [Header("주인공 스킬 세팅")]
+    [SerializeField] private GameObject skillSettingPanel; // 스킬 세팅 패널
+    [SerializeField] private Transform skillSlotContainer; // 스킬 슬롯 컨테이너
+    [SerializeField] private GameObject skillSlotPrefab; // 스킬 슬롯 프리팹
+    
+    // 직접 스킬ID 관리 (단순화된 데이터 흐름)
+    private string[] playerSkillIDs = new string[4] { "", "", "", "" };
 
     private void Awake()
     {
@@ -20,50 +35,454 @@ public class BattleSettingManager : MonoBehaviour
 
     private void OnEnable()
     {
-        BattleSttingCharacterSlot.OnSlotChanged += HandleSlotChanged;
+        BattleSettingCharacterSlot.OnSlotChanged += HandleSlotChanged;
     }
 
     private void OnDisable()
     {
-        BattleSttingCharacterSlot.OnSlotChanged -= HandleSlotChanged;
+        BattleSettingCharacterSlot.OnSlotChanged -= HandleSlotChanged;
     }
 
     private void Start()
     {
-        // 초기화
-        inventoryTab.RefreshInventory();
+        if (inventoryTab != null)
+        {
+            inventoryTab.RefreshInventory();
+            // 인벤토리 블럭 생성 후 주인공 블럭을 1번 슬롯에 자동 배치
+            PlaceMainCharacterBlockToSlot1();
+        }
+        
+        // 초기 기초스킬 설정
+        InitializeDefaultSkills();
+        
+        // 나머지 슬롯 초기화 및 파티 정보 동기화
         UpdateSpawnManagerParty();
+        if (skillSettingPanel != null)
+        {
+            skillSettingPanel.SetActive(false);
+        }
     }
 
-    private void HandleSlotChanged(BattleSttingCharacterSlot slot, CharacterData data)
+    // 주인공 블록을 1번 슬롯에 자동 배치
+    private void PlaceMainCharacterBlockToSlot1()
+    {
+        var mainBlock = CharacterInventoryTab.Instance.GetCharacterBlockByID("000001"); // 주인공 ID
+        if (mainBlock != null && slot1 != null && slot1.currentCharacterBlock != mainBlock)
+        {
+            CharacterInventoryTab.Instance.RemoveBlockFromList(mainBlock);
+            mainBlock.gameObject.SetActive(true);
+            slot1.PlaceCharacterBlock(mainBlock);
+            slot1.LockSlot();
+            
+            Debug.Log("[BattleSetting] 1번 슬롯에 주인공 블록 자동 배치 및 잠금 완료");
+        }
+    }
+
+    /// <summary>
+    /// 초기 기초스킬 설정 (BaseCharacter.xml의 기본 스킬들)
+    /// </summary>
+    private void InitializeDefaultSkills()
+    {
+        // 기초스킬 배열 (BaseCharacter.xml에서 가져온 기본 스킬들)
+        string[] defaultSkills = { "010001", "010002", "010003", "010004" };
+        
+        // playerSkillIDs 배열에 기초스킬 설정
+        for (int i = 0; i < defaultSkills.Length && i < playerSkillIDs.Length; i++)
+        {
+            playerSkillIDs[i] = defaultSkills[i];
+        }
+        
+        Debug.Log($"[SlotBased] 초기 기초스킬 설정 완료: {string.Join(",", playerSkillIDs)}");
+    }
+
+    private void HandleSlotChanged(BattleSettingCharacterSlot slot, CharacterData data)
     {
         UpdateSpawnManagerParty();
     }
 
+    /// <summary>
+    /// 슬롯 기반 단방향 전달: 현재 슬롯 상태를 SpawnManager에 전달
+    /// </summary>
     public void UpdateSpawnManagerParty()
     {
+        Debug.Log("[SlotBased] UpdateSpawnManagerParty() 호출됨");
         if (SpawnManager.Instance == null)
         {
-            Debug.LogError("SpawnManager 인스턴스를 찾을 수 없습니다!");
+            Debug.LogWarning("[SlotBased] SpawnManager를 찾을 수 없습니다.");
             return;
         }
 
-        SpawnManager.Instance.allyIDs.Clear();
-
-        foreach (var slot in playerSlots)
+        // 현재 슬롯에 배치된 캐릭터들의 ID/데이터를 수집
+        List<string> partyIDs = new List<string>();
+        List<CharacterData> partyData = new List<CharacterData>();
+        
+        // 각 슬롯의 상태 확인
+        Debug.Log("[SlotBased] === 슬롯 상태 확인 ===");
+        Debug.Log($"[SlotBased] slot1: {(slot1 != null ? "존재" : "null")}, GetCharacterData: {(slot1?.GetCharacterData() != null ? slot1.GetCharacterData().Label : "null")}");
+        Debug.Log($"[SlotBased] slot2: {(slot2 != null ? "존재" : "null")}, GetCharacterData: {(slot2?.GetCharacterData() != null ? slot2.GetCharacterData().Label : "null")}");
+        Debug.Log($"[SlotBased] slot3: {(slot3 != null ? "존재" : "null")}, GetCharacterData: {(slot3?.GetCharacterData() != null ? slot3.GetCharacterData().Label : "null")}");
+        Debug.Log($"[SlotBased] slot4: {(slot4 != null ? "존재" : "null")}, GetCharacterData: {(slot4?.GetCharacterData() != null ? slot4.GetCharacterData().Label : "null")}");
+        Debug.Log("[SlotBased] ======================");
+        
+        if (slot1 != null && slot1.GetCharacterData() != null)
         {
-            CharacterData charData = slot.GetCharacterData();
-            if (charData != null)
+            partyIDs.Add(slot1.GetCharacterData().ID);
+            partyData.Add(slot1.GetCharacterData());
+        }
+        if (slot2 != null && slot2.GetCharacterData() != null)
+        {
+            partyIDs.Add(slot2.GetCharacterData().ID);
+            partyData.Add(slot2.GetCharacterData());
+        }
+        if (slot3 != null && slot3.GetCharacterData() != null)
+        {
+            partyIDs.Add(slot3.GetCharacterData().ID);
+            partyData.Add(slot3.GetCharacterData());
+        }
+        if (slot4 != null && slot4.GetCharacterData() != null)
+        {
+            partyIDs.Add(slot4.GetCharacterData().ID);
+            partyData.Add(slot4.GetCharacterData());
+        }
+
+        // SpawnManager에 파티 정보 업데이트
+        SpawnManager.Instance.allyIDs = partyIDs;
+        SpawnManager.Instance.allyPartyData = partyData;
+        
+        // 슬롯 기반 스킬ID 추출 및 전달
+        string[] partySkillIDs = GetPartySkillIDsFromSlots();
+        Debug.Log($"[Debug][UpdateSpawnManagerParty] 전달 skillIDs: {string.Join(",", partySkillIDs)}");
+        SpawnManager.Instance.partySkillIDs = partySkillIDs;
+        
+        Debug.Log($"[SlotBased] SpawnManager에 전달: partySkillIDs = {string.Join(",", partySkillIDs)}");
+    }
+
+    /// <summary>
+    /// 현재 스킬 슬롯 UI에서 세팅된 스킬ID 배열을 추출 (단순화된 데이터 흐름)
+    /// </summary>
+    public string[] GetPartySkillIDsFromSlots()
+    {
+        Debug.Log($"[SlotBased] GetPartySkillIDsFromSlots 결과: {string.Join(",", playerSkillIDs)}");
+        return (string[])playerSkillIDs.Clone();
+    }
+
+    /// <summary>
+    /// 슬롯 기반 프리셋 저장: 현재 슬롯 상태를 GameProgressManager에 저장
+    /// </summary>
+    public void SaveSkillPreset()
+    {
+        if (GameProgressManager.Instance == null)
+        {
+            Debug.LogWarning("[SlotBased] GameProgressManager를 찾을 수 없습니다.");
+            return;
+        }
+
+        string[] currentSkillIDs = GetPartySkillIDsFromSlots();
+        GameProgressManager.Instance.CurrentSaveData.savedSkillPreset = (string[])currentSkillIDs.Clone();
+        GameProgressManager.Instance.SaveGameProgress(0); // 현재 슬롯 0으로 고정
+        Debug.Log($"[SlotBased] 프리셋 저장 완료: {string.Join(",", currentSkillIDs)}");
+    }
+
+    /// <summary>
+    /// 프리셋 로드: GameProgressManager에서 슬롯에 복원
+    /// </summary>
+    public void LoadSkillPreset()
+    {
+        if (GameProgressManager.Instance == null)
+        {
+            Debug.LogWarning("[SlotBased] GameProgressManager를 찾을 수 없습니다.");
+            return;
+        }
+
+        string[] savedSkillIDs = GameProgressManager.Instance.CurrentSaveData.savedSkillPreset;
+        if (savedSkillIDs != null && savedSkillIDs.Length == 4)
+        {
+            // 슬롯에 저장된 프리셋 복원
+            RestoreSkillSlots(savedSkillIDs);
+            Debug.Log($"[SlotBased] 프리셋 로드 완료: {string.Join(",", savedSkillIDs)}");
+        }
+        else
+        {
+            Debug.LogWarning("[SlotBased] 저장된 프리셋이 없거나 형식이 올바르지 않습니다.");
+        }
+    }
+
+    /// <summary>
+    /// 저장된 프리셋을 슬롯에 복원
+    /// </summary>
+    private void RestoreSkillSlots(string[] skillIDs)
+    {
+        if (skillSlotContainer == null) return;
+
+        try
+        {
+            // 안전한 방식으로 SkillSlot 컴포넌트 찾기
+            var allComponents = skillSlotContainer.GetComponentsInChildren<MonoBehaviour>();
+            var skillSlots = new List<MonoBehaviour>();
+            
+            foreach (var component in allComponents)
             {
-                // playerID는 고정값이므로 allyIDs에 추가하지 않음
-                if (charData.Label != SpawnManager.Instance.playerID)
+                if (component != null && component.GetType().Name == "SkillSlot")
                 {
-                    SpawnManager.Instance.allyIDs.Add(charData.Label);
+                    skillSlots.Add(component);
+                }
+            }
+            
+            for (int i = 0; i < skillSlots.Count && i < skillIDs.Length; i++)
+            {
+                var skillSlot = skillSlots[i];
+                if (skillSlot != null)
+                {
+                    try
+                    {
+                        var setSkillMethod = skillSlot.GetType().GetMethod("SetSkill");
+                        if (setSkillMethod != null)
+                        {
+                            setSkillMethod.Invoke(skillSlot, new object[] { skillIDs[i] });
+                            Debug.Log($"[SlotBased] SkillSlot_{i}에 스킬 복원: {skillIDs[i]}");
+                        }
+                        else
+                        {
+                            Debug.LogWarning($"[SlotBased] SkillSlot_{i}에서 SetSkill 메서드를 찾을 수 없습니다.");
+                        }
+                    }
+                    catch (System.Exception e)
+                    {
+                        Debug.LogError($"[SlotBased] SkillSlot_{i} 복원 중 오류: {e.Message}");
+                    }
                 }
             }
         }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"[SlotBased] 프리셋 복원 중 오류 발생: {e.Message}");
+        }
+    }
+
+    public List<CharacterBlock> GetCurrentPartyBlocks(bool debugLog = false)
+    {
+        List<CharacterBlock> partyBlocks = new List<CharacterBlock>();
+        if (slot1 != null && slot1.currentCharacterBlock != null)
+            partyBlocks.Add(slot1.currentCharacterBlock);
+        if (slot2 != null && slot2.currentCharacterBlock != null)
+            partyBlocks.Add(slot2.currentCharacterBlock);
+        if (slot3 != null && slot3.currentCharacterBlock != null)
+            partyBlocks.Add(slot3.currentCharacterBlock);
+        if (slot4 != null && slot4.currentCharacterBlock != null)
+            partyBlocks.Add(slot4.currentCharacterBlock);
         
-        // 디버그 로그
-        Debug.Log("스폰매니저 파티 업데이트: " + string.Join(", ", SpawnManager.Instance.allyIDs));
+        if (debugLog)
+        {
+            foreach (var block in partyBlocks)
+                Debug.Log($"[SlotBased] GetCurrentPartyBlocks: {block.characterData.Label}");
+        }
+        return partyBlocks;
+    }
+
+    public bool IsPartyValid()
+    {
+        return GetCurrentPartyBlocks().Count > 0;
+    }
+
+    public void RemoveCharacterFromSlot(int slotNumber)
+    {
+        BattleSettingCharacterSlot targetSlot = null;
+        
+        switch (slotNumber)
+        {
+            case 1: targetSlot = slot1; break;
+            case 2: targetSlot = slot2; break;
+            case 3: targetSlot = slot3; break;
+            case 4: targetSlot = slot4; break;
+        }
+
+        if (targetSlot != null)
+        {
+            targetSlot.RemoveCharacterBlock();
+        }
+    }
+
+    public void ClearAllSlots()
+    {
+        if (slot1 != null) slot1.RemoveCharacterBlock();
+        if (slot2 != null) slot2.RemoveCharacterBlock();
+        if (slot3 != null) slot3.RemoveCharacterBlock();
+        if (slot4 != null) slot4.RemoveCharacterBlock();
+        
+        Debug.Log("[SlotBased] 모든 슬롯에서 캐릭터 제거 완료");
+    }
+
+    [ContextMenu("Debug Party Info")]
+    public void DebugPartyInfo()
+    {
+        Debug.Log("=== 현재 파티 정보 ===");
+        var partyBlocks = GetCurrentPartyBlocks();
+        for (int i = 0; i < partyBlocks.Count; i++)
+        {
+            var block = partyBlocks[i];
+            Debug.Log($"슬롯 {i + 1}: {block.characterData?.Label} (ID: {block.characterData?.ID})");
+        }
+        Debug.Log($"파티 유효성: {IsPartyValid()}");
+        
+        // 슬롯 기반 스킬ID 디버그
+        string[] skillIDs = GetPartySkillIDsFromSlots();
+        Debug.Log($"현재 스킬 설정: {string.Join(",", skillIDs)}");
+        Debug.Log("=====================");
+    }
+
+    /// <summary>
+    /// 전투 시작 버튼 클릭 시 호출되는 메서드입니다.
+    /// </summary>
+    public void StartBattle()
+    {
+        Debug.Log("[SlotBased] StartBattle() 진입");
+        
+        // 파티 유효성 검사
+        if (!IsPartyValid())
+        {
+            Debug.LogWarning("[SlotBased] 파티에 캐릭터가 없습니다. 전투를 시작할 수 없습니다.");
+            return;
+        }
+        
+        // 전투 진입 직전 최종 파티 정보 업데이트
+        UpdateSpawnManagerParty();
+        
+        // 전투 진입 직전 allyPartyData 상태 출력
+        Debug.Log($"[SlotBased] 전투 진입 직전 allyPartyData.Count: {SpawnManager.Instance.allyPartyData.Count}");
+        for (int i = 0; i < SpawnManager.Instance.allyPartyData.Count; i++)
+        {
+            var data = SpawnManager.Instance.allyPartyData[i];
+            Debug.Log($"[SlotBased] allyPartyData[{i}]: {data.Label} (ID: {data.ID})");
+        }
+        
+        // 최종 스킬ID 확인
+        Debug.Log($"[SlotBased] 전투 진입 직전 partySkillIDs: {string.Join(",", SpawnManager.Instance.partySkillIDs)}");
+        
+        // 씬 전환
+        UnityEngine.SceneManagement.SceneManager.LoadScene("TestBattle");
+    }
+
+    // ===== 주인공 스킬 세팅 관련 메서드들 =====
+
+    /// <summary>
+    /// 1번 슬롯(주인공) 클릭 시 스킬 세팅 UI를 활성화합니다.
+    /// </summary>
+    public void OnSlot1Clicked()
+    {
+        if (skillSettingPanel != null)
+        {
+            skillSettingPanel.SetActive(true);
+            RefreshSkillSlots();
+            Debug.Log("[SlotBased] 주인공 스킬 세팅 UI 활성화");
+        }
+    }
+
+    /// <summary>
+    /// 스킬 세팅 UI를 닫습니다.
+    /// </summary>
+    public void CloseSkillSetting()
+    {
+        if (skillSettingPanel != null)
+        {
+            skillSettingPanel.SetActive(false);
+            Debug.Log("[SlotBased] 주인공 스킬 세팅 UI 비활성화");
+        }
+    }
+
+    /// <summary>
+    /// 스킬 슬롯들을 새로고침합니다.
+    /// </summary>
+    private void RefreshSkillSlots()
+    {
+        if (skillSlotContainer == null) 
+        {
+            Debug.LogWarning("[SlotBased] skillSlotContainer가 null입니다.");
+            return;
+        }
+
+        Debug.Log("[SlotBased] RefreshSkillSlots 시작");
+
+        try
+        {
+            // 안전한 방식으로 SkillSlot 컴포넌트 찾기
+            var allComponents = skillSlotContainer.GetComponentsInChildren<MonoBehaviour>();
+            var skillSlots = new List<MonoBehaviour>();
+            
+            foreach (var component in allComponents)
+            {
+                if (component != null && component.GetType().Name == "SkillSlot")
+                {
+                    skillSlots.Add(component);
+                }
+            }
+            
+            Debug.Log($"[SlotBased] 발견된 SkillSlot 개수: {skillSlots.Count}");
+
+            // 기초스킬 배열 (BaseCharacter.xml에서 가져온 기본 스킬들)
+            string[] defaultSkills = { "010001", "010002", "010003", "010004" };
+
+            // 기존 슬롯들을 초기화 (기초스킬로 설정)
+            for (int i = 0; i < skillSlots.Count && i < 4; i++)
+            {
+                var skillSlot = skillSlots[i];
+                if (skillSlot != null)
+                {
+                    try
+                    {
+                        var initializeMethod = skillSlot.GetType().GetMethod("Initialize");
+                        if (initializeMethod != null)
+                        {
+                            // 기초스킬로 초기화
+                            string skillID = (i < defaultSkills.Length) ? defaultSkills[i] : "";
+                            initializeMethod.Invoke(skillSlot, new object[] { i, skillID });
+                            
+                            // playerSkillIDs 배열도 업데이트
+                            if (i < playerSkillIDs.Length)
+                            {
+                                playerSkillIDs[i] = skillID;
+                            }
+                            
+                            Debug.Log($"[SlotBased] SkillSlot_{i} 초기화 완료 (스킬: {skillID})");
+                        }
+                        else
+                        {
+                            Debug.LogWarning($"[SlotBased] SkillSlot_{i}에서 Initialize 메서드를 찾을 수 없습니다.");
+                        }
+                    }
+                    catch (System.Exception e)
+                    {
+                        Debug.LogError($"[SlotBased] SkillSlot_{i} 초기화 중 오류: {e.Message}");
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning($"[SlotBased] SkillSlot_{i}가 null입니다.");
+                }
+            }
+            
+            // SpawnManager에 업데이트된 스킬 정보 반영
+            UpdateSpawnManagerParty();
+            Debug.Log($"[SlotBased] 기초스킬 설정 완료: {string.Join(",", playerSkillIDs)}");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"[SlotBased] 스킬 슬롯 초기화 중 오류 발생: {e.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 특정 슬롯에 스킬을 설정합니다 (단순화된 데이터 흐름).
+    /// </summary>
+    /// <param name="slotIndex">슬롯 인덱스 (0-3)</param>
+    /// <param name="skillID">스킬 ID</param>
+    public void SetPlayerSkill(int slotIndex, string skillID)
+    {
+        if (slotIndex >= 0 && slotIndex < 4)
+        {
+            playerSkillIDs[slotIndex] = skillID;
+            Debug.Log($"[SlotBased] 주인공 스킬 슬롯 {slotIndex + 1}에 스킬 {skillID} 설정");
+            Debug.Log($"[SlotBased] 현재 playerSkillIDs: {string.Join(",", playerSkillIDs)}");
+            UpdateSpawnManagerParty(); // SpawnManager에 즉시 반영
+        }
     }
 } 

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using static UnityEngine.GraphicsBuffer;
+using System.Linq;
 
 public class SpawnManager : MonoBehaviour
 {
@@ -13,8 +14,12 @@ public class SpawnManager : MonoBehaviour
     [Header("플레이어")]
     public string playerID = "000001";  // 항상 등장하는 플레이어
 
+    // 슬롯 기반 단방향 전달: 스킬ID 배열 저장용
+    public string[] partySkillIDs = new string[4] { "", "", "", "" };
+
     [Header("아군 유닛")]
     public List<string> allyIDs = new List<string>();
+    public List<CharacterData> allyPartyData = new List<CharacterData>(); // 파티 슬롯에서 넘겨받은 캐릭터 데이터
 
     [Header("저장받은 적")]
     public List<string> enemyIDs = new List<string>();
@@ -29,10 +34,18 @@ public class SpawnManager : MonoBehaviour
     {
         if (Instance != null && Instance != this)
         {
-            Destroy(gameObject); // 중복 방지
+            Destroy(gameObject);
             return;
         }
         Instance = this;
-        DontDestroyOnLoad(gameObject); // 씬이 바뀌어도 파괴되지 않도록 설정
+        DontDestroyOnLoad(gameObject);
+    }
+
+    /// <summary>
+    /// 슬롯 기반 단방향 전달: 현재 파티 정보를 디버그 출력
+    /// </summary>
+    public void LogPartyData(string context)
+    {
+        // 파티 정보 디버그 출력 (필요시 주석 해제)
     }
 }

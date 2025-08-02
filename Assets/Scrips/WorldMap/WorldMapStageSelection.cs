@@ -16,6 +16,9 @@ public class WorldMapStageSelection : MonoBehaviour
     [Header("이 오브젝트에 대응하는 스테이지 ID")]
     public string stageID;
 
+    [Header("디버그: 클리어 여부 표시")]
+    [SerializeField] private bool isCleared;
+
     private void Start()
     {
         rend = GetComponent<Renderer>();
@@ -25,6 +28,15 @@ public class WorldMapStageSelection : MonoBehaviour
         // StageCameraUI가 없으면 찾아서 할당
         if (stageCameraUI == null)
             stageCameraUI = FindObjectOfType<StageCameraUI>();
+
+        // Inspector에 클리어 여부 표시
+        isCleared = IsStageCleared();
+
+        // 클리어된 스테이지는 회색으로 표시 (임시처리)
+        if (isCleared && rend != null)
+        {
+            rend.material.color = Color.gray;
+        }
     }
 
     private void OnMouseEnter()
@@ -129,5 +141,19 @@ public class WorldMapStageSelection : MonoBehaviour
         // 월드맵 버튼 Collider 다시 활성화
         WorldMapStageSelection.SetAllStageButtonColliders(true);
         isAnyUIOpen = false;
+    }
+
+    /// <summary>
+    /// 이 스테이지가 클리어되었는지 영구적으로 확인
+    /// </summary>
+    public bool IsStageCleared()
+    {
+        // StageManager의 stageProgressDict에서 클리어 여부 확인
+        if (StageManager.Instance == null || string.IsNullOrEmpty(stageID)) return false;
+        if (StageManager.Instance.stageProgressDict != null && StageManager.Instance.stageProgressDict.TryGetValue(stageID, out var progress))
+        {
+            return progress.isCleared;
+        }
+        return false;
     }
 }

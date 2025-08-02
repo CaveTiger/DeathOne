@@ -11,6 +11,9 @@ public enum SkillType
     Buff,
     Debuff
 }
+
+
+
 public class SkillData
 {
     public static Dictionary<string, SkillData> skillDict = new Dictionary<string, SkillData>();
@@ -36,7 +39,10 @@ public class SkillData
     public int cooldown{  get; set; }
     public int currentCooldown {  get; set; }
     public int healAmount { get; set; }
+    public int HealMin { get; set; }
+    public int HealMax { get; set; }
     public SkillType Type { get; set; }
+    
     public List<SkillEffectInfo> skillEffects = new List<SkillEffectInfo>();
     public float KnockdownMultiplier { get; set; } = 1.0f;
     public SkillData Clone()
@@ -62,7 +68,13 @@ public class SkillData
             ManaCost = this.ManaCost,
             StaminaCost = this.StaminaCost,
             HealthCost = this.HealthCost,
-            KnockdownMultiplier = this.KnockdownMultiplier,
+            cooldown = this.cooldown,
+            currentCooldown = this.currentCooldown,
+            healAmount = this.healAmount,
+            HealMin = this.HealMin,
+            HealMax = this.HealMax,
+            Type = this.Type,
+            KnockdownMultiplier = this.KnockdownMultiplier
         };
     }
     public bool IsUsable()

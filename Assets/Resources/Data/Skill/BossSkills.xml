@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Skills>
+	<!-- 아델리아 보스 전용 스킬 -->
+	
+	<Skill ID ="011001" ParentID="010000">
+		<Name>어설픈 다루기</Name>
+		<Icon>SkillIcon/010001</Icon>
+		<DamageMin>5</DamageMin>
+		<DamageMax>12</DamageMax>
+		<SkillEffect>
+		</SkillEffect>
+		<SkillTarget>Enemy</SkillTarget>
+		<Motion>Attack</Motion>
+		<AttackPoint>Body</AttackPoint>
+		<AttackEffect>Cut</AttackEffect>
+		<ActiveCount>None</ActiveCount>
+		<ManaCost>0</ManaCost>
+		<CoolTime>0</CoolTime>
+	</Skill>
+	
+	<Skill ID ="011002" ParentID="010000">
+		<Name>버서크 임펙트</Name>
+		<Icon>SkillIcon/010002</Icon>
+		<DamageMin>25</DamageMin>
+		<DamageMax>40</DamageMax>
+		<SkillEffect>
+			<li>
+				<EffectID>022001</EffectID> <!-- 체력 10% 감소 -->
+				<Value>10</Value>
+				<Duration>1</Duration>
+			</li>
+		</SkillEffect>
+		<SkillTarget>Enemy</SkillTarget>
+		<Motion>Attack</Motion>
+		<AttackPoint>Body</AttackPoint>
+		<AttackEffect>Cut</AttackEffect>
+		<ActiveCount>None</ActiveCount>
+		<ManaCost>0</ManaCost>
+		<CoolTime>0</CoolTime>
+	</Skill>
+	
+	<Skill ID ="011003" ParentID="010000">
+		<Name>상황 관찰</Name>
+		<Icon>SkillIcon/010003</Icon>
+		<SkillEffect>
+			<li>
+				<EffectID>021001</EffectID> <!-- 방어력 증가 -->
+				<Value>1</Value>
+				<Duration>3</Duration>
+			</li>
+		</SkillEffect>
+		<SkillTarget>me</SkillTarget>
+		<Motion>Buff</Motion>
+		<AttackPoint>Body</AttackPoint>
+		<AttackEffect>Buff</AttackEffect>
+		<ActiveCount>None</ActiveCount>
+		<ManaCost>0</ManaCost>
+		<CoolTime>0</CoolTime>
+	</Skill>
+	
+	<Skill ID ="011004" ParentID="010000">
+		<Name>세계 뭉개기</Name>
+		<Icon>SkillIcon/010004</Icon>
+		<HealMin>20</HealMin>
+		<HealMax>30</HealMax>
+		<SkillEffect>
+		</SkillEffect>
+		<SkillTarget>AllEnemy</SkillTarget>
+		<Motion>DownAttack</Motion>
+		<AttackPoint>Body</AttackPoint>
+		<AttackEffect>Blunt</AttackEffect>
+		<ActiveCount>None</ActiveCount>
+		<ManaCost>2</ManaCost>
+		<CoolTime>4</CoolTime>
+	</Skill>
+</Skills> 
