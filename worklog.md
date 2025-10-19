@@ -2068,7 +2068,7 @@
 ### 예상 결과
 - **힐 스킬**: 초록색 "+힐량" 표시
 - **피해 스킬**: 빨간색/흰색 데미지 표시
-- **전체 힐**: 제자리에서 초록색 힐 표시
+- **전체 힐**: 제자리에서 초록색 힐 팝업이 애니메이션 후 사라짐
 
 ## 2025-08-02 힐 팝업 애니메이션 및 자동 삭제 구현
 
@@ -2128,3 +2128,115 @@
 - **기초적인 검격**: "데미지: 10-15" 표시
 - **힐 스킬**: "힐량: 10-15" 표시
 - **상태이상 스킬**: 상태이상 효과 정보 표시
+
+## 2025-08-07
+### 전체 스킬 연출 분기 시스템 구현
+- 파일 위치: Assets/Scrips/SkillSystem/SkillManager.cs
+- 작업 내용: 전체 스킬과 단일 스킬의 연출을 분기하여 차별화된 연출 시스템 구현
+- 변경 사항:
+  - IsAllTargetSkill() 메서드 추가: 전체 타겟 스킬(AllEnemies, AllAllies) 판별
+  - UseAllTargetSkill() 메서드 추가: 전체 타겟 스킬 전용 처리
+  - PlayAllTargetSkillEffect() 메서드 추가: 전체 스킬 연출 분기 처리
+  - PlayAllHealEffect() 메서드 추가: 전체 회복 스킬 연출 (제자리에서)
+  - PlayAllAttackEffect() 메서드 추가: 전체 공격 스킬 연출 (앞으로 나가서 타격)
+  - UseSkill() 메서드 수정: 전체 스킬 → 범위 스킬 → 단일 스킬 순서로 분기
+- 연출 차별화:
+  - 전체 회복: 제자리에서만 연출 (카메라 줌인/이동 없음)
+  - 전체 공격: 공격자가 앞으로 이동하여 타격 연출 (화면은 가만히)
+  - 단일 스킬: 기존 방식 유지 (줌인 + 집중 연출)
+- 문제 해결:
+  - 전체 공격에서 공격자가 피격모션을 하지 않도록 수정 (target != caster 조건 추가)
+  - 피격된 타겟들의 모션 원위치 처리 (ResetMotion, ResetPosition)
+  - 배틀UI 관리 개선 (ChangeUINormal() 호출로 배틀UI 끄기)
+  - TurnManager null 오류 해결 (불필요한 재시도 로직 제거)
+- 참고 사항:
+  - 전체 스킬과 범위 스킬의 명확한 구분
+  - 연출의 일관성과 차별화 동시 달성
+  - 기존 시스템과의 호환성 유지
+
+## 2025-08-12 버프/디버프 팝업 시스템 구축 및 팝업 정리 시스템 구현
+
+### 버프/디버프 팝업 시스템 구축
+- 파일 위치: 
+  - Assets/Scrips/UI/BuffDebuffPopup.cs (신규 생성)
+  - Assets/Scrips/Prefab/BuffandDebuffPopup.prefab (신규 생성)
+  - Assets/Scrips/Battle/BattleEffectManager.cs
+  - Assets/Scrips/SkillSystem/SkillManager.cs
+  - Assets/Scrips/CharacterScrips/CharacterMotionController.cs
+- 작업 내용: 버프/디버프 전용 팝업 시스템 구현
+- 변경 사항:
+  - **BuffDebuffPopup.cs 신규 생성**: 아이콘 + 텍스트 조합의 상세 팝업
+  - **BuffandDebuffPopup.prefab 신규 생성**: 버프/디버프 전용 UI 프리팹
+  - **BattleEffectManager.CreateNewBuffDebuffPopup() 메서드 추가**: 팝업 생성 및 위치 조정
+  - **SkillManager 버프 처리 로직 개선**: StatusEffectData 기반 실제 효과명 표시
+  - **CharacterMotionController.PlayBuffMotion() 추가**: 버프 전용 모션 (파란색)
+  - **StatusEffectData 아이콘 경로 수정**: UI/ 접두사 자동 추가로 아이콘 로딩 해결
+- 팝업 시스템 특징:
+  - **아이콘 + 텍스트 조합**: 실제 상태이상 이름과 아이콘 표시
+  - **동적 아이콘 로딩**: Resources.Load로 UI/StatusEffect 폴더에서 동적 로드
+  - **수직 스택링**: 같은 캐릭터에 여러 팝업 시 -100픽셀 간격으로 배치
+  - **색상 구분**: 텍스트는 파란색/빨간색, 아이콘은 원본 색상 유지
+  - **애니메이션**: 빠른 페이드인(0.1초) + 부드러운 페이드아웃(0.8초)
+
+### 팝업 정리 시스템 구현 및 정리
+- 파일 위치: 
+  - Assets/Scrips/CharacterScrips/CharacterMotionController.cs
+- 작업 내용: 캐릭터 복귀 시 팝업 정리 시스템 구현 후 정리
+- 변경 사항:
+  - **ClearAllPopupsExceptExceptions() 메서드 추가**: 예외 오브젝트 제외한 모든 팝업 정리
+  - **IsExceptionObject() 메서드 추가**: 예외 오브젝트 판별 (BuffandDebuffPopup, DamageCount)
+  - **IsPopupObject() 메서드 추가**: 팝업 오브젝트 판별 (컴포넌트 + 이름 기반)
+  - **ResetPosition() 메서드 수정**: 캐릭터 복귀 시 팝업 정리 호출
+- 정리된 코드들:
+  - BattleEffectManager.ClearAllPopups() 제거
+  - BattleCamera 팝업 정리 로직 제거
+  - BattleManager.EndBattle() 팝업 정리 제거
+  - TurnManager.EndBattle() 팝업 정리 제거
+  - BattleUIManager.ChangeUINormal() 팝업 정리 제거
+- 팝업 정리 시스템 특징:
+  - **직접적 접근**: BattleUI 하위 오브젝트 직접 검사
+  - **예외 처리**: 지정된 두 오브젝트는 유지
+  - **리플렉션 사용**: 타입 참조 문제 해결
+  - **캐릭터 복귀 시점**: 가장 확실한 타이밍에 정리
+
+### 해결된 문제들
+- **버프 모션 문제**: 피격 모션 대신 파란색 버프 모션 구현
+- **팝업 정보 부족**: 수치만 표시하던 것을 아이콘+이름으로 개선
+- **아이콘 로딩 실패**: UI/ 접두사 자동 추가로 해결
+- **팝업 겹침**: 수직 스택링으로 해결
+- **화면 지저분함**: 캐릭터 복귀 시 팝업 정리로 해결
+
+### 참고 사항
+- 버프/디버프 팝업은 실제 StatusEffectData 기반으로 정확한 정보 표시
+- 아이콘은 UI/StatusEffect 폴더의 기존 리소스 활용
+- 팝업 정리는 캐릭터 복귀 시점에 직접적이고 확실하게 처리
+- 예외 오브젝트 설정으로 필요한 팝업은 유지 가능
+
+## 2025-10-14 선택/턴 대상 UI 월드 공간 전환
+
+### 작업 내용
+- 선택 대상 UI (Selcetor) 월드 공간 전환
+- 턴 대상 UI (TurnMarker) 월드 공간 전환
+- 3D 공간에서 UI 표시 최적화
+
+### 변경 사항
+- **TargetSelector.cs**: 위치 계산 로직을 월드 공간용으로 수정
+  - `WorldToScreenPoint()` 제거
+  - 직접 월드 좌표 설정: `CurrentTarget.transform.position + new Vector3(0, 2f, 0)`
+  - y 오프셋 조정: 200f → 2f
+- **TurnIndicatorHandler.cs**: 위치 계산 로직을 월드 공간용으로 수정
+  - `WorldToScreenPoint()` 제거
+  - 직접 월드 좌표 설정: `currentTarget.position + new Vector3(0, 2f, 0)`
+  - y 오프셋 조정: 200f → 2f
+  - 디버그 로그 변수명 수정: `screenPos` → `worldPos`
+
+### 해결된 문제들
+- **UI 안정성**: 월드 공간에서 UI가 안정적으로 표시됨
+- **타겟 데이터 전달**: 스킬 시스템과의 연동 정상 작동
+- **전투 진행**: 전체적인 전투 시스템 안정성 확보
+- **성능 개선**: 불필요한 스크린 변환 제거로 성능 향상
+
+### 참고 사항
+- Canvas Render Mode는 이미 World Space로 설정되어 있었음
+- 위치 계산 로직만 월드 공간에 맞게 수정
+- 인스펙터 연결은 기존 설정 그대로 유지

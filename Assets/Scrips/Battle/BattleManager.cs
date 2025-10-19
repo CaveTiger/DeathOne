@@ -274,11 +274,15 @@ public class BattleManager : MonoBehaviour
 
     public void EndBattle(bool isVictory)
     {
+
+        
         SavePartyStatusToStageSetting();
         
         // 전투 결과 데이터 수집
         CollectBattleResultData(isVictory);
     }
+
+
 
     private void CollectBattleResultData(bool isVictory)
     {

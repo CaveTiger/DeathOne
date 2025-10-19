@@ -380,6 +380,8 @@ public class TurnManager : MonoBehaviour
 
     private void EndBattle(bool isPlayerWin)
     {
+
+        
         // ★ BattleManager의 EndBattle 호출 (전투 결과 데이터 수집)
         BattleManager battleManager = FindObjectOfType<BattleManager>();
         if (battleManager != null)

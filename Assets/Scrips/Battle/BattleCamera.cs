@@ -29,6 +29,9 @@ public class BattleCamera : MonoBehaviour
         Camera cam = Camera.main;
         float startSize = cam.orthographicSize;
         float time = 0f;
+        
+
+        
         while (time < duration)
         {
             cam.orthographicSize = Mathf.Lerp(startSize, targetSize, time / duration);
@@ -38,4 +41,6 @@ public class BattleCamera : MonoBehaviour
         cam.orthographicSize = targetSize;
         currentZoomCoroutine = null;
     }
+
+
 }

@@ -56,6 +56,8 @@ public class BattleUIManager : MonoBehaviour
     }
     public void ChangeUINormal()
     {
+
+        
         SetCanvasGroupAlpha(uiAllCanvasGroup, 1f);
         SetCanvasGroupAlpha(battleUICanvasGroup, 0f);
         IsInBattleMode = false; // 전투 모드 비활성화
@@ -136,4 +138,6 @@ public class BattleUIManager : MonoBehaviour
         float endTime = Time.realtimeSinceStartup;
         Debug.Log($"[AI개선] DisableAllSkillUI 완료 - 소요시간: {(endTime - startTime) * 1000:F2}ms");
     }
+
+
 }

@@ -14,6 +14,7 @@ public class BattleEffectManager : MonoBehaviour
     [SerializeField] private GameObject hitUIEffectPrefab; // 히트 UI 이펙트 프리팹
     [SerializeField] private GameObject damageCountPrefab; // 데미지 카운트 프리팹
     [SerializeField] private GameObject deathIconPrefab; // 데스 아이콘 프리팹
+    [SerializeField] private GameObject buffDebuffPopupPrefab; // 버프/디버프 팝업 프리팹
 
     [Header("연출 설정")]
     [SerializeField] private float hitShakeDuration = 0.2f; // 피격 시 흔들림 지속시간
@@ -63,6 +64,7 @@ public class BattleEffectManager : MonoBehaviour
             character.OnTakeDamageEvent += OnCharacterTakeDamage;
             character.OnHealEvent += OnCharacterHeal;
             character.OnDeathEvent += OnCharacterDeath;
+            character.OnBuffEvent += OnCharacterBuff; // 버프 이벤트 구독 추가
         }
     }
 
@@ -79,6 +81,7 @@ public class BattleEffectManager : MonoBehaviour
                 character.OnTakeDamageEvent -= OnCharacterTakeDamage;
                 character.OnHealEvent -= OnCharacterHeal;
                 character.OnDeathEvent -= OnCharacterDeath;
+                character.OnBuffEvent -= OnCharacterBuff; // 버프 이벤트 구독 해제 추가
             }
         }
     }
@@ -99,6 +102,15 @@ public class BattleEffectManager : MonoBehaviour
     {
         Debug.Log($"OnCharacterHeal 호출됨: {target.name}, 힐량: {healAmount}");
         PlayHealEffect(target, healAmount);
+    }
+
+    /// <summary>
+    /// 캐릭터가 버프를 받았을 때 호출되는 이벤트 핸들러
+    /// </summary>
+    public void OnCharacterBuff(CharacterStats target, int buffValue, Vector3 casterPosition)
+    {
+        Debug.Log($"OnCharacterBuff 호출됨: {target.name}, 버프 수치: {buffValue}");
+        PlayBuffEffect(target, buffValue);
     }
 
     /// <summary>
@@ -278,7 +290,7 @@ public class BattleEffectManager : MonoBehaviour
     /// <param name="position">팝업 위치</param>
     /// <param name="damage">데미지 수치</param>
     /// <param name="isCritical">크리티컬 여부</param>
-    private GameObject CreatePopup(Vector3 position, int amount, bool isCritical, bool isHeal = false)
+    private GameObject CreatePopup(Vector3 position, int amount, bool isCritical, bool isHeal = false, bool isBuff = false)
     {
         if (damageCountPrefab == null) return null;
 
@@ -327,6 +339,11 @@ public class BattleEffectManager : MonoBehaviour
                 popupText.text = "+" + amount.ToString();
                 popupText.color = healColor;
             }
+            else if (isBuff)
+            {
+                popupText.text = "+" + amount.ToString();
+                popupText.color = new Color(0.3f, 0.3f, 1f, 1f); // 연한 파란색
+            }
             else
             {
                 popupText.text = amount.ToString();
@@ -346,7 +363,154 @@ public class BattleEffectManager : MonoBehaviour
         return popup;
     }
 
+    /// <summary>
+    /// 버프 전용 팝업을 생성합니다
+    /// </summary>
+    /// <param name="position">생성 위치</param>
+    /// <param name="buffValue">버프 수치</param>
+    private GameObject CreateBuffPopup(Vector3 position, int buffValue)
+    {
+        if (damageCountPrefab == null) return null;
 
+        // Canvas를 찾아서 UI 요소를 그 자식으로 생성
+        Canvas canvas = FindObjectOfType<Canvas>();
+        if (canvas == null)
+        {
+            Debug.LogWarning("[BattleEffectManager] Canvas를 찾을 수 없습니다.");
+            return null;
+        }
+
+        // 월드 좌표를 스크린 좌표로 변환
+        Camera mainCamera = Camera.main;
+        if (mainCamera == null)
+        {
+            Debug.LogWarning("[BattleEffectManager] Main Camera를 찾을 수 없습니다.");
+            return null;
+        }
+
+        Vector3 screenPosition = mainCamera.WorldToScreenPoint(position);
+        
+        // 스크린 좌표를 Canvas 좌표로 변환
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            canvas.GetComponent<RectTransform>(),
+            screenPosition,
+            canvas.worldCamera,
+            out Vector2 localPoint
+        );
+        
+        // 버프 팝업을 우상단에 배치
+        Vector2 buffOffset = new Vector2(30, 40); // 우상단으로 오프셋
+        localPoint += buffOffset;
+        
+        GameObject popup = Instantiate(damageCountPrefab, canvas.transform);
+        RectTransform rectTransform = popup.GetComponent<RectTransform>();
+        if (rectTransform != null)
+        {
+            rectTransform.anchoredPosition = localPoint;
+        }
+        
+        TMPro.TextMeshProUGUI popupText = popup.GetComponent<TMPro.TextMeshProUGUI>();
+        if (popupText != null)
+        {
+            popupText.text = $"+{buffValue}";
+            popupText.color = new Color(0.3f, 0.3f, 1f, 1f); // 연한 파란색
+        }
+        
+        return popup;
+    }
+
+    /// <summary>
+    /// 새로운 버프/디버프 팝업을 생성합니다
+    /// </summary>
+    /// <param name="position">생성 위치</param>
+    /// <param name="effectName">상태이상 이름</param>
+    /// <param name="value">변화 수치</param>
+    /// <param name="isBuff">버프인지 디버프인지</param>
+    /// <param name="effectData">상태이상 데이터</param>
+    private Dictionary<Vector3, int> popupCountByPosition = new Dictionary<Vector3, int>(); // 위치별 팝업 카운터
+    
+    public void CreateNewBuffDebuffPopup(Vector3 position, string effectName, int value, bool isBuff, StatusEffectData effectData = null)
+    {
+        Debug.Log($"[BattleEffectManager] CreateNewBuffDebuffPopup 호출됨: {effectName}, 수치={value}, isBuff={isBuff}");
+        
+        if (buffDebuffPopupPrefab == null)
+        {
+            Debug.LogWarning("[BattleEffectManager] buffDebuffPopupPrefab이 설정되지 않았습니다.");
+            return;
+        }
+
+        // Canvas를 찾아서 UI 요소를 그 자식으로 생성
+        Canvas canvas = FindObjectOfType<Canvas>();
+        if (canvas == null)
+        {
+            Debug.LogWarning("[BattleEffectManager] Canvas를 찾을 수 없습니다.");
+            return;
+        }
+
+        // 월드 좌표를 스크린 좌표로 변환
+        Camera mainCamera = Camera.main;
+        if (mainCamera == null)
+        {
+            Debug.LogWarning("[BattleEffectManager] Main Camera를 찾을 수 없습니다.");
+            return;
+        }
+
+        Vector3 screenPosition = mainCamera.WorldToScreenPoint(position);
+        
+        // 스크린 좌표를 Canvas 좌표로 변환
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            canvas.GetComponent<RectTransform>(),
+            screenPosition,
+            canvas.worldCamera,
+            out Vector2 localPoint
+        );
+        
+        // 위치별 팝업 카운터 관리
+        Vector3 roundedPosition = new Vector3(Mathf.Round(position.x * 10) / 10, Mathf.Round(position.y * 10) / 10, Mathf.Round(position.z * 10) / 10);
+        if (!popupCountByPosition.ContainsKey(roundedPosition))
+        {
+            popupCountByPosition[roundedPosition] = 0;
+        }
+        
+        // 팝업을 캐릭터 위에 배치 (순차적으로 아래쪽으로)
+        Vector2 popupOffset = new Vector2(0, 80 - (popupCountByPosition[roundedPosition] * 100)); // 첫 번째는 80, 두 번째는 -20, 세 번째는 -120...
+        localPoint += popupOffset;
+        
+        Debug.Log($"[BattleEffectManager] 팝업 위치 조정: {effectName}, 위치={roundedPosition}, 카운터={popupCountByPosition[roundedPosition]}, 오프셋={popupOffset}");
+        
+        // 팝업 카운터 증가
+        popupCountByPosition[roundedPosition]++;
+        
+        GameObject popup = Instantiate(buffDebuffPopupPrefab, canvas.transform);
+        RectTransform rectTransform = popup.GetComponent<RectTransform>();
+        if (rectTransform != null)
+        {
+            rectTransform.anchoredPosition = localPoint;
+        }
+        
+        // 팝업 스크립트에 정보 전달
+        BuffDebuffPopup popupScript = popup.GetComponent<BuffDebuffPopup>();
+        if (popupScript != null)
+        {
+            popupScript.ShowPopup(effectName, value, isBuff);
+            
+            // 상태이상 데이터가 있으면 아이콘 설정
+            if (effectData != null && popupScript.iconImage != null)
+            {
+                Sprite iconSprite = effectData.GetDynamicIcon(value);
+                popupScript.iconImage.sprite = iconSprite;
+                Debug.Log($"[BattleEffectManager] 아이콘 설정: {effectName}, 아이콘={(iconSprite != null ? "성공" : "실패")}");
+            }
+            else
+            {
+                Debug.LogWarning($"[BattleEffectManager] 아이콘 설정 실패: effectData={effectData != null}, iconImage={popupScript.iconImage != null}");
+            }
+        }
+        else
+        {
+            Debug.LogError("[BattleEffectManager] BuffDebuffPopup 스크립트를 찾을 수 없습니다.");
+        }
+    }
 
     /// <summary>
     /// 히트 표시와 데미지 팝업을 함께 애니메이션합니다
@@ -799,6 +963,22 @@ public class BattleEffectManager : MonoBehaviour
     }
 
     /// <summary>
+    /// 버프 연출을 실행합니다
+    /// </summary>
+    /// <param name="target">버프 대상 캐릭터</param>
+    /// <param name="buffValue">버프 수치</param>
+    public void PlayBuffEffect(CharacterStats target, int buffValue)
+    {
+        if (target == null) return;
+
+        // 새로운 시스템에서는 팝업을 생성하지 않음 (SkillManager에서 처리)
+        // CreateNewBuffDebuffPopup(target.transform.position, "ATK", buffValue, true);
+        
+        // 버프 이펙트 (파란색 파티클 등) 추가 가능
+        StartCoroutine(BuffEffectCoroutine(target));
+    }
+
+    /// <summary>
     /// 회복 연출 코루틴
     /// </summary>
     private IEnumerator HealEffectCoroutine(CharacterStats target)
@@ -823,6 +1003,44 @@ public class BattleEffectManager : MonoBehaviour
                 // 녹색으로 깜빡이는 효과
                 Color healColor = Color.Lerp(originalColor, Color.green, Mathf.Sin(t * Mathf.PI * 4) * 0.3f);
                 spriteRenderer.color = healColor;
+
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+
+            // 최종 색상 복구 전에 한 번 더 확인
+            if (spriteRenderer != null && spriteRenderer.gameObject != null)
+            {
+                spriteRenderer.color = originalColor;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 버프 연출 코루틴
+    /// </summary>
+    private IEnumerator BuffEffectCoroutine(CharacterStats target)
+    {
+        SpriteRenderer spriteRenderer = target.GetComponentInChildren<SpriteRenderer>();
+        if (spriteRenderer != null && spriteRenderer.gameObject != null)
+        {
+            Color originalColor = spriteRenderer.color;
+            float elapsed = 0f;
+            float duration = 0.5f;
+
+            while (elapsed < duration)
+            {
+                // SpriteRenderer가 파괴되었는지 확인
+                if (spriteRenderer == null || spriteRenderer.gameObject == null)
+                {
+                    Debug.LogWarning("[BattleEffectManager] BuffEffectCoroutine: SpriteRenderer가 파괴되어 버프 효과 중단");
+                    break;
+                }
+
+                float t = elapsed / duration;
+                // 연한 파란색으로 깜빡이는 효과
+                Color buffColor = Color.Lerp(originalColor, new Color(0.5f, 0.5f, 1f, 1f), Mathf.Sin(t * Mathf.PI * 4) * 0.3f);
+                spriteRenderer.color = buffColor;
 
                 elapsed += Time.deltaTime;
                 yield return null;
@@ -890,4 +1108,6 @@ public class BattleEffectManager : MonoBehaviour
             TurnManager.Instance.CheckBattleEnd();
         }
     }
+
+
 } 

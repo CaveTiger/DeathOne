@@ -55,7 +55,13 @@ public class StatusEffectData : ScriptableObject
     /// </summary>
     public Sprite GetIcon()
     {
-        return Resources.Load<Sprite>(iconPath);
+        // UI/ 접두사 추가 (실제 파일 위치에 맞춤)
+        string fullPath = iconPath;
+        if (!fullPath.StartsWith("UI/"))
+        {
+            fullPath = "UI/" + fullPath;
+        }
+        return Resources.Load<Sprite>(fullPath);
     }
 
     /// <summary>
@@ -71,6 +77,12 @@ public class StatusEffectData : ScriptableObject
         if (basePath.Contains("."))
         {
             basePath = basePath.Substring(0, basePath.LastIndexOf('.'));
+        }
+
+        // UI/ 접두사 추가 (실제 파일 위치에 맞춤)
+        if (!basePath.StartsWith("UI/"))
+        {
+            basePath = "UI/" + basePath;
         }
 
         string dynamicPath;

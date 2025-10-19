@@ -47,6 +47,7 @@ public class CharacterStats : MonoBehaviour
     public System.Action<CharacterStats, int, bool, Vector3> OnTakeDamageEvent;
     public System.Action<CharacterStats, int, Vector3> OnHealEvent;
     public System.Action<CharacterStats> OnDeathEvent;
+    public System.Action<CharacterStats, int, Vector3> OnBuffEvent; // 버프 이벤트 추가
 
     public void SetData(CharacterData data)
     {
@@ -183,6 +184,57 @@ public class CharacterStats : MonoBehaviour
         // UI 업데이트
         if (HpUI != null)
             HpUI.UpdateHpBar(Hp, MaxHp);
+    }
+
+    /// <summary>
+    /// 버프 효과를 적용합니다.
+    /// </summary>
+    /// <param name="buffType">버프 타입 (예: "공격력", "방어력")</param>
+    /// <param name="value">버프 수치</param>
+    public void ApplyBuff(string buffType, int value)
+    {
+        Debug.Log($"[CharacterStats] {Label} 버프 적용: {buffType} +{value}");
+        
+        // === 전투 연출 시스템 연동 ===
+        // 버프 이벤트 발생 (파란색 표시용)
+        Vector3 casterPos = transform.position + Vector3.left * 2f; // 캐스터 위치 (기본값)
+        OnBuffEvent?.Invoke(this, value, casterPos);
+        
+        // 버프 타입에 따른 실제 스탯 적용
+        ApplyBuffToStats(buffType, value);
+    }
+
+    /// <summary>
+    /// 버프 타입에 따라 실제 스탯에 적용합니다.
+    /// </summary>
+    private void ApplyBuffToStats(string buffType, int value)
+    {
+        switch (buffType)
+        {
+            case "공격력":
+                Atk += value;
+                Debug.Log($"[CharacterStats] {Label} 공격력 버프: +{value} (현재: {Atk})");
+                break;
+            case "방어력":
+                Def += value;
+                Debug.Log($"[CharacterStats] {Label} 방어력 버프: +{value} (현재: {Def})");
+                break;
+            case "속도":
+                Speed += value;
+                Debug.Log($"[CharacterStats] {Label} 속도 버프: +{value} (현재: {Speed})");
+                break;
+            case "회피율":
+                Evasion += value;
+                Debug.Log($"[CharacterStats] {Label} 회피율 버프: +{value} (현재: {Evasion})");
+                break;
+            case "명중률":
+                Accuracy += value;
+                Debug.Log($"[CharacterStats] {Label} 명중률 버프: +{value} (현재: {Accuracy})");
+                break;
+            default:
+                Debug.Log($"[CharacterStats] {Label} 알 수 없는 버프 타입: {buffType}");
+                break;
+        }
     }
 
     public void Deathcheck()

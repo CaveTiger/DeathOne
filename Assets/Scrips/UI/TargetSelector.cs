@@ -80,9 +80,9 @@ public class TargetSelector : MonoBehaviour
         if (enemyInfoUI != null)
             enemyInfoUI.SetCharacterStats(CurrentTarget);
 
-        Vector3 screenPos = Camera.main.WorldToScreenPoint(CurrentTarget.transform.position);
-        screenPos.y += 200f;
-        targetMarkerImage.position = screenPos;
+        // 월드 공간에서 직접 위치 설정
+        Vector3 worldPos = CurrentTarget.transform.position + new Vector3(0, 2f, 0);
+        targetMarkerImage.position = worldPos;
         targetMarker.gameObject.SetActive(true);
     }
     public void HideSelector()//얘는 턴쪽에서 불러올 메서드

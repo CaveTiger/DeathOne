@@ -24,12 +24,31 @@ public class SkillManager : MonoBehaviour
                target.Contains("highest") || target.Contains("weakest") || 
                target.Contains("strongest");
     }
+
+    /// <summary>
+    /// 스킬이 전체 타겟 스킬인지 확인합니다 (AllEnemies, AllAllies)
+    /// </summary>
+    private bool IsAllTargetSkill(SkillData skill)
+    {
+        if (skill == null || string.IsNullOrEmpty(skill.SkillTarget))
+            return false;
+
+        string target = skill.SkillTarget.ToLower();
+        return target == "allenemies" || target == "allallies";
+    }
     public CharacterInfoPlayer playerInfoUI; // 인스펙터에서 PlayerInfo 오브젝트 할당
 
     public void UseSkill(SkillData skill, CharacterStats caster, CharacterStats target, SkillData motionData)
     {
         if (!skill.IsUsable()) return;
         skill.currentCooldown = skill.cooldown;
+
+        // 전체 타겟 스킬인지 확인 (AllEnemies, AllAllies)
+        if (IsAllTargetSkill(skill))
+        {
+            UseAllTargetSkill(skill, caster, target, motionData);
+            return;
+        }
 
         // 범위 스킬인지 확인
         if (IsRangeSkill(skill))
@@ -77,6 +96,25 @@ public class SkillManager : MonoBehaviour
         
         // 범위 스킬 연출 시작
         StartCoroutine(PlayRangeSkillEffect(skill, caster, targets, motionData));
+    }
+
+    /// <summary>
+    /// 전체 타겟 스킬을 사용합니다 (AllEnemies, AllAllies)
+    /// </summary>
+    private void UseAllTargetSkill(SkillData skill, CharacterStats caster, CharacterStats target, SkillData motionData)
+    {
+        List<CharacterStats> targets = GetRangeTargets(skill, caster, target);
+        
+        if (targets.Count == 0)
+        {
+            Debug.LogWarning("[SkillManager] 전체 타겟 스킬의 타겟이 없습니다.");
+            return;
+        }
+
+        Debug.Log($"[SkillManager] 전체 타겟 스킬 사용: {skill.Name}, 타겟 수: {targets.Count}");
+        
+        // 전체 타겟 스킬 연출 시작
+        StartCoroutine(PlayAllTargetSkillEffect(skill, caster, targets, motionData));
     }
 
     /// <summary>
@@ -410,10 +448,21 @@ public class SkillManager : MonoBehaviour
         yield return new WaitForSeconds(hitTiming);
         Debug.Log("[스킬연출] PlaySkillEffect - 타격 타이밍 대기 완료");
 
-        // 6. 타겟 모션 재생 (타격 순간) - 힐 스킬은 제외
+        // 6. 타겟 모션 재생 (타격 순간) - 힐/버프 스킬은 제외
         Debug.Log("[스킬연출] PlaySkillEffect - 타겟 모션 재생 시작");
-        if (targetMotion != null && !target.IsDead && skill.Type != SkillType.Heal)
-            targetMotion.PlayHitMotion();
+        if (targetMotion != null && !target.IsDead)
+        {
+            if (skill.Type == SkillType.Buff)
+            {
+                // 버프 스킬: 타겟이 버프 모션 취함
+                targetMotion.PlayBuffMotion();
+            }
+            else if (skill.Type != SkillType.Heal)
+            {
+                // 공격 스킬: 타겟이 피격 모션 취함
+                targetMotion.PlayHitMotion();
+            }
+        }
         Debug.Log("[스킬연출] PlaySkillEffect - 타겟 모션 재생 완료");
 
         // 7. 피해/효과 처리 (타격 순간과 동시에)
@@ -429,6 +478,69 @@ public class SkillManager : MonoBehaviour
             case SkillType.Buff:
                 ApplyBuffEffects(skill, caster, target);
                 ApplyStatusEffects(skill, target);
+                
+                // 스킬의 skillEffects를 직접 사용해서 버프 정보 추출
+                if (skill.skillEffects != null && skill.skillEffects.Count > 0)
+                {
+                    foreach (var effect in skill.skillEffects)
+                    {
+                        if (effect != null && !string.IsNullOrEmpty(effect.EffectID))
+                        {
+                            // StatusEffectManager를 통해 실제 상태이상 데이터 가져오기
+                            var effectData = StatusEffectManager.Instance.GetById(effect.EffectID);
+                            if (effectData != null)
+                            {
+                                string effectName = effectData.effectName;
+                                int buffValue = effect.Value;
+                                bool isBuff = effect.Value >= 0;
+                                
+                                Debug.Log($"[SkillManager] 버프 정보: EffectID={effect.EffectID}, 이름={effectName}, 수치={buffValue}, 스킬={skill.Name}");
+                                
+                                // 실제 버프 적용 (기존 방식 유지)
+                                string buffType = GetBuffTypeFromEffectID(effect.EffectID);
+                                target.ApplyBuff(buffType, buffValue);
+                                
+                                // 새로운 팝업 시스템으로 버프 표시 (실제 데이터 사용)
+                                Debug.Log($"[SkillManager] 팝업 생성 시도: {effectName}, 수치={buffValue}");
+                                
+                                // BattleEffectManager를 문자열로 찾기
+                                var allMonoBehaviours = FindObjectsOfType<MonoBehaviour>();
+                                MonoBehaviour battleEffectManager = null;
+                                foreach (var mb in allMonoBehaviours)
+                                {
+                                    if (mb.GetType().Name == "BattleEffectManager")
+                                    {
+                                        battleEffectManager = mb;
+                                        break;
+                                    }
+                                }
+                                
+                                if (battleEffectManager != null)
+                                {
+                                    Debug.Log($"[SkillManager] BattleEffectManager 찾음: {battleEffectManager.GetType().Name}");
+                                    var method = battleEffectManager.GetType().GetMethod("CreateNewBuffDebuffPopup");
+                                    if (method != null)
+                                    {
+                                        method.Invoke(battleEffectManager, new object[] { target.transform.position, effectName, buffValue, isBuff, effectData });
+                                        Debug.Log($"[SkillManager] 팝업 생성 완료: {effectName}");
+                                    }
+                                    else
+                                    {
+                                        Debug.LogError($"[SkillManager] CreateNewBuffDebuffPopup 메서드를 찾을 수 없음");
+                                    }
+                                }
+                                else
+                                {
+                                    Debug.LogError($"[SkillManager] BattleEffectManager를 찾을 수 없음");
+                                }
+                            }
+                            else
+                            {
+                                Debug.LogWarning($"[SkillManager] EffectID {effect.EffectID}에 해당하는 상태이상 데이터를 찾을 수 없습니다.");
+                            }
+                        }
+                    }
+                }
                 break;
             case SkillType.Heal:
                 int healAmount = UnityEngine.Random.Range(skill.HealMin, skill.HealMax + 1);
@@ -497,15 +609,6 @@ public class SkillManager : MonoBehaviour
         // 스킬 연출 완료 후 턴 종료
         Debug.Log("[스킬연출] PlaySkillEffect - 턴 종료 호출 시작");
         
-        // TurnManager.Instance가 null인 경우 재시도
-        int retryCount = 0;
-        while (TurnManager.Instance == null && retryCount < 10)
-        {
-            Debug.LogWarning($"[스킬연출] PlaySkillEffect - TurnManager.Instance null, 재시도 {retryCount + 1}/10");
-            yield return new WaitForSeconds(0.1f);
-            retryCount++;
-        }
-        
         if (TurnManager.Instance != null)
         {
             Debug.Log("[스킬연출] PlaySkillEffect - TurnManager.Instance 존재, EndTurn 호출");
@@ -513,12 +616,43 @@ public class SkillManager : MonoBehaviour
         }
         else
         {
-            Debug.LogError("[스킬연출] PlaySkillEffect - TurnManager.Instance가 null입니다! 재시도 실패");
+            Debug.LogWarning("[스킬연출] PlaySkillEffect - TurnManager.Instance가 null입니다. 턴 종료를 건너뜁니다.");
         }
         Debug.Log("[스킬연출] PlaySkillEffect - 턴 종료 호출 완료");
+    }
+
+    /// <summary>
+    /// EffectID를 기반으로 버프 타입을 반환합니다
+    /// </summary>
+    private string GetBuffTypeFromEffectID(string effectID)
+    {
+        Debug.Log($"[SkillManager] EffectID 확인: {effectID}");
+
+        // EffectID를 기반으로 버프 타입 판별
+        switch (effectID)
         {
-            Debug.LogError("[스킬연출] PlaySkillEffect - TurnManager.Instance가 null입니다!");
+            case "021001": return "방어력";
+            case "021002": return "공격력";
+            case "021003": return "속도";
+            case "021004": return "회피율";
+            case "021005": return "명중률";
+            default: 
+                Debug.LogWarning($"[SkillManager] 알 수 없는 EffectID: {effectID}");
+                return "버프";
         }
+    }
+
+    /// <summary>
+    /// 스킬에서 버프 수치를 추출합니다
+    /// </summary>
+    private int GetBuffValueFromSkill(SkillData skill)
+    {
+        if (skill?.skillEffects == null || skill.skillEffects.Count == 0)
+            return 1;
+
+        // 첫 번째 효과의 수치 반환
+        var firstEffect = skill.skillEffects[0];
+        return firstEffect?.Value ?? 1;
     }
 
     /// <summary>
@@ -652,17 +786,8 @@ public class SkillManager : MonoBehaviour
 
         yield return new WaitForSeconds(0.3f);
 
-        // 10. 턴 종료
+        // 턴 종료
         Debug.Log("[스킬연출] PlayRangeSkillEffect - 턴 종료 호출 시작");
-        
-        // TurnManager.Instance가 null인 경우 재시도
-        int retryCount = 0;
-        while (TurnManager.Instance == null && retryCount < 10)
-        {
-            Debug.LogWarning($"[스킬연출] PlayRangeSkillEffect - TurnManager.Instance null, 재시도 {retryCount + 1}/10");
-            yield return new WaitForSeconds(0.1f);
-            retryCount++;
-        }
         
         if (TurnManager.Instance != null)
         {
@@ -671,9 +796,162 @@ public class SkillManager : MonoBehaviour
         }
         else
         {
-            Debug.LogError("[스킬연출] PlayRangeSkillEffect - TurnManager.Instance가 null입니다! 재시도 실패");
+            Debug.LogWarning("[스킬연출] PlayRangeSkillEffect - TurnManager.Instance가 null입니다. 턴 종료를 건너뜁니다.");
         }
         Debug.Log("[스킬연출] PlayRangeSkillEffect - 턴 종료 호출 완료");
+    }
+
+    /// <summary>
+    /// 전체 타겟 스킬 연출을 재생합니다
+    /// </summary>
+    private IEnumerator PlayAllTargetSkillEffect(SkillData skill, CharacterStats caster, List<CharacterStats> targets, SkillData motionData)
+    {
+        Debug.Log($"[스킬연출] PlayAllTargetSkillEffect 시작 - 스킬: {skill?.Name}, 시전자: {caster?.Label}, 타겟 수: {targets.Count}");
+        
+        // 스킬 사용 후 즉시 스킬 UI 비활성화
+        if (BattleUIManager.Instance != null)
+        {
+            BattleUIManager.Instance.DisableAllSkillUI();
+        }
+        
+        // 1. 초기 대기
+        yield return new WaitForSeconds(0.4f);
+        
+        BattleUIManager.Instance.ChangeUIBattle();
+        
+        // 2. 스킬 타입에 따른 연출 분기
+        if (skill.Type == SkillType.Heal)
+        {
+            // 전체 회복: 제자리에서 연출
+            yield return StartCoroutine(PlayAllHealEffect(skill, caster, targets, motionData));
+        }
+        else
+        {
+            // 전체 공격: 앞으로 나가서 타격 연출
+            yield return StartCoroutine(PlayAllAttackEffect(skill, caster, targets, motionData));
+        }
+    }
+
+    /// <summary>
+    /// 전체 회복 스킬 연출을 재생합니다 (제자리에서)
+    /// </summary>
+    private IEnumerator PlayAllHealEffect(SkillData skill, CharacterStats caster, List<CharacterStats> targets, SkillData motionData)
+    {
+        Debug.Log($"[스킬연출] PlayAllHealEffect 시작 - 전체 회복: {skill?.Name}");
+        
+        var casterMotion = GetMotionController(caster);
+        
+        // 1. 스킬 모션 재생 (제자리에서)
+        if (casterMotion != null && !caster.IsDead)
+            casterMotion.PlaySkillMotion(skill.Motion);
+        
+        yield return new WaitForSeconds(0.3f);
+        
+        // 2. 전체 회복 이펙트 (전체 화면 초록색 효과)
+        // TODO: 전체 화면 초록색 이펙트 추가
+        
+        // 3. 모든 타겟에 회복 효과 적용
+        foreach (var target in targets)
+        {
+            if (target != null && !target.IsDead)
+            {
+                int healAmount = UnityEngine.Random.Range(skill.HealMin, skill.HealMax + 1);
+                Debug.Log($"[스킬연출] 전체 회복: {target.Label}에게 {healAmount} 힐");
+                target.Heal(healAmount);
+                ApplyStatusEffects(skill, target);
+            }
+        }
+        
+        yield return new WaitForSeconds(0.5f);
+        
+        // 4. 배틀UI 끄기
+        if (BattleUIManager.Instance != null)
+        {
+            BattleUIManager.Instance.ChangeUINormal();
+        }
+        
+        // 5. 턴 종료
+        if (TurnManager.Instance != null)
+        {
+            TurnManager.Instance.EndTurn();
+        }
+    }
+
+    /// <summary>
+    /// 전체 공격 스킬 연출을 재생합니다 (앞으로 나가서 타격)
+    /// </summary>
+    private IEnumerator PlayAllAttackEffect(SkillData skill, CharacterStats caster, List<CharacterStats> targets, SkillData motionData)
+    {
+        Debug.Log($"[스킬연출] PlayAllAttackEffect 시작 - 전체 공격: {skill?.Name}");
+        
+        var casterMotion = GetMotionController(caster);
+        
+        // 1. 캐릭터 앞으로 이동 (적들을 향해) - 화면은 가만히
+        if (casterMotion != null && !caster.IsDead)
+            casterMotion.MoveToBattlePosition();
+        
+        yield return new WaitForSeconds(0.3f);
+        
+        // 2. 스킬 모션 재생
+        if (casterMotion != null && !caster.IsDead)
+            casterMotion.PlaySkillMotion(skill.Motion);
+        
+        yield return new WaitForSeconds(0.3f);
+        
+        // 3. 전체 타격 이펙트 (화면 흔들림 등)
+        // TODO: 전체 화면 흔들림 이펙트 추가
+        
+        // 4. 모든 타겟에 공격 효과 적용
+        foreach (var target in targets)
+        {
+            if (target != null && !target.IsDead && target != caster) // 공격자는 제외
+            {
+                var targetMotion = GetMotionController(target);
+                if (targetMotion != null)
+                    targetMotion.PlayHitMotion();
+                
+                int damage = CalculateDamage(skill, caster, target);
+                target.TakeDamage(damage, caster.Accuracy, skill, caster.transform.position);
+                ApplyStatusEffects(skill, target);
+            }
+        }
+        
+        yield return new WaitForSeconds(0.4f);
+        
+        // 5. 캐릭터 원위치 - 화면은 가만히
+        if (casterMotion != null && !caster.IsDead)
+        {
+            casterMotion.ResetMotion();
+            casterMotion.ResetPosition();
+        }
+        
+        // 6. 피격된 타겟들의 모션 원위치
+        foreach (var target in targets)
+        {
+            if (target != null && !target.IsDead && target != caster)
+            {
+                var targetMotion = GetMotionController(target);
+                if (targetMotion != null)
+                {
+                    targetMotion.ResetMotion();
+                    targetMotion.ResetPosition();
+                }
+            }
+        }
+        
+        yield return new WaitForSeconds(0.3f);
+        
+        // 7. 배틀UI 끄기
+        if (BattleUIManager.Instance != null)
+        {
+            BattleUIManager.Instance.ChangeUINormal();
+        }
+        
+        // 8. 턴 종료
+        if (TurnManager.Instance != null)
+        {
+            TurnManager.Instance.EndTurn();
+        }
     }
 
     /// <summary>

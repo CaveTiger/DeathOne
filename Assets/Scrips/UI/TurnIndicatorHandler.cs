@@ -70,14 +70,13 @@ public class TurnIndicatorHandler : MonoBehaviour
     {
         if (currentTarget == null || currentTarget.gameObject == null || selectorUI == null || !selectorUI.activeSelf) return;
 
-        // 월드 위치를 스크린 위치로 변환
-        Vector3 screenPos = targetCamera.WorldToScreenPoint(currentTarget.position);
-        screenPos.y += 200f; // 타겟 UI와 동일하게 y 오프셋 적용
+        // 월드 공간에서 직접 위치 설정
+        Vector3 worldPos = currentTarget.position + new Vector3(0, 2f, 0);
 
         RectTransform rectTransform = selectorUI.GetComponent<RectTransform>();
         if (rectTransform != null)
-            rectTransform.position = screenPos;
-        //Debug.Log($"[TurnIndicatorHandler] UI 위치 업데이트: {screenPos} (대상: {currentTarget.name})");
+            rectTransform.position = worldPos;
+        //Debug.Log($"[TurnIndicatorHandler] UI 위치 업데이트: {worldPos} (대상: {currentTarget.name})");
     }
 
     void LateUpdate()

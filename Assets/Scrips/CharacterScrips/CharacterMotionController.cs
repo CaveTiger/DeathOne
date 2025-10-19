@@ -209,6 +209,37 @@ public class CharacterMotionController : MonoBehaviour
     }
 
     /// <summary>
+    /// 버프 모션을 실행합니다.
+    /// </summary>
+    public void PlayBuffMotion()
+    {
+        if (!characterStats.IsActive) return;
+        currentMotion = "Buff";
+        // 실제 스프라이트 변경 (버프 전용 스프라이트가 있으면 사용, 없으면 Stand 사용)
+        string buffPath = $"{characterStats.data.Sprite}/Buff";
+        Sprite buffSprite = Resources.Load<Sprite>(buffPath);
+        if (buffSprite != null)
+        {
+            spriteRenderer.sprite = buffSprite;
+            Debug.Log($"[MotionController] 버프 모션 스프라이트 변경: {buffPath}");
+        }
+        else
+        {
+            // 버프 전용 스프라이트가 없으면 Stand 스프라이트 사용
+            string standPath = $"{characterStats.data.Sprite}/Stand";
+            Sprite standSprite = Resources.Load<Sprite>(standPath);
+            if (standSprite != null)
+            {
+                spriteRenderer.sprite = standSprite;
+                Debug.Log($"[MotionController] 버프 모션 - Stand 스프라이트 사용: {standPath}");
+            }
+        }
+
+        // === 연한 파란색으로 색상 변경 (버프 효과) ===
+        spriteRenderer.color = new Color(0.5f, 0.5f, 1f, 1f); // 연한 파란색
+    }
+
+    /// <summary>
     /// 죽는 모션을 실행합니다.
     /// </summary>
     public void PlayDeathMotion()
@@ -294,7 +325,10 @@ public class CharacterMotionController : MonoBehaviour
         }
         
         // 호출 스택 추적을 위한 디버그 로그
-        Debug.Log($"[MotionController] ResetPosition 호출됨: {gameObject.name}, 현재 위치: {transform.position}, 로컬 위치: {transform.localPosition}");
+                Debug.Log($"[MotionController] ResetPosition 호출됨: {gameObject.name}, 현재 위치: {transform.position}, 로컬 위치: {transform.localPosition}");
+        
+        // 캐릭터가 돌아가는 순간 모든 팝업 정리 (예외 오브젝트 제외)
+        ClearAllPopupsExceptExceptions();
         
         // 월드 좌표로 원래 위치 복귀 (슬롯의 원래 위치)
         transform.position = transform.parent.position;
@@ -336,5 +370,75 @@ public class CharacterMotionController : MonoBehaviour
         {
             Debug.LogWarning($"[MotionController] {gameObject.name}에서 SpriteRenderer를 찾을 수 없어 위치 복귀 실패");
         }
+    }
+
+    /// <summary>
+    /// 예외 오브젝트를 제외한 모든 팝업을 정리합니다.
+    /// </summary>
+    private void ClearAllPopupsExceptExceptions()
+    {
+        // BattleUI 하위의 모든 팝업 오브젝트 찾기
+        GameObject battleUI = GameObject.Find("BattleUI");
+        if (battleUI != null)
+        {
+            // BattleUI의 모든 자식 오브젝트 중 팝업들 찾기
+            Transform[] allChildren = battleUI.GetComponentsInChildren<Transform>();
+            
+            foreach (Transform child in allChildren)
+            {
+                if (child == null || child.gameObject == null) continue;
+                
+                // 예외 오브젝트 체크 (이름으로 구분)
+                if (IsExceptionObject(child.gameObject))
+                {
+                    Debug.Log($"[MotionController] 예외 오브젝트 유지: {child.name}");
+                    continue;
+                }
+                
+                // 팝업 오브젝트인지 확인
+                if (IsPopupObject(child.gameObject))
+                {
+                    Debug.Log($"[MotionController] 팝업 제거: {child.name}");
+                    Destroy(child.gameObject);
+                }
+            }
+        }
+        
+        Debug.Log("[MotionController] 캐릭터 복귀 시 팝업 정리 완료");
+    }
+
+    /// <summary>
+    /// 예외 오브젝트인지 확인합니다.
+    /// </summary>
+    private bool IsExceptionObject(GameObject obj)
+    {
+        // 예외 오브젝트 이름들 (필요에 따라 수정)
+        string[] exceptionNames = {
+            "BuffandDebuffPopup",  // 버프/디버프 팝업 프리팹
+            "DamageCount",         // 데미지 카운트 프리팹
+            // 추가 예외 오브젝트들...
+        };
+        
+        foreach (string exceptionName in exceptionNames)
+        {
+            if (obj.name.Contains(exceptionName))
+                return true;
+        }
+        
+        return false;
+    }
+
+    /// <summary>
+    /// 팝업 오브젝트인지 확인합니다.
+    /// </summary>
+    private bool IsPopupObject(GameObject obj)
+    {
+        // 팝업 관련 컴포넌트나 이름으로 판별 (리플렉션 사용)
+        if (obj.GetComponent(System.Type.GetType("BuffDebuffPopup")) != null) return true;
+        if (obj.GetComponent(System.Type.GetType("DamagePopup")) != null) return true;
+        if (obj.name.Contains("Popup")) return true;
+        if (obj.name.Contains("Effect")) return true;
+        
+        return false;
     }
 }
