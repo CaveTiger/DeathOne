@@ -17,17 +17,41 @@ public class BattleEffectManager : MonoBehaviour
     [SerializeField] private GameObject buffDebuffPopupPrefab; // 버프/디버프 팝업 프리팹
 
     [Header("연출 설정")]
-    [SerializeField] private float hitShakeDuration = 0.2f; // 피격 시 흔들림 지속시간
-    [SerializeField] private float hitShakeIntensity = 0.1f; // 피격 시 흔들림 강도
+    // [SerializeField] private float hitShakeDuration = 0.2f; // 사용하지 않는 필드 제거
+    // [SerializeField] private float hitShakeIntensity = 0.1f; // 사용하지 않는 필드 제거
     [SerializeField] private float knockbackDistance = 0.3f; // 밀림 거리
     [SerializeField] private float knockbackDuration = 0.3f; // 밀림 지속시간
     [SerializeField] private float damagePopupDuration = 1.5f; // 데미지 팝업 지속시간
     [SerializeField] private float deathEffectDuration = 2.0f; // 데스 이펙트 지속시간
 
     [Header("색상 설정")]
-    [SerializeField] private Color normalDamageColor = Color.white; // 일반 데미지 색상
-    [SerializeField] private Color criticalDamageColor = Color.red; // 크리티컬 데미지 색상
+    [SerializeField] private Color normalDamageColor = Color.red; // 일반 데미지 색상 (빨간색)
+    [SerializeField] private Color criticalDamageColor = new Color(1f, 0.5f, 0f, 1f); // 크리티컬 데미지 색상 (주황색)
     [SerializeField] private Color healColor = Color.green; // 회복 색상
+
+    [Header("UI Canvas 설정")]
+    [SerializeField] private Transform worldUI; // WorldUI Transform (UI 하위의 WorldUI 또는 StEfUI)
+
+    /// <summary>
+    /// WorldUI Canvas를 반환합니다 (할당된 worldUI 사용)
+    /// </summary>
+    private Canvas GetWorldUICanvas()
+    {
+        if (worldUI == null)
+        {
+            Debug.LogWarning("[BattleEffectManager] worldUI가 할당되지 않았습니다. Inspector에서 할당해주세요.");
+            return null;
+        }
+
+        Canvas canvas = worldUI.GetComponentInParent<Canvas>();
+        if (canvas == null)
+        {
+            Debug.LogWarning("[BattleEffectManager] worldUI의 부모에 Canvas를 찾을 수 없습니다.");
+            return null;
+        }
+
+        return canvas;
+    }
 
     private void Awake()
     {
@@ -58,7 +82,7 @@ public class BattleEffectManager : MonoBehaviour
     /// </summary>
     private void SubscribeToCharacterEvents()
     {
-        CharacterStats[] characters = FindObjectsOfType<CharacterStats>();
+        CharacterStats[] characters = FindObjectsByType<CharacterStats>(FindObjectsSortMode.None);
         foreach (var character in characters)
         {
             character.OnTakeDamageEvent += OnCharacterTakeDamage;
@@ -73,7 +97,7 @@ public class BattleEffectManager : MonoBehaviour
     /// </summary>
     private void UnsubscribeFromCharacterEvents()
     {
-        CharacterStats[] characters = FindObjectsOfType<CharacterStats>();
+        CharacterStats[] characters = FindObjectsByType<CharacterStats>(FindObjectsSortMode.None);
         foreach (var character in characters)
         {
             if (character != null)
@@ -154,11 +178,11 @@ public class BattleEffectManager : MonoBehaviour
     /// </summary>
     private IEnumerator HitEffectCoroutine(CharacterStats target, int damage, bool isCritical, Vector3 attackerPosition)
     {
-        // Canvas를 찾아서 UI 요소를 그 자식으로 생성
-        Canvas canvas = FindObjectOfType<Canvas>();
+        // Canvas 찾기
+        Canvas canvas = GetWorldUICanvas();
         if (canvas == null)
         {
-            Debug.LogWarning("[BattleEffectManager] Canvas를 찾을 수 없습니다.");
+            Debug.LogWarning("[BattleEffectManager] WorldUI Canvas를 찾을 수 없습니다.");
             yield break;
         }
 
@@ -236,11 +260,11 @@ public class BattleEffectManager : MonoBehaviour
     /// </summary>
     private IEnumerator BlockEffectCoroutine(CharacterStats target, Vector3 attackerPosition)
     {
-        // Canvas를 찾아서 UI 요소를 그 자식으로 생성
-        Canvas canvas = FindObjectOfType<Canvas>();
+        // Canvas 찾기
+        Canvas canvas = GetWorldUICanvas();
         if (canvas == null)
         {
-            Debug.LogWarning("[BattleEffectManager] Canvas를 찾을 수 없습니다.");
+            Debug.LogWarning("[BattleEffectManager] WorldUI Canvas를 찾을 수 없습니다.");
             yield break;
         }
 
@@ -287,6 +311,7 @@ public class BattleEffectManager : MonoBehaviour
     /// <summary>
     /// 데미지 팝업을 생성합니다
     /// </summary>
+
     /// <param name="position">팝업 위치</param>
     /// <param name="damage">데미지 수치</param>
     /// <param name="isCritical">크리티컬 여부</param>
@@ -294,11 +319,11 @@ public class BattleEffectManager : MonoBehaviour
     {
         if (damageCountPrefab == null) return null;
 
-        // Canvas를 찾아서 UI 요소를 그 자식으로 생성
-        Canvas canvas = FindObjectOfType<Canvas>();
+        // Canvas 찾기
+        Canvas canvas = GetWorldUICanvas();
         if (canvas == null)
         {
-            Debug.LogWarning("[BattleEffectManager] Canvas를 찾을 수 없습니다.");
+            Debug.LogWarning("[BattleEffectManager] WorldUI Canvas를 찾을 수 없습니다.");
             return null;
         }
 
@@ -372,11 +397,11 @@ public class BattleEffectManager : MonoBehaviour
     {
         if (damageCountPrefab == null) return null;
 
-        // Canvas를 찾아서 UI 요소를 그 자식으로 생성
-        Canvas canvas = FindObjectOfType<Canvas>();
+        // Canvas 찾기
+        Canvas canvas = GetWorldUICanvas();
         if (canvas == null)
         {
-            Debug.LogWarning("[BattleEffectManager] Canvas를 찾을 수 없습니다.");
+            Debug.LogWarning("[BattleEffectManager] WorldUI Canvas를 찾을 수 없습니다.");
             return null;
         }
 
@@ -439,11 +464,11 @@ public class BattleEffectManager : MonoBehaviour
             return;
         }
 
-        // Canvas를 찾아서 UI 요소를 그 자식으로 생성
-        Canvas canvas = FindObjectOfType<Canvas>();
+        // Canvas 찾기
+        Canvas canvas = GetWorldUICanvas();
         if (canvas == null)
         {
-            Debug.LogWarning("[BattleEffectManager] Canvas를 찾을 수 없습니다.");
+            Debug.LogWarning("[BattleEffectManager] WorldUI Canvas를 찾을 수 없습니다.");
             return;
         }
 
@@ -826,7 +851,7 @@ public class BattleEffectManager : MonoBehaviour
         // 2. 데스 아이콘 생성
         if (deathIconPrefab != null && target != null && target.gameObject != null)
         {
-            Canvas canvas = FindObjectOfType<Canvas>();
+            Canvas canvas = GetWorldUICanvas();
             if (canvas != null)
             {
                 Vector3 screenPosition = Camera.main.WorldToScreenPoint(target.transform.position);
@@ -1108,6 +1133,5 @@ public class BattleEffectManager : MonoBehaviour
             TurnManager.Instance.CheckBattleEnd();
         }
     }
-
 
 } 

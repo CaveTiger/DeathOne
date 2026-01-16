@@ -1,37 +1,5 @@
 # 작업 로그
 
-## 2024-05-23
-### 작업 로그 시스템 구축
-- 파일 위치: worklog.md
-- 작업 내용: 작업 로그 시스템 파일 생성
-- 변경 사항:
-  - 작업 로그 파일 생성
-  - 마크다운 형식의 로그 템플릿 작성
-  - cosurrules에서 참고할때 이곳을 체크 작업내용은 큰 카테고리이며 변경사항이 자잘한 변경사항에 해당함
-- 참고 사항: .cursorrules 파일과 동일 위치에 생성
-
-### CharacterInfoPlayer.cs
-- 파일 위치: Assets/Scripts/UI/CharacterInfoPlayer.cs
-- 작업 내용: UI 갱신 기능 구현
-- 변경 사항:
-  - UpdateInfo() 메서드 구현
-  - ShowInfo() 메서드 구현
-  - CharacterInfo 클래스 상속 구조 활용
-- 참고 사항: UI 갱신 시스템의 기본 구조 설계
-
-### 상태이상 시스템 리팩토링
-- 파일 위치: 
-  - Assets/Scripts/StatusEffect/StatusEffectInstanceReaction.cs
-  - Assets/Scripts/StatusEffect/StatusEffectNoDamageBuffData.cs
-- 작업 내용: 상태이상 시스템 구조 개선
-- 변경 사항:
-  - 리액션 타입 상태이상 분리
-  - 무적(피해무시) 효과 구현
-  - 상태이상 데이터 구조화
-- 참고 사항: 
-  - EffectID 체계 정립 (021002: 피해무시)
-  - 리액션 시스템 확장성 확보
-  - 상태이상 시스템의 기본 구조 설계
 
 ## 2024-05-25
 ### 상태이상 시스템 버그 수정
@@ -2240,3 +2208,419 @@
 - Canvas Render Mode는 이미 World Space로 설정되어 있었음
 - 위치 계산 로직만 월드 공간에 맞게 수정
 - 인스펙터 연결은 기존 설정 그대로 유지
+
+## 2025-10-21 상태이상 시스템 정비 및 턴 관리 개선
+
+### 작업 내용
+- 상태이상 시스템 구조 분석 및 문제점 파악
+- 슬롯 기반 상태이상 정산 메서드 추가 및 TurnManager 연동
+- 턴 진행 안전장치 구현 및 무한 루프 방지 시스템 구축
+
+### 변경 사항
+- **SlotHandler.cs**: 상태이상 정산 메서드 추가
+  - `SettleStatusEffectsAtTurnStart()` 메서드 구현
+  - StatusEffectController에 상태이상 처리 위임
+- **TurnManager.cs**: 턴 진행 안전장치 구현
+  - `AdvanceTurn()` 메서드 추가로 턴 진행 중앙 관리
+  - 무한 루프 방지 안전장치 (2초 내 최대 100회 호출 제한)
+  - 상태이상 정산 후 사망 체크 및 턴 진행 로직 개선
+- **SkillManager.cs**: 슬롯 기반 인접 타겟팅 시스템 구현
+  - 거리 기반 → 슬롯 기반(+1, -1) 타겟팅으로 전환
+  - 아군/적군 구분 인접 타겟팅 로직 구현
+  - 광역형 인접 스킬 지원 (단일형: 랜덤 선택, 광역형: 모두 선택)
+
+### 해결된 문제들
+- **상태이상으로 인한 게임 멈춤**: 상태이상 정산 후 사망 시 턴 진행 중단 문제 해결
+- **인접 타겟팅 부정확**: 거리 기반 계산의 부정확성 → 슬롯 기반 정확한 타겟팅
+- **무한 루프 방지**: 턴 진행 호출 과다 시 안전장치로 시스템 보호
+- **상태이상 관리 중앙화**: 슬롯 기반 상태이상 정산으로 관리 체계 개선
+
+### 참고 사항
+- 상태이상 시스템은 ScriptableObject 기반으로 잘 정립되어 있음
+- 턴 관리 흐름: 캐릭터 지목 → 상태이상 정산 → 유닛 턴 시작
+- 인접 타겟팅은 아군은 아군끼리, 적은 적끼리만 계산
+- 안전장치는 턴 수 제한이 아닌 호출 횟수 제한으로 무한 루프 방지
+
+## 2024-12-21 작업 로그
+
+### 0.1버전 상태이상 정산 이펙트 구현 완료
+- SlotHandler.cs에 상태이상 연출 시스템 추가
+  - 연출용 스프라이트 오브젝트 생성 및 관리
+  - 상태이상 아이콘 + 피해 수치 표시
+  - 순차적 연출 시스템 (타다다다다다~)
+  - 스프라이트 초기화 및 정리 시스템
+- TurnManager.cs 수정
+  - StartTurn 메서드를 코루틴으로 변경
+  - 상태이상 정산 + 연출 통합 처리
+  - 연출 완료 후 다음 턴 진행
+- 연출 시퀀스 흐름
+  1. 상태이상 정산 (데이터 처리)
+  2. 연출용 스프라이트 초기화 (null로 설정)
+  3. 상태이상별 순차 연출 (0.2초 간격)
+  4. 각 연출: 아이콘 설정 → 애니메이션 → 정리
+  5. 최종 정리 및 다음 턴 진행
+
+### StartTurn 구조 최적화
+- StartTurn을 일반 메서드로 유지
+- 정산 부분만 코루틴으로 처리 (ProcessStatusEffectsWithAnimation)
+- 연출 완료 후 UI 업데이트 및 다음 턴 진행
+- 더 깔끔하고 효율적인 구조로 개선
+
+### StatusEffectSlot으로 상태이상 정산 이펙트 이전
+- 기존 StatusEffectSlot.cs 클래스에 연출 기능 추가
+- 상태이상 정산 + 연출 시스템을 StatusEffectSlot으로 이동
+- SlotHandler는 StatusEffectSlot 호출만 담당
+- 프리팹 구조와 코드 구조의 일치성 개선
+- 상태이상 관련 모든 기능이 StatusEffectSlot에 집중
+- 기존 상태이상 UI 관리 기능과 연출 기능이 통합
+
+### 상태이상 피해량 팝업 추가
+- StatusEffectInstance.cs에 직접 DamagePopup 프리팹 사용
+- BattleEffectManager를 거치지 않고 직접 프리팹 로드 및 생성
+- 상태이상 피해 시 피해량 팝업 표시 (흰색 텍스트)
+- 간단하고 효율적인 구조로 시각적 피드백 개선
+
+## 2025-10-29 VirtualMouse 스킬 호버 UI 시스템 개선
+
+### 구현/변경 사항
+- VirtualMouse 호버 감지 시스템 개선
+  - 태그 기반(`CompareTag`) → 컴포넌트 기반(`GetComponentInParent`)으로 전환
+  - `EventSystem.current.RaycastAll` 사용으로 다중 캔버스 환경 지원
+  - `SkillInstance`, `SkillSlot`, `SkillBlock` 컴포넌트 감지로 안정성 향상
+- 스킬 정보 패널 활성화 문제 해결
+  - 비활성 오브젝트가 스스로 활성화하지 못하는 문제 해결
+  - `VirtualMouseUIPanel.SetVisible()`에서 `EnsureActiveHierarchy()` 호출로 부모 체인 활성화
+  - `VirtualMouse`에서 패널 활성화를 중앙 통제하도록 구조 개선
+- 패널 위치 계산 단순화
+  - 복잡한 화면 경계 계산 제거 → 고정 오프셋 방식으로 전환
+  - `VirtualMouseUIPanel`: `fixedOffsetX`(기본 300), `fixedOffsetY`로 좌우 배치
+  - `VirtualMouseSkillPanel`: `statusAnchorOffsetX`(700), `statusAnchorOffsetY`로 상태이상 설명 앵커 배치
+  - 좌우 판단(`ShouldShowPanelOnLeft`)에 따라 ±부호만 적용하는 간단한 구조
+- 상태이상 설명 패널 활성화 조건 개선
+  - `StatusEffectDescriptionPanel`은 효과 유무 판단만 담당
+  - `VirtualMouseSkillPanel.SetSkillData()`에서 `statusEffectAnchor.SetActive()` 직접 제어
+  - 효과 있을 때만 앵커 활성화 + 설명 업데이트, 없을 때는 비활성화
+- 초기화 및 정리 루틴 강화
+  - `SkillInfoPopup.ResetUI()`: 패널 초기화 시 모든 UI 요소(텍스트, 아이콘, 버튼) 리셋
+  - `VirtualMouseSkillPanel.InitializeSkillPanel()`: 임시 생성물 제거 후 비활성화
+  - `PanelSkillInfo`, `StEfDecAnchor` 모두 초기 상태에서 비활성화
+- Canvas 및 GraphicRaycaster 자동 생성
+  - `VirtualMouse`에 부모 Canvas가 없을 경우 자동으로 Screen Space Overlay Canvas 생성
+  - GraphicRaycaster도 자동 추가하여 UI 레이캐스팅 보장
+- Cursor 텍스처 null 처리
+  - `SetCursor()`에서 텍스처 null 체크 추가
+  - 텍스처 없을 시 시스템 기본 커서 사용 및 경고 로그만 출력
+
+### 결과/의도
+- 호버 감지 안정성 향상: 태그 의존성 제거로 다양한 UI 구조에서 동작 보장
+- 패널 활성화 문제 해결: 비활성 오브젝트의 자체 활성화 문제를 중앙 통제로 해결
+- 위치 계산 단순화: 복잡한 경계 계산 제거로 유지보수성 향상 및 버그 감소
+- 상태이상 설명 표시 개선: 스킬 패널에서 직접 제어하여 조건 기반 표시 보장
+- 초기화 안정성: 모든 패널과 하위 요소가 초기 상태에서 비활성화되어 깨끗한 시작 보장
+
+### 다음 작업 예정
+- 상태이상 UI 호버 구현: 전투 중 상태이상 아이콘에 마우스 호버 시 상세 정보 표시
+
+## 2025-11-05 상태이상 시스템 상속 구조 구축 및 아이콘 시스템 개선
+
+### 구현/변경 사항
+- StatusEffectInstanceBase 베이스 클래스 생성: 공통 필드(effectData, remainingTurns, value, owner, triggerCount)와 InitializeBasic 메서드 제공
+  - StatusEffectInstanceBuff, StatusEffectInstanceReaction이 Base 상속하도록 변경
+  - 공통 필드를 public으로 유지하여 기존 코드 호환성 확보
+- 상태이상 아이콘 시스템 개선
+  - StatusEffectData.GetDynamicIcon: Buff/Debuff 타입만 Up/Down 접미사 사용, 지속피해/토큰은 기본 아이콘 사용
+  - StatusEffectGuardPowerBuffData.GetDynamicIcon: 기본 클래스 로직 재사용하도록 수정 (iconPath 기반 접미사 추가)
+  - 0값 상태이상은 기본 아이콘 사용 (경고 억제)
+- VirtualMouse DontDestroyOnLoad 이슈 해결
+  - VirtualMouse에서 DontDestroyOnLoad 제거
+  - VirtualMouseCanvas에서 루트 오브젝트 기준으로 DontDestroyOnLoad 처리 (싱글톤 가드 포함)
+- StatusEffectInstance DamageCount 프리팹 로드 방식 개선
+  - 인스펙터 참조 방식 추가 (damageCountPrefab 필드)
+  - Resources 로드는 폴백으로 유지
+- CharacterMotionController Buff 모션 처리 개선
+  - PlaySkillMotion에서 "Buff" 타입일 때 PlayBuffMotion() 호출하도록 분기
+  - Buff 전용 스프라이트 없으면 Stand로 폴백
+- TurnIndicatorHandler 카메라 경고 제거
+  - 메인 카메라를 기본값으로 명시적 설정, 경고 메시지 제거
+- SkillStarter 스크립트 복원: 드래그 앤 드롭으로 슬롯 배치 및 스킬 활성화 제어
+
+### 진행 중인 작업
+- 버프 상태이상 생성 위치 추적 및 분석 완료
+  - 생성 위치: CreatedUnit/StatusEffectSlot (로컬 pos: 0, -3.8, 0)
+  - StatusEffectBuff 프리팹의 SpriteRenderer 초기 sprite가 NULL인 상태
+  - StatusEffectInstanceBuff의 iconRenderer 필드가 인스펙터에서 미할당 가능성 확인
+  - 다음 작업: iconRenderer 자동 할당 및 아이콘 초기화 보장
+
+### 결과/의도
+- 상태이상 인스턴스 클래스들의 공통 로직을 베이스 클래스로 통합하여 코드 중복 제거
+- 아이콘 시스템의 일관성 확보 (타입별 적절한 아이콘 표시 규칙 정립)
+- DontDestroyOnLoad 경고 해결 및 올바른 루트 오브젝트 관리
+- 버프 상태이상이 생성되지만 화면에 표시되지 않는 문제의 원인 파악 진행 중
+
+## 2024-11-10 주인공 보장 시스템 및 게임 컨셉트 정립
+
+### 구현/변경 사항
+- 스킬 인벤토리 ScrollRect 스크롤 문제 해결
+  - Content Size Fitter의 Vertical Fit을 Preferred Size로 자동 변경
+  - GridLayoutGroup과 함께 작동하도록 Content 크기 자동 업데이트
+- 주인공 보장 시스템 구축
+  - `PlaceMainCharacterBlockToSlot1()`: UI에서 주인공 블록을 1번 슬롯에 자동 배치
+  - `UpdateSpawnManagerParty()`: 전투에 주인공이 없으면 인벤토리에서 강제 추가
+  - 인벤토리 데이터 우선 사용으로 강화/커스터마이징 등 변경사항 반영
+
+### 게임 컨셉트: 1번 슬롯의 의미
+**중요: 이 컨셉트는 게임의 핵심 메커니즘입니다. 반드시 기억하고 구현 시 고려해야 합니다.**
+
+- **1번 슬롯 = 주인공의 힘의 중추**
+  - 1번 슬롯에 배치된 캐릭터는 주인공이 힘을 빌려주는 존재
+  - 그 존재가 전투 중 죽으면 주인공도 같은 피해를 받음
+  - 따라서 1번 슬롯의 캐릭터가 죽으면 게임오버
+
+- **구현 의미**
+  - 기본적으로 주인공이 1번 슬롯에 배치됨 (자동 배치)
+  - 필요 시 다른 캐릭터를 1번 슬롯에 배치 가능 (뺄 수 있음)
+  - 1번 슬롯이 비어있으면 주인공을 강제로 추가 (보장 시스템)
+  - 1번 슬롯의 캐릭터가 죽으면 게임오버 로직 필요 (향후 구현)
+
+- **설계 철학**
+  - 주인공이 직접 싸우는 것이 아니라, 힘을 빌려주는 존재를 통해 싸움
+  - 1번 슬롯의 존재가 죽으면 주인공도 함께 죽는 구조
+  - 전략적 선택: 강한 캐릭터를 1번에 배치하면 위험하지만 강력함, 주인공을 배치하면 안전하지만 약함
+
+- **향후 구현 예정: 1번 슬롯 체력 시스템**
+  - 1번 슬롯의 캐릭터는 고정 체력 100을 가짐
+  - 특성(패시브 등)을 통해 추가 체력을 받을 수 있음
+  - 예: 기본 100 + 특성 보너스 = 최종 체력
+  - 이는 주인공의 힘을 빌려주는 존재이므로 고정된 기본 체력을 가지는 것이 합리적
+
+- **향후 구현 예정: 1번 슬롯 고정 스탯 시스템**
+  - 1번 슬롯의 특수성을 고려한 고정 스탯 추가 시스템 정립 필요
+  - 공격력 방어력은 캐릭터의 스탯을 따라갈 예정
+  - 주인공 캐릭터는 공방 0인 대신 스킬 커스텀의 장점
+  - 비주인공 캐릭터는 자체 스탯과 패시브를 사용 가능
+  - 특성/패시브를 통한 추가 스탯 보너스 시스템과 연동
+  - 주의: 하나를 수정하면 연쇄적으로 다른 시스템도 수정이 필요하므로 신중하게 설계 필요
+
+### 결과/의도
+- 주인공이 항상 전투에 포함되도록 보장
+- 인벤토리 데이터 우선 사용으로 게임 진행 중 변경사항 반영
+- 게임 컨셉트 명확화로 향후 게임오버 로직 구현 시 참고 가능
+
+## 2024-11-10 작업: 상태이상 아이콘 표시 문제 해결 및 시스템 개선
+
+### 최초 목표
+- **상태이상 아이콘이 표시되지 않는 문제 해결**
+  - 아이콘 이미지가 ScriptableObject에 등록되어 있지만 화면에 표시되지 않음
+  - 반응형 아이콘은 일단 제외하고 기본 아이콘 표시부터 해결
+
+### 구현/변경 사항
+- **상태이상 아이콘 표시 문제 해결**
+  - `StatusEffectInstance`, `StatusEffectInstanceBuff`, `StatusEffectInstanceReaction`에 `Awake()` 메서드 추가
+  - `iconRenderer`가 인스펙터에서 할당되지 않았을 때 자동으로 찾아서 할당
+  - `Initialize()`에서 기본 아이콘(`GetIcon()`)을 우선 사용하도록 수정
+  - 동적 아이콘(`GetDynamicIcon()`)은 기본 아이콘이 없을 때만 사용
+
+- **동적 아이콘 시스템 개선**
+  - `StatusEffectData`에 `icon`(기본/양수)과 `negativeIcon`(음수) 필드 추가
+  - ScriptableObject에서 직접 아이콘을 할당할 수 있도록 개선
+  - 경로 기반 로딩은 폴백으로 유지
+  - `GetDynamicIcon()`에서 직접 할당된 아이콘을 우선 사용하도록 수정
+
+- **스킬 인벤토리 ScrollRect 스크롤 문제 해결**
+  - Content Size Fitter의 Vertical Fit을 Preferred Size로 자동 변경
+  - `CheckAndFixContentSizeFitter()` 메서드 추가
+  - GridLayoutGroup과 함께 작동하도록 Content 크기 자동 업데이트
+
+- **주인공 보장 시스템 개선**
+  - `PlaceMainCharacterBlockToSlot1()`: UI에서 주인공 블록을 1번 슬롯에 자동 배치 (잠금 해제)
+  - `UpdateSpawnManagerParty()`: 주인공이 슬롯에 없으면 경고만 출력 (강제 추가 제거)
+  - 1번 슬롯도 다른 슬롯처럼 자유롭게 교체/제거 가능하도록 변경
+  - 인벤토리 데이터 우선 사용으로 강화/커스터마이징 등 변경사항 반영
+
+- **1번 슬롯 스프라이트 플립 로직 수정**
+  - 1번 슬롯에 주인공이 아닐 때만 스프라이트 플립 적용
+  - 주인공(000001): 우향 (flipX = false)
+  - 다른 캐릭터: 좌향 (flipX = true)
+  - 2~4번 슬롯: 모두 좌향 (flipX = true)
+
+- **인벤토리 재정렬 시스템 구축**
+  - `SortCharacterBlocks()` 메서드 추가
+  - GameProgressManager의 CharacterInventory 순서를 기준으로 정렬
+  - `ReturnCharacterBlock()` 호출 시 자동 재정렬
+  - `RefreshInventory()` 초기화 시에도 재정렬 메서드 사용으로 일관성 확보
+
+### 작업 과정
+- 미흡한 점 탐색 및 문제 해결에 집중
+- 여러 시스템의 연쇄적 문제 발견 및 해결
+- 코드 일관성 및 유지보수성 개선
+
+### 결과/의도
+- **상태이상 아이콘 표시 문제 해결**: iconRenderer 자동 할당 및 기본 아이콘 우선 사용으로 아이콘 정상 표시
+- **동적 아이콘 시스템 개선**: ScriptableObject에서 직접 아이콘 할당 가능, 경로 기반 로딩은 폴백으로 유지
+- **스킬 인벤토리 스크롤 정상 작동**: Content Size Fitter 자동 설정으로 스크롤 기능 복구
+- **주인공 보장 시스템 안정화 및 유연성 확보**: 1번 슬롯 자유 교체 가능, 인벤토리 데이터 우선 사용
+- **1번 슬롯의 특수성 반영**: 주인공 우향, 다른 캐릭터 좌향으로 플립 로직 개선
+- **인벤토리 정렬 일관성 확보**: 재정렬 메서드로 초기화와 반환 시 일관된 순서 유지
+
+## 2024-11-11 작업: 음수 상태이상 아이콘 대응형 시스템 테스트 준비
+
+### 최초 목표
+- **음수 상태이상 아이콘 테스트**: 음수 상태이상(negativeIcon)이 제대로 표시되는지 테스트
+  - `StatusEffectData`에 `negativeIcon` 필드는 이미 추가되어 있음
+  - `GetDynamicIcon()`에서 음수값일 때 `negativeIcon` 사용 로직은 구현되어 있음
+  - 하지만 실제로 음수값일 때 아이콘이 제대로 표시되지 않는 문제 발견
+
+### 구현/변경 사항
+- **아이콘 설정 로직 개선**: 버프/디버프 타입일 때 동적 아이콘 우선 사용
+  - `StatusEffectInstanceBuff`: 버프/디버프 타입일 때 `GetDynamicIcon(value)`를 우선 호출하도록 수정
+  - `StatusEffectInstance`: 버프/디버프 타입일 때 `GetDynamicIcon(effectValue)`를 우선 호출하도록 수정
+  - `StatusEffectInstanceReaction`: 버프/디버프 타입일 때 `GetDynamicIcon(value)`를 우선 호출하도록 수정
+  - 이제 음수값일 때 `GetDynamicIcon()`이 먼저 호출되어 `negativeIcon`이 제대로 사용됨
+
+### 작업 과정
+- 기존 코드에서 `GetIcon()`을 먼저 호출하여 기본 아이콘을 반환하면 `GetDynamicIcon()`이 호출되지 않는 문제 발견
+- 버프/디버프 타입일 때는 동적 아이콘을 우선 사용하도록 로직 변경
+- 디버그 로그에 값(value) 정보 추가하여 테스트 시 확인 가능하도록 개선
+
+### 결과/의도
+- **음수 상태이상 아이콘 테스트 준비 완료**: 음수값일 때 `negativeIcon`이 제대로 표시되도록 로직 수정
+- 버프/디버프 타입 상태이상은 이제 값에 따라 적절한 아이콘(양수: icon, 음수: negativeIcon)을 표시
+- 실제 테스트는 Unity 에디터에서 음수값을 가진 상태이상을 적용하여 확인 필요
+
+### 테스트 완료 (2024-11-11)
+- **음수 상태이상 아이콘 테스트 성공**: 실제 전투에서 음수값 상태이상의 아이콘이 다운 화살표로 바뀌는 것을 확인
+  - 음수값일 때 `negativeIcon`이 제대로 표시됨
+  - 동적 아이콘 시스템이 정상 작동함
+  - 버프/디버프 타입 상태이상의 값에 따른 아이콘 변경이 정상 작동함
+
+## 2024-11-11 작업: 스킬 호버 정보 갱신 문제 해결
+
+### 최초 목표
+- **스킬 호버 정보 갱신 문제**: 스킬 인벤토리에서 첫 번째로 호버한 스킬의 정보만 표시되고, 이후 다른 스킬을 호버해도 정보가 갱신되지 않는 문제 해결
+
+### 구현/변경 사항
+- **VirtualMouse.cs의 OnHoverEnter 메서드 수정**: 같은 패널이어도 데이터를 항상 갱신하도록 수정
+  - 데이터 설정을 패널 활성화 전에 먼저 수행하도록 순서 변경
+  - 같은 패널(`skillPanel`)을 재사용할 때도 데이터 갱신 보장
+  - 주석 추가: "같은 패널이어도 데이터는 항상 갱신 (중요!)"
+
+- **VirtualMouseSkillPanel.cs의 SetSkillData 메서드 개선**: 항상 UI 갱신 보장
+  - 같은 데이터여도 항상 UI 갱신하도록 주석 추가
+  - 디버그 로그에 `isSameData` 정보 추가하여 같은 데이터인지 확인 가능
+
+### 작업 과정
+- 사용자 보고: 첫 번째 호버한 스킬 정보만 표시되고 이후 갱신되지 않음
+- 문제 원인: 같은 패널(`skillPanel`)을 재사용할 때 데이터 갱신이 제대로 이루어지지 않음
+- 해결: 데이터 설정을 패널 활성화 전에 먼저 수행하고, 항상 UI 갱신 보장
+
+### 결과/의도
+- **스킬 호버 정보 갱신 정상 작동**: 다른 스킬을 호버할 때마다 정보가 제대로 갱신됨
+- 같은 패널을 재사용하더라도 데이터가 항상 갱신되어 올바른 스킬 정보 표시
+
+## 2024-11-11 작업: 상태이상 월드 스페이스 호버 기능 구현
+
+### 최초 목표
+- **상태이상 호버 기능 재작업**: 월드 스페이스에 있는 상태이상 아이콘에 마우스를 올렸을 때 정보를 표시하는 기능 구현
+  - 이전에 계획했던 상태이상 호버 기능을 콜라이더 충돌 기반으로 재구현
+  - VirtualMouseWorldObject 스크립트 생성
+
+### 구현/변경 사항
+- **VirtualMouseWorldObject.cs 생성**: 월드 스페이스 상태이상 호버 감지 전용 스크립트
+  - 싱글톤 패턴 및 DontDestroyOnLoad 적용
+  - 마우스 위치를 월드 좌표로 변환하여 추적
+  - `Physics2D.OverlapPointAll`을 사용한 직접 충돌 체크 방식
+  - 상태이상 컴포넌트 체크 (StatusEffectInstance, StatusEffectInstanceBuff, StatusEffectInstanceReaction)
+  - VirtualMouse에 호버 진입/벗어남 알림
+
+- **충돌 감지 방식 결정**: 트리거 이벤트 대신 직접 충돌 체크 방식 채택
+  - 초기에는 OnTriggerEnter2D/Exit2D 방식 시도
+  - 작동하지 않아 매 프레임 직접 충돌 체크 방식으로 변경
+  - 불필요한 Rigidbody2D, Collider2D 요구사항 제거
+
+- **레이어 마스크 필터링 추가**: 상태이상 레이어만 감지하도록 최적화
+  - `statusEffectLayerMask` 필드 추가 (기본값: 모든 레이어)
+  - Inspector에서 StEf 레이어만 선택 가능
+  - 상태이상 프리팹이 StEf 레이어에 있음을 확인
+
+- **코드 간소화**: 불필요한 기능 제거
+  - RequireComponent 제거
+  - 태그/레이어 체크 로직 간소화
+  - 복잡한 HashSet 관리 제거
+  - 핵심 기능만 남김 (약 159줄)
+
+### 작업 과정
+- 사용자 요청: 상태이상 호버 기능 재작업
+- VirtualMouseWorldObject 스크립트 생성 및 초기 구현
+- 트리거 이벤트 방식 시도 → 작동하지 않음
+- 직접 충돌 체크 방식으로 변경
+- 불필요한 코드 제거 및 간소화
+- 레이어 마스크 필터링 추가
+- 상태이상 프리팹 레이어 확인 (StEf 레이어)
+
+### 결과/의도
+- **상태이상 월드 스페이스 호버 기능 기본 구조 완성**: VirtualMouseWorldObject를 통한 충돌 감지 시스템 구축
+- 콜라이더 충돌 기반 직접 체크 방식으로 안정적인 감지 가능
+- 레이어 마스크를 통한 성능 최적화 가능
+- Inspector에서 StEf 레이어 설정으로 상태이상 아이콘만 감지 가능
+
+### 다음 작업 예정
+- 실제 호버 테스트 및 디버깅
+- VirtualMouse와의 연동 확인
+- 상태이상 팝업 표시 테스트
+
+---
+
+## 2024-11-11 작업: 상태이상 설명 패널 음수값 아이콘 대응
+
+### 최초 목표
+- **상태이상 설명 패널 아이콘 개선**: 스킬 호버 시 표시되는 상태이상 설명 패널에서도 음수값일 때 아이콘이 변경되도록 개선
+  - 전투 중에는 음수값 아이콘이 다운 화살표로 표시되는 것을 확인
+  - 스킬 정보 패널의 상태이상 설명에서도 동일하게 음수값 아이콘 표시 필요
+
+### 구현/변경 사항
+- **StatusEffectDescriptionPanel.cs 수정**: 상태이상 설명 패널 아이콘 설정 로직 개선
+  - 버프/디버프 타입일 때 동적 아이콘 우선 사용하도록 수정
+  - 음수값일 때 `negativeIcon`이 제대로 표시되도록 보장
+
+- **StatusValueBlockManager.cs 수정**: 상태이상 값 블록 아이콘 설정 로직 개선
+  - 버프/디버프 타입일 때 동적 아이콘 우선 사용하도록 수정
+  - 음수값일 때 `negativeIcon`이 제대로 표시되도록 보장
+
+- **VirtualMouse.cs 수정**: 상태이상 팝업 아이콘 추출 로직 개선
+  - `ExtractStatusEffectBuffData`: 버프/디버프 타입일 때 동적 아이콘 우선 사용
+  - `ExtractStatusEffectReactionData`: 버프/디버프 타입일 때 동적 아이콘 우선 사용
+
+- **StatusEffectInstance.cs 수정**: 팝업 데이터 제공 메서드 개선
+  - `GetStatusPopupData`: 버프/디버프 타입일 때 동적 아이콘 우선 사용
+
+### 작업 과정
+- 사용자 요청: 상태이상 설명 패널에서도 음수값일 때 아이콘이 변경되어야 함
+- 모든 상태이상 설명 관련 코드에서 아이콘 설정 로직을 일관되게 수정
+- 버프/디버프 타입일 때만 동적 아이콘 우선 사용하도록 통일
+
+## 전술 축복 시스템 설계 및 대상 선택 UI 구축
+
+### 결정된 사항
+- **전술 축복 3개 컨셉 결정** (라인 2: 전술의 형태 테마)
+  1. **"하나를 위한 모두"**: 파티 3명의 ATK, DEF를 각각 1씩 빼서 대상 하나에게 추가
+  2. **"모두를 위한 하나"**: 지정 대상의 ATK, DEF를 3씩 깎고 파티 전체에 나눠주기
+  3. **"권한대행"**: 한 개체를 플레이어가 아닌 AI화 시키는 대신 스탯 자체를 강화
+
+### 구현/작성 완료
+- **TacticalBlessingTargetSelector.cs 작성** (Assets/Scrips/UI/)
+  - 전술 축복의 대상 선택 UI 관리 클래스
+  - 파티 멤버 선택 버튼 생성 및 관리
+  - 전투 중이 아닐 때만 사용 가능 (월드맵/스테이지 씬)
+  - 축복 타입에 따른 제목 텍스트 자동 변경
+
+### 추가 작업 필요 사항
+- 선택된 캐릭터 ID 저장 구조 설계 (GameProgressData 또는 BlessingManager)
+- BlessingPanel에서 전술 축복 체크 및 대상 선택 UI 호출 로직 추가
+- Unity 씬 설정 (패널 오브젝트, 버튼 프리팹 등)
+- 전술 축복 효과 클래스 구현 (BlessingEffectOneForAll, BlessingEffectAllForOne, BlessingEffectAuthorityDelegation)
+- 스탯 재분배 로직 및 AI 전환 시스템 구현
+
+### 결과/의도
+- **상태이상 설명 패널 음수값 아이콘 대응 완료**: 스킬 호버 시 표시되는 상태이상 설명에서도 음수값일 때 다운 화살표 아이콘 표시
+- 전투 중과 스킬 정보 패널에서 일관된 아이콘 표시 보장
+- 모든 상태이상 설명 관련 UI에서 음수값 아이콘이 제대로 표시됨

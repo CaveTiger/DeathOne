@@ -91,7 +91,15 @@ public class CharacterMotionController : MonoBehaviour
         }
         
         // 2. 기본 모션 시스템 (기존 방식)
-        PlayBasicMotion(motionType);
+        if (motionType == "Buff")
+        {
+            // 버프는 전용 처리로 Stand 폴백까지 포함
+            PlayBuffMotion();
+        }
+        else
+        {
+            PlayBasicMotion(motionType);
+        }
     }
 
     /// <summary>

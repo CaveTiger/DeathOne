@@ -66,10 +66,11 @@ public class WorldMapCurrencyUI : MonoBehaviour
         {
             int essence = GameProgressManager.Instance.GetEssence();
             essenceText.text = essence.ToString();
+            Debug.Log($"[강자의 정수][UI] UI 업데이트: {essence}");
         }
         else
         {
-            Debug.LogWarning("[영혼먼지][UI] essenceText가 null입니다.");
+            Debug.LogWarning("[강자의 정수][UI] essenceText가 null입니다.");
         }
     }
     

@@ -101,6 +101,10 @@ public class CharacterInventoryTab : MonoBehaviour, IPointerEnterHandler, IPoint
                     Debug.LogError($"[Debug] RefreshInventory: 캐릭터 블록 생성 중 오류 - {characterData.Label}: {e.Message}");
                 }
             }
+            
+            // 인벤토리 재정렬 (일관된 정렬 로직 사용)
+            SortCharacterBlocks();
+            
             Debug.Log($"[Debug] 7. RefreshInventory: 총 {createdCount}개의 해금된 캐릭터 블록을 생성하고 프로세스를 완료했습니다.");
         }
         catch (System.Exception e)
@@ -146,7 +150,42 @@ public class CharacterInventoryTab : MonoBehaviour, IPointerEnterHandler, IPoint
             characterBlocks.Add(block);
         }
         
+        // 인벤토리 재정렬
+        SortCharacterBlocks();
+        
         Debug.Log($"[Inventory] 캐릭터 블록 반환: {block.characterData.Label}");
+    }
+
+    /// <summary>
+    /// 인벤토리 블록들을 GameProgressManager의 CharacterInventory 순서에 맞게 재정렬합니다.
+    /// </summary>
+    private void SortCharacterBlocks()
+    {
+        if (GameProgressManager.Instance == null) return;
+        
+        var inventory = GameProgressManager.Instance.CharacterInventory;
+        if (inventory == null) return;
+        
+        // GameProgressManager의 인벤토리 순서를 기준으로 정렬
+        characterBlocks = characterBlocks
+            .OrderBy(block => 
+            {
+                if (block?.characterData == null) return int.MaxValue;
+                int index = inventory.FindIndex(data => data != null && data.ID == block.characterData.ID);
+                return index >= 0 ? index : int.MaxValue;
+            })
+            .ToList();
+        
+        // 정렬된 순서대로 Transform 순서 변경
+        for (int i = 0; i < characterBlocks.Count; i++)
+        {
+            if (characterBlocks[i] != null)
+            {
+                characterBlocks[i].transform.SetSiblingIndex(i);
+            }
+        }
+        
+        Debug.Log($"[Inventory] 인벤토리 블록 재정렬 완료 (총 {characterBlocks.Count}개)");
     }
 
     /// <summary>

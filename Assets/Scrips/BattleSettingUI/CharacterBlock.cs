@@ -14,7 +14,7 @@ public class CharacterBlock : MonoBehaviour, IBeginDragHandler, IDragHandler, IE
 
     [Header("데이터")]
     public CharacterData characterData;
-    private bool isDragging = false;
+    // private bool isDragging = false; // 사용하지 않는 필드 제거
     public CharacterInfoPopup characterInfoPopup; // Inspector에서 연결
     private float lastClickTime = 0f;
     private const float doubleClickThreshold = 0.3f;
@@ -52,7 +52,7 @@ public class CharacterBlock : MonoBehaviour, IBeginDragHandler, IDragHandler, IE
         {
             if (dragToolInstance == null)
             {
-                dragToolInstance = FindObjectOfType<DragTool>();
+                dragToolInstance = FindFirstObjectByType<DragTool>();
                 if (dragToolInstance != null)
                 {
                     Debug.Log("[CharacterBlock] DragTool 초기화 성공");
@@ -265,7 +265,7 @@ public class CharacterBlock : MonoBehaviour, IBeginDragHandler, IDragHandler, IE
             // 프리팹 연결이 안 되어 있으면 씬에서 찾기 (비활성화된 오브젝트 포함)
             if (characterInfoPopup == null)
             {
-                characterInfoPopup = FindObjectsOfType<CharacterInfoPopup>(true).FirstOrDefault();
+                characterInfoPopup = FindObjectsByType<CharacterInfoPopup>(FindObjectsInactive.Include, FindObjectsSortMode.None).FirstOrDefault();
                 if (characterInfoPopup == null)
                 {
                     Debug.LogError("[CharacterBlock] CharacterInfoPopup을 찾을 수 없습니다!");

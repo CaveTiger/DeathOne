@@ -2,8 +2,10 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 
 /// <summary>
-/// 상태이상 아이콘(껍데기) 핸들러: 실체를 따라다니며 마우스 이벤트를 감지
+/// [레거시] 상태이상 아이콘 핸들러
+/// VirtualMouse가 호버 감지를 담당하므로 더 이상 사용되지 않음
 /// </summary>
+[System.Obsolete("StatusEffectIconHandler는 레거시 코드입니다. VirtualMouse가 호버 감지를 담당합니다.")]
 public class StatusEffectIconHandler : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
 {
     public Transform target; // 따라갈 실체(캐릭터)

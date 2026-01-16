@@ -100,6 +100,10 @@ performance:
   - 오브젝트 풀링 사용
   - 가비지 컬렉션 최소화
   - 코루틴 적절히 사용
+  - 런타임 검색 지양: GameObject.Find(), Resources.Load(), Transform.Find() 등 런타임 검색 메서드 사용 자재
+  - 할당 방식 우선: 프리팹, Transform, GameObject 등은 반드시 SerializeField로 Inspector에서 할당받도록 구현
+  - 할당 가능한 요소는 코드에서 자동으로 찾지 말고 사용자에게 할당 요구
+  - 매니저 클래스에 중앙 집중식 할당: 여러 곳에서 사용되는 리소스는 매니저 클래스에 SerializeField로 등록하고 싱글톤 패턴으로 접근
 
   # Xml 파일 규칙
   - Xml 파일은 Assets/Resources/Data의 하위 폴더에 위치

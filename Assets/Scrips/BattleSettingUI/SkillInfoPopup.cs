@@ -29,18 +29,42 @@ public class SkillInfoPopup : MonoBehaviour
     private List<GameObject> effectItems = new List<GameObject>();
     private List<SkillEffectInfo> skillEffects = new List<SkillEffectInfo>(); // 스킬 효과 목록
     private int currentEffectIndex = 0; // 현재 표시 중인 효과 인덱스
+    
+    private Canvas popupCanvas;
+    private int originalSortOrder; // 원래 Canvas Sort Order 저장
 
     private void OnEnable()
     {
+        // 호버 전 초기 상태 정리(모든 UI 비활성)
+        ResetUI();
         if (currentSkillData != null)
         {
             DisplaySkillInfo(currentSkillData);
+        }
+        
+        // 팝업이 열릴 때 Canvas Sort Order를 높여서 호버 설명보다 앞에 보이게 함
+        if (popupCanvas == null)
+        {
+            popupCanvas = GetComponentInParent<Canvas>();
+        }
+        
+        if (popupCanvas != null)
+        {
+            originalSortOrder = popupCanvas.sortingOrder;
+            // VirtualMouse의 Canvas는 보통 1000 정도이므로 그보다 높게 설정
+            popupCanvas.sortingOrder = 2000;
         }
     }
 
     private void OnDisable()
     {
         ClearEffectItems();
+        
+        // 팝업이 닫힐 때 Canvas Sort Order를 원래대로 복구
+        if (popupCanvas != null)
+        {
+            popupCanvas.sortingOrder = originalSortOrder;
+        }
     }
 
     private void Start()
@@ -50,6 +74,42 @@ public class SkillInfoPopup : MonoBehaviour
             previousEffectButton.onClick.AddListener(ShowPreviousEffect);
         if (nextEffectButton != null)
             nextEffectButton.onClick.AddListener(ShowNextEffect);
+
+        // 시작 시 한 번 UI 전체 숨김 처리
+        ResetUI();
+    }
+
+    /// <summary>
+    /// 호버 전 초기 상태: 모든 시각 요소를 비활성화/정리합니다.
+    /// </summary>
+    private void ResetUI()
+    {
+        // 기본 정보 텍스트 비활성화/초기화
+        if (skillNameText != null) { skillNameText.text = string.Empty; }
+        if (skillDescriptionText != null) { skillDescriptionText.text = string.Empty; }
+        if (skillTypeText != null) { skillTypeText.text = string.Empty; }
+        if (targetText != null) { targetText.text = string.Empty; targetText.gameObject.SetActive(false); }
+
+        // 수치형 텍스트 숨김
+        if (damageOrHealText != null) { damageOrHealText.text = string.Empty; damageOrHealText.gameObject.SetActive(false); }
+        if (manaCostText != null) { manaCostText.text = string.Empty; manaCostText.gameObject.SetActive(false); }
+        if (cooldownText != null) { cooldownText.text = string.Empty; cooldownText.gameObject.SetActive(false); }
+
+        // 아이콘 숨김
+        if (skillIcon != null)
+        {
+            skillIcon.sprite = null;
+            skillIcon.gameObject.SetActive(false);
+        }
+
+        // 효과 아이템 정리
+        ClearEffectItems();
+
+        // 페이지/네비게이션 숨김
+        if (previousEffectButton != null) previousEffectButton.gameObject.SetActive(false);
+        if (nextEffectButton != null) nextEffectButton.gameObject.SetActive(false);
+        if (effectPageText != null) effectPageText.gameObject.SetActive(false);
+        if (effectPageBackground != null) effectPageBackground.SetActive(false);
     }
 
     /// <summary>
@@ -118,11 +178,13 @@ public class SkillInfoPopup : MonoBehaviour
                 if (skillSprite != null)
                 {
                     skillIcon.sprite = skillSprite;
+                    skillIcon.gameObject.SetActive(true);
                 }
                 else
                 {
                     Debug.LogWarning($"스킬 아이콘을 찾을 수 없습니다: {skillData.Icon}");
                     skillIcon.sprite = null;
+                    skillIcon.gameObject.SetActive(false);
                 }
             }
 

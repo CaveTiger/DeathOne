@@ -1,6 +1,11 @@
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// [레거시] 상태이상 팝업 핸들러
+/// VirtualMouse가 VirtualMouseStEfPanel을 직접 사용하도록 변경되어 더 이상 사용되지 않음
+/// </summary>
+[System.Obsolete("StatusPopupHandler는 레거시 코드입니다. VirtualMouse가 VirtualMouseStEfPanel을 직접 사용합니다.")]
 public class StatusPopupHandler : MonoBehaviour
 {
     public Image Icon;

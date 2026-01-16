@@ -49,7 +49,19 @@ public class BattleManager : MonoBehaviour
         for (int i = 0; i < spawn.allyPartyData.Count && i < 1 + allySlots.Length; i++)
         {
             Transform targetSlot = (i == 0) ? playerSlot : allySlots[i - 1];
-            bool flipX = (i == 0) ? false : true;
+            
+            // 1번 슬롯은 주인공이 아닐 때만 플립, 나머지는 모두 플립
+            bool flipX;
+            if (i == 0)
+            {
+                // 1번 슬롯: 주인공(000001)이 아니면 플립
+                flipX = (spawn.allyPartyData[i].ID != "000001");
+            }
+            else
+            {
+                // 2~4번 슬롯: 모두 플립
+                flipX = true;
+            }
             
             if (targetSlot != null)
             {
@@ -255,9 +267,99 @@ public class BattleManager : MonoBehaviour
         SpawnAllUnits();
         CreateAllSkillButtons(allCharacters.Where(c => c.IsPlayer).ToList());
         
+        // 축복 효과 적용 (1번 슬롯 주인공에게만)
+        ApplyBlessingsToMainCharacter();
+        
         // BattleEffectManager는 자체적으로 캐릭터 이벤트를 구독합니다
         
         // StartCoroutine(TimelineManager.Instance.StartTimeline()); // 임시 주석처리
+    }
+
+    /// <summary>
+    /// 1번 슬롯(주인공)에 활성화된 축복 효과를 적용합니다.
+    /// </summary>
+    /// <remarks>
+    /// - 축복 ScriptableObject의 applyToAllAllies가 false인 경우: 1번 슬롯 주인공에게만 적용
+    /// - applyToAllAllies가 true인 경우: 전투 중 아군 전체(allCharacters 중 IsPlayer == true)에 적용
+    /// </remarks>
+    private void ApplyBlessingsToMainCharacter()
+    {
+        // 1번 슬롯의 캐릭터 찾기 (playerSlot의 첫 번째 캐릭터)
+        CharacterStats mainCharacter = null;
+        if (playerSlot != null && playerSlot.childCount > 0)
+        {
+            mainCharacter = playerSlot.GetChild(0).GetComponent<CharacterStats>();
+        }
+
+        if (mainCharacter == null)
+        {
+            Debug.LogWarning("[BattleManager] 1번 슬롯의 주인공 캐릭터를 찾을 수 없습니다.");
+            return;
+        }
+
+        // BlessingManager에서 활성화된 축복 적용
+        if (BlessingManager.Instance == null)
+        {
+            Debug.LogWarning("[BattleManager] BlessingManager를 찾을 수 없습니다.");
+            return;
+        }
+
+        var activeBlessings = BlessingManager.Instance.GetAllActiveBlessings();
+        if (activeBlessings == null || activeBlessings.Count == 0)
+        {
+            Debug.Log("[BattleManager] 활성화된 축복이 없어 적용을 생략합니다.");
+            return;
+        }
+
+        Debug.Log($"[BattleManager] 전투 시작 시 축복 적용 시작: 활성화된 축복 {activeBlessings.Count}개");
+        
+        // 정수 상태 확인 (적용 전)
+        int essenceBefore = 0;
+        int totalEssenceBefore = 0;
+        if (GameProgressManager.Instance != null)
+        {
+            essenceBefore = GameProgressManager.Instance.GetEssence();
+            totalEssenceBefore = GameProgressManager.Instance.GetTotalEssence();
+            Debug.Log($"[BattleManager] 축복 적용 전 정수 상태: 현재={essenceBefore}, 총량={totalEssenceBefore}");
+        }
+
+        // 현재 전투에 참여 중인 아군 목록 (주인공 포함)
+        var allyCharacters = allCharacters.Where(c => c.IsPlayer).ToList();
+
+        foreach (var entry in activeBlessings)
+        {
+            if (entry.Value <= 0) continue; // 칸 수가 0이면 스킵
+
+            var blessingData = BlessingManager.Instance.GetById(entry.Key);
+            if (blessingData == null) continue;
+
+            // 적용 범위에 따라 대상 결정
+            if (blessingData.applyToAllAllies)
+            {
+                foreach (var ally in allyCharacters)
+                {
+                    if (ally == null) continue;
+                    BlessingManager.Instance.ApplyBlessing(ally, blessingData);
+                }
+            }
+            else
+            {
+                BlessingManager.Instance.ApplyBlessing(mainCharacter, blessingData);
+            }
+        }
+        
+        // 정수 상태 확인 (적용 후)
+        if (GameProgressManager.Instance != null)
+        {
+            int essenceAfter = GameProgressManager.Instance.GetEssence();
+            int totalEssenceAfter = GameProgressManager.Instance.GetTotalEssence();
+            Debug.Log($"[BattleManager] 축복 적용 후 정수 상태: 현재={essenceAfter}, 총량={totalEssenceAfter}");
+            
+            if (essenceBefore != essenceAfter || totalEssenceBefore != totalEssenceAfter)
+            {
+                Debug.LogError($"[BattleManager] ⚠️ 축복 적용 중 정수가 변경되었습니다! (적용 전: {essenceBefore}/{totalEssenceBefore}, 적용 후: {essenceAfter}/{totalEssenceAfter})");
+            }
+        }
     }
 
 

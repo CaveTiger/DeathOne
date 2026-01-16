@@ -1,36 +1,107 @@
 using UnityEngine;
 
-public class StatusEffectInstanceReaction : MonoBehaviour
+public class StatusEffectInstanceReaction : StatusEffectInstanceBase
 {
     [Header("상태이상 기본 정보")]
-    [SerializeField] private StatusEffectData effectData;   // 인스펙터에서 연결
-    public StatusEffectData EffectData => effectData;
-
-    [Tooltip("효과가 지속될 남은 턴 수")]
-    public int remainingTurns;        // 남은 턴 수
-
-    [Tooltip("상태이상의 수치 (피해량, 회복량, 버프 수치 등)")]
-    public int value;                 // 피해량 등
-
-    [Tooltip("현재 상태이상이 활성화되어 있는지 여부")]
     public bool isActive = true;       // 효과 활성 여부
 
-    [Tooltip("이 상태이상이 적용된 캐릭터")]
-    public CharacterStats owner;       // 상태이상 소유자
+    [Header("시각적 요소")]
+    [SerializeField] private SpriteRenderer iconRenderer; // 월드 스프라이트용(선택)
 
-    [Header("팝업 관련")]
-    [Tooltip("상태이상 팝업 핸들러")]
-    public StatusPopupHandler popupHandler;
-
-    public int triggerCount; // 인스턴스별로 관리
+    private void Awake()
+    {
+        // iconRenderer가 할당되지 않았으면 자동으로 찾기
+        if (iconRenderer == null)
+        {
+            iconRenderer = GetComponent<SpriteRenderer>();
+            if (iconRenderer == null)
+            {
+                iconRenderer = GetComponentInChildren<SpriteRenderer>();
+            }
+        }
+    }
 
     public void Initialize(StatusEffectData data, int duration, int value, CharacterStats owner)
     {
-        this.effectData = data;
-        this.remainingTurns = duration;
-        this.value = value;
-        this.owner = owner;
+        InitializeBasic(data, duration, value, owner);
         this.triggerCount = data.maxTriggerCount;
+        
+        // 상태이상 적용 시 지속시간 감소 제거 (정산 시에만 감소)
+        // if (remainingTurns > 0)
+        // {
+        //     remainingTurns--;
+        //     Debug.Log($"[StatusEffectInstanceReaction] {data.effectName} 적용 즉시 지속시간 감소: {duration} → {remainingTurns}");
+        // }
+        
+        // UI 즉시 업데이트
+        UpdateUI();
+
+        // 아이콘 갱신 - iconRenderer가 없으면 다시 찾기
+        if (iconRenderer == null)
+        {
+            iconRenderer = GetComponent<SpriteRenderer>();
+            if (iconRenderer == null)
+            {
+                iconRenderer = GetComponentInChildren<SpriteRenderer>();
+            }
+        }
+
+        // 아이콘 설정 (버프/디버프는 동적 아이콘 우선, 그 외는 기본 아이콘)
+        if (effectData != null && iconRenderer != null)
+        {
+            Sprite icon = null;
+            
+            // 버프/디버프 타입은 동적 아이콘 우선 사용 (음수값 대응)
+            if (effectData.effectType == StatusEffectType.Buff || effectData.effectType == StatusEffectType.Debuff)
+            {
+                // 동적 아이콘 시도 (음수값일 때 negativeIcon 사용)
+                icon = effectData.GetDynamicIcon(value);
+                
+                // 동적 아이콘이 없으면 기본 아이콘 시도
+                if (icon == null)
+                {
+                    icon = effectData.GetIcon();
+                }
+            }
+            else
+            {
+                // 그 외 타입은 기본 아이콘 우선
+                icon = effectData.GetIcon();
+                
+                // 기본 아이콘이 없으면 동적 아이콘 시도
+                if (icon == null)
+                {
+                    icon = effectData.GetDynamicIcon(value);
+                }
+            }
+            
+            // 아이콘 설정
+            if (icon != null)
+            {
+                iconRenderer.sprite = icon;
+                Debug.Log($"[StatusEffectInstanceReaction] 아이콘 설정 완료: {data.effectName} (값: {value}) - {icon.name}");
+            }
+            else
+            {
+                Debug.LogWarning($"[StatusEffectInstanceReaction] 아이콘을 찾을 수 없습니다: {data.effectName} (ID: {data.EffectID}, 값: {value})");
+            }
+        }
+        else
+        {
+            if (effectData == null)
+                Debug.LogWarning("[StatusEffectInstanceReaction] effectData가 null입니다.");
+            if (iconRenderer == null)
+                Debug.LogWarning("[StatusEffectInstanceReaction] iconRenderer를 찾을 수 없습니다.");
+        }
+    }
+    
+    /// <summary>
+    /// UI 업데이트 (지속시간 표시)
+    /// </summary>
+    private void UpdateUI()
+    {
+        // UI 업데이트 로직이 필요하면 여기에 추가
+        Debug.Log($"[StatusEffectInstanceReaction] {effectData.effectName} UI 업데이트 - 남은 턴: {remainingTurns}");
     }
 
     public virtual bool OnTakeDamage(ref int damage)
@@ -51,6 +122,35 @@ public class StatusEffectInstanceReaction : MonoBehaviour
         }
         // 기본은 아무 효과 없음
         return false;
+    }
+
+    /// <summary>
+    /// 지속 턴을 감소시키는 메서드 (특정 타이밍에서 호출)
+    /// </summary>
+    public void ReduceDuration()
+    {
+        if (!isActive) return;
+        
+        remainingTurns--;
+        UpdateUI();
+        
+        Debug.Log($"[StatusEffectInstanceReaction] {effectData.effectName} 지속 턴 감소: {remainingTurns + 1} → {remainingTurns}");
+        
+        if (remainingTurns <= 0)
+        {
+            isActive = false;
+            Destroy(this.gameObject);
+        }
+    }
+
+    /// <summary>
+    /// 턴이 끝날 때 호출되는 메서드
+    /// 특수한 로직이 있을 때만 작동 (기본적으로는 아무것도 안 함)
+    /// </summary>
+    public void OnTurnEnd()
+    {
+        // 턴 종료 시 상태이상 관리 일절 안 함
+        // 특수한 로직이 필요한 경우에만 여기에 추가
     }
 }
 

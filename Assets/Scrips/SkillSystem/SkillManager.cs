@@ -41,7 +41,7 @@ public class SkillManager : MonoBehaviour
     public void UseSkill(SkillData skill, CharacterStats caster, CharacterStats target, SkillData motionData)
     {
         if (!skill.IsUsable()) return;
-        skill.currentCooldown = skill.cooldown;
+        skill.CurrentCooldown = skill.Cooldown;
 
         // 전체 타겟 스킬인지 확인 (AllEnemies, AllAllies)
         if (IsAllTargetSkill(skill))
@@ -59,7 +59,7 @@ public class SkillManager : MonoBehaviour
 
         // 단일 타겟 스킬 검증
         // 공격 스킬: 아군 타겟 불가
-        if ((skill.Type == SkillType.Damage || skill.Type == SkillType.Piercing || skill.Type == SkillType.linkage)
+        if ((skill.Type == SkillType.Damage || skill.Type == SkillType.Piercing || skill.Type == SkillType.Linkage)
             && target != null && target.IsPlayer == caster.IsPlayer)
         {
             Debug.LogWarning("[SkillManager] 공격 스킬은 아군을 타겟팅할 수 없습니다.");
@@ -137,6 +137,11 @@ public class SkillManager : MonoBehaviour
                 
             case "allallies":
                 targets = GetAliveCharacters(caster.IsPlayer);
+                Debug.Log($"[SkillManager] AllAllies 타겟팅 - Caster: {caster.Label}, IsPlayer: {caster.IsPlayer}, 타겟 수: {targets.Count}");
+                foreach (var target in targets)
+                {
+                    Debug.Log($"[SkillManager] AllAllies 타겟: {target.Label}, IsPlayer: {target.IsPlayer}");
+                }
                 break;
                 
             case "allunits":
@@ -144,11 +149,19 @@ public class SkillManager : MonoBehaviour
                 break;
                 
             case "adjacent":
-                targets = GetAdjacentTargets(caster, centerTarget);
+                targets = GetAdjacentTargets(caster, centerTarget, false); // 단일형
                 break;
                        
             case "selfandadjacent":
-                targets = GetSelfAndAdjacentTargets(caster, centerTarget);
+                targets = GetSelfAndAdjacentTargets(caster, centerTarget, false); // 단일형
+                break;
+                
+            case "adjacentarea":
+                targets = GetAdjacentTargets(caster, centerTarget, true); // 광역형
+                break;
+                       
+            case "selfandadjacentarea":
+                targets = GetSelfAndAdjacentTargets(caster, centerTarget, true); // 광역형
                 break;
                 
             case "randomenemy":
@@ -192,7 +205,7 @@ public class SkillManager : MonoBehaviour
         
         // 임시로 간단한 방법 사용
         // TODO: BattleManager에서 GetAllCharacters 메서드 구현 필요
-        var allCharacters = FindObjectsOfType<CharacterStats>();
+        var allCharacters = FindObjectsByType<CharacterStats>(FindObjectsSortMode.None);
         foreach (var character in allCharacters)
         {
             if (character != null && !character.IsDead)
@@ -210,38 +223,166 @@ public class SkillManager : MonoBehaviour
 
 
     /// <summary>
-    /// 인접 슬롯의 타겟들을 가져옵니다
+    /// 인접 슬롯의 타겟들을 가져옵니다 (슬롯 기반 +1, -1 로직)
     /// </summary>
-    private List<CharacterStats> GetAdjacentTargets(CharacterStats caster, CharacterStats centerTarget)
+    private List<CharacterStats> GetAdjacentTargets(CharacterStats caster, CharacterStats centerTarget, bool isAreaSkill = false)
     {
         List<CharacterStats> targets = new List<CharacterStats>();
         
-        // TODO: 실제 슬롯 기반 인접 계산 구현
-        // 현재는 간단히 거리 기반으로 처리하되, 아군/적군 구분
-        var allCharacters = GetAliveCharacters();
-        foreach (var character in allCharacters)
+        // 1. 중앙 타겟의 슬롯 인덱스 찾기
+        int centerSlot = GetSlotIndex(centerTarget);
+        if (centerSlot == -1) return targets; // 슬롯을 찾을 수 없음
+        
+        // 2. 아군/적군 구분에 따른 인접 슬롯들 계산
+        int[] adjacentSlots = GetAdjacentSlotsByTeam(centerSlot, caster.IsPlayer);
+        
+        // 3. 인접 슬롯들에서 같은 팀 찾기
+        List<CharacterStats> availableTargets = new List<CharacterStats>();
+        
+        foreach (int slot in adjacentSlots)
         {
-            if (character != centerTarget && character != caster)
+            CharacterStats target = GetCharacterAtSlot(slot);
+            if (target != null && target.IsPlayer == caster.IsPlayer && !target.IsDead)
             {
-                // 아군 스킬인 경우 아군만, 적군 스킬인 경우 적군만 타겟팅
-                if (character.IsPlayer == caster.IsPlayer)
+                availableTargets.Add(target);
+            }
+        }
+        
+        // 4. 조건부 로직 적용
+        if (availableTargets.Count == 2)
+        {
+            if (isAreaSkill)
+            {
+                // 광역형: 양쪽 모두 선택
+                targets.AddRange(availableTargets);
+            }
+            else
+            {
+                // 단일형: 랜덤 선택
+                CharacterStats randomTarget = availableTargets[Random.Range(0, 2)];
+                targets.Add(randomTarget);
+            }
+        }
+        else if (availableTargets.Count == 1)
+        {
+            // 한쪽만 존재 → 반드시 그쪽
+            targets.Add(availableTargets[0]);
+        }
+        // 0개면 아무것도 추가하지 않음
+        
+        return targets;
+    }
+    
+    /// <summary>
+    /// 캐릭터의 슬롯 인덱스를 찾습니다
+    /// </summary>
+    private int GetSlotIndex(CharacterStats character)
+    {
+        if (character == null) return -1;
+        
+        // TurnManager의 allSlots를 통해 슬롯 정보 접근
+        if (TurnManager.Instance != null && TurnManager.Instance.allSlots != null)
+        {
+            for (int i = 0; i < TurnManager.Instance.allSlots.Count; i++)
+            {
+                var slot = TurnManager.Instance.allSlots[i];
+                if (slot != null && slot.currentCharacter == character)
                 {
-                    float distance = Vector3.Distance(centerTarget.transform.position, character.transform.position);
-                    if (distance <= 2f) // 인접 거리
-                    {
-                        targets.Add(character);
-                    }
+                    return i;
                 }
             }
         }
         
-        return targets;
+        return -1; // 찾을 수 없음
+    }
+    
+    /// <summary>
+    /// 슬롯 인덱스 기준으로 인접 슬롯들을 계산합니다 (+1, -1)
+    /// </summary>
+    private int[] GetAdjacentSlots(int slotIndex)
+    {
+        // 경계 처리
+        if (slotIndex <= 0) return new int[] { slotIndex + 1 };
+        if (slotIndex >= 7) return new int[] { slotIndex - 1 };
+        
+        // 일반적인 경우: 양쪽 (+1, -1)
+        return new int[] { slotIndex - 1, slotIndex + 1 };
+    }
+    
+    /// <summary>
+    /// 팀 구분에 따른 인접 슬롯들을 계산합니다
+    /// </summary>
+    private int[] GetAdjacentSlotsByTeam(int centerSlot, bool isPlayer)
+    {
+        List<int> adjacentSlots = new List<int>();
+        
+        if (isPlayer)
+        {
+            // 아군: 플레이어(0) + 아군 슬롯들(1-3)
+            if (centerSlot == 0)
+            {
+                // 플레이어 슬롯: 아군 슬롯 1만 인접
+                adjacentSlots.Add(1);
+            }
+            else if (centerSlot >= 1 && centerSlot <= 3)
+            {
+                // 아군 슬롯: 양쪽 아군 슬롯들만 인접
+                if (centerSlot > 1) adjacentSlots.Add(centerSlot - 1);
+                if (centerSlot < 3) adjacentSlots.Add(centerSlot + 1);
+            }
+        }
+        else
+        {
+            // 적군: 적군 슬롯들(4-7)만
+            if (centerSlot >= 4 && centerSlot <= 7)
+            {
+                // 적군 슬롯: 양쪽 적군 슬롯들만 인접
+                if (centerSlot > 4) adjacentSlots.Add(centerSlot - 1);
+                if (centerSlot < 7) adjacentSlots.Add(centerSlot + 1);
+            }
+        }
+        
+        return adjacentSlots.ToArray();
+    }
+    
+    /// <summary>
+    /// 특정 슬롯에서 캐릭터를 찾습니다
+    /// </summary>
+    private CharacterStats GetCharacterAtSlot(int slotIndex)
+    {
+        if (TurnManager.Instance != null && TurnManager.Instance.allSlots != null)
+        {
+            if (slotIndex >= 0 && slotIndex < TurnManager.Instance.allSlots.Count)
+            {
+                var slot = TurnManager.Instance.allSlots[slotIndex];
+                return slot != null ? slot.currentCharacter : null;
+            }
+        }
+        
+        return null;
+    }
+    
+    /// <summary>
+    /// 슬롯 인덱스에 해당하는 Transform을 반환합니다
+    /// </summary>
+    private Transform GetSlotTransform(int slotIndex)
+    {
+        if (TurnManager.Instance != null && TurnManager.Instance.allSlots != null)
+        {
+            if (slotIndex >= 0 && slotIndex < TurnManager.Instance.allSlots.Count)
+            {
+                var slot = TurnManager.Instance.allSlots[slotIndex];
+                return slot != null ? slot.transform : null;
+            }
+        }
+        
+        return null;
     }
 
     /// <summary>
     /// 자신과 타겟 기준 좌우 인접 슬롯의 타겟들을 가져옵니다
     /// </summary>
-    private List<CharacterStats> GetSelfAndAdjacentTargets(CharacterStats caster, CharacterStats centerTarget)
+    private List<CharacterStats> GetSelfAndAdjacentTargets(CharacterStats caster, CharacterStats centerTarget, bool isAreaSkill = false)
     {
         List<CharacterStats> targets = new List<CharacterStats>();
         
@@ -251,8 +392,8 @@ public class SkillManager : MonoBehaviour
             targets.Add(centerTarget);
         }
         
-        // 인접 타겟들 추가
-        targets.AddRange(GetAdjacentTargets(caster, centerTarget));
+        // 인접 타겟들 추가 (광역 옵션 전달)
+        targets.AddRange(GetAdjacentTargets(caster, centerTarget, isAreaSkill));
         
         return targets;
     }
@@ -504,7 +645,7 @@ public class SkillManager : MonoBehaviour
                                 Debug.Log($"[SkillManager] 팝업 생성 시도: {effectName}, 수치={buffValue}");
                                 
                                 // BattleEffectManager를 문자열로 찾기
-                                var allMonoBehaviours = FindObjectsOfType<MonoBehaviour>();
+                                var allMonoBehaviours = FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None);
                                 MonoBehaviour battleEffectManager = null;
                                 foreach (var mb in allMonoBehaviours)
                                 {
@@ -551,7 +692,7 @@ public class SkillManager : MonoBehaviour
             case SkillType.Debuff:
                 ApplyStatusEffects(skill, target);
                 break;
-            case SkillType.linkage:
+            case SkillType.Linkage:
                 // 연계 스킬 특수 처리
                 break;
             default:
@@ -1025,26 +1166,23 @@ public class SkillManager : MonoBehaviour
 
     private void ApplyStatusEffects(SkillData skill, CharacterStats target)
     {
-        Debug.Log($"[SkillManager] ApplyStatusEffects: target={target?.Label}, skill={skill?.Name}");
-        if (skill?.skillEffects == null || target == null)
-        {
-            Debug.LogWarning("[SkillManager] 스킬 효과 또는 타겟이 null입니다.");
+        if (skill == null || target == null || skill.skillEffects == null || skill.skillEffects.Count == 0)
             return;
-        }
 
         foreach (var effect in skill.skillEffects)
         {
-            Debug.Log($"[SkillManager] 적용 시도 EffectID: {effect.EffectID}, Value: {effect.Value}, Duration: {effect.Duration}");
             if (effect == null || string.IsNullOrEmpty(effect.EffectID))
+                continue;
+
+            if (StatusEffectManager.Instance == null)
             {
-                Debug.LogWarning("[SkillManager] 유효하지 않은 효과 데이터");
+                Debug.LogError("[SkillManager] StatusEffectManager.Instance가 null입니다!");
                 continue;
             }
-
+            
             var effectData = StatusEffectManager.Instance.GetById(effect.EffectID);
             if (effectData != null)
             {
-                Debug.Log($"[SkillManager] 상태이상 데이터 로드 성공: {effectData.effectName}");
                 target.AddStatusEffectPrefab(effectData, effect.Duration, effect.Value);
             }
             else
@@ -1056,8 +1194,33 @@ public class SkillManager : MonoBehaviour
 
     private void ApplyBuffEffects(SkillData skill, CharacterStats caster, CharacterStats target)
     {
-        if (skill?.skillEffects == null || caster == null)
+        Debug.Log($"[SkillManager] ApplyBuffEffects: skill={skill?.Name} (ID: {skill?.ID}), caster={caster?.Label}");
+        
+        if (skill == null)
+        {
+            Debug.LogError("[SkillManager] ⚠️ 스킬 데이터가 null입니다!");
             return;
+        }
+        
+        if (caster == null)
+        {
+            Debug.LogError("[SkillManager] ⚠️ 캐스터가 null입니다!");
+            return;
+        }
+        
+        if (skill.skillEffects == null)
+        {
+            Debug.LogWarning($"[SkillManager] ⚠️ 스킬 {skill.Name} (ID: {skill.ID})의 skillEffects가 null입니다!");
+            return;
+        }
+        
+        if (skill.skillEffects.Count == 0)
+        {
+            Debug.LogWarning($"[SkillManager] ⚠️ 스킬 {skill.Name} (ID: {skill.ID})의 skillEffects가 비어있습니다! (Count: 0)");
+            return;
+        }
+        
+        Debug.Log($"[SkillManager] 스킬 {skill.Name} (ID: {skill.ID})의 skillEffects 개수: {skill.skillEffects.Count}");
 
         List<CharacterStats> targets = new List<CharacterStats>();
         switch (skill.SkillTarget)

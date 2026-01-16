@@ -13,7 +13,7 @@ public class DamagePopup : MonoBehaviour
     [SerializeField] private TextMesh textMesh; // 일반 TextMesh 컴포넌트 (월드 스페이스용)
 
     [Header("애니메이션 설정")]
-    [SerializeField] private float moveSpeed = 1f; // 위로 이동하는 속도
+    // [SerializeField] private float moveSpeed = 1f; // 사용하지 않는 필드 제거
     [SerializeField] private float fadeStartTime = 0.5f; // 페이드 아웃 시작 시간
     [SerializeField] private float scaleDuration = 0.2f; // 스케일 애니메이션 지속시간
     [SerializeField] private float maxScale = 1.5f; // 최대 스케일

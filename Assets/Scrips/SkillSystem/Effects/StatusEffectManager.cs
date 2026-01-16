@@ -33,7 +33,8 @@ public class StatusEffectManager : MonoBehaviour
 
     private void LoadAllEffects()
     {
-        var effects = Resources.LoadAll<StatusEffectData>("Data/ScriptableObject");
+        var effects = Resources.LoadAll<StatusEffectData>("Data/ScriptableObject_StatusEffect");
+        
         foreach (var effect in effects)
         {
             if (effect != null && !string.IsNullOrEmpty(effect.EffectID))
@@ -41,19 +42,20 @@ public class StatusEffectManager : MonoBehaviour
                 effectDict[effect.EffectID] = effect;
             }
         }
+        
+        Debug.Log($"[StatusEffectManager] 상태이상 데이터 로드 완료: {effectDict.Count}개");
     }
 
     public StatusEffectData GetById(string id)
     {
         if (string.IsNullOrEmpty(id))
-        {
-            Debug.LogWarning("[StatusEffectManager] 유효하지 않은 상태이상 ID");
             return null;
-        }
 
-        if (!effectDict.TryGetValue(id, out var data))
+        string trimmedId = id.Trim();
+
+        if (!effectDict.TryGetValue(trimmedId, out var data))
         {
-            Debug.LogWarning($"[StatusEffectManager] 상태이상을 찾을 수 없음: {id}");
+            Debug.LogWarning($"[StatusEffectManager] 상태이상을 찾을 수 없음: '{trimmedId}'");
             return null;
         }
 

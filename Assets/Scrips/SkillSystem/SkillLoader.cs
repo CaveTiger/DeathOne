@@ -73,7 +73,7 @@ public class SkillLoader : MonoBehaviour
                 Description = (string)x.Element("Description") ?? "",
                 DamageMin = (int?)x.Element("DamageMin") ?? 0,
                 DamageMax = (int?)x.Element("DamageMax") ?? 0,
-                Cooldown = (float?)x.Element("Cooldown") ?? 0f,
+                Cooldown = (int)((float?)x.Element("Cooldown") ?? 0f),
                 Range = (float?)x.Element("Range") ?? 0f,
                 SkillTarget = (string)x.Element("SkillTarget") ?? "",
                 Motion = (string)x.Element("Motion") ?? "",
@@ -82,7 +82,7 @@ public class SkillLoader : MonoBehaviour
                 ManaCost = (int?)x.Element("ManaCost") ?? 0,
                 StaminaCost = (int?)x.Element("StaminaCost") ?? 0,
                 HealthCost = (int?)x.Element("HealthCost") ?? 0,
-                healAmount = 0, // 힐량은 사용 시점에 계산
+                HealAmount = 0, // 힐량은 사용 시점에 계산
                 HealMin = GetHealRange(x).healMin,
                 HealMax = GetHealRange(x).healMax,
                 KnockdownMultiplier = (float?)x.Element("KnockdownMultiplier") ?? 1.0f,
@@ -110,15 +110,6 @@ public class SkillLoader : MonoBehaviour
             }).ToList();
             Debug.Log($"[SkillLoader] {xml.name}에서 파싱된 스킬 수: {parsed.Count}");
             rawList.AddRange(parsed);
-
-            // 파싱 직후 skillEffects 로그 출력
-            foreach (var skill in parsed)
-            {
-                foreach (var effect in skill.skillEffects)
-                {
-                    Debug.Log($"[SkillLoader] 파싱 직후: {skill.ID} EffectID: {effect.EffectID}, Value: {effect.Value}, Duration: {effect.Duration}");
-                }
-            }
         }
 
         // 추가 경로에서 파일 로드
@@ -142,7 +133,7 @@ public class SkillLoader : MonoBehaviour
                     Description = (string)x.Element("Description") ?? "",
                     DamageMin = (int?)x.Element("DamageMin") ?? 0,
                     DamageMax = (int?)x.Element("DamageMax") ?? 0,
-                    Cooldown = (float?)x.Element("Cooldown") ?? 0f,
+                    Cooldown = (int)((float?)x.Element("Cooldown") ?? 0f),
                     Range = (float?)x.Element("Range") ?? 0f,
                     SkillTarget = (string)x.Element("SkillTarget") ?? "",
                     Motion = (string)x.Element("Motion") ?? "",
@@ -151,7 +142,7 @@ public class SkillLoader : MonoBehaviour
                     ManaCost = (int?)x.Element("ManaCost") ?? 0,
                     StaminaCost = (int?)x.Element("StaminaCost") ?? 0,
                     HealthCost = (int?)x.Element("HealthCost") ?? 0,
-                    healAmount = 0, // 힐량은 사용 시점에 계산
+                    HealAmount = 0, // 힐량은 사용 시점에 계산
                     HealMin = GetHealRange(x).healMin,
                     HealMax = GetHealRange(x).healMax,
                 KnockdownMultiplier = (float?)x.Element("KnockdownMultiplier") ?? 1.0f,
@@ -183,9 +174,17 @@ public class SkillLoader : MonoBehaviour
                 // 파싱 직후 skillEffects 로그 출력
                 foreach (var skill in parsed)
                 {
-                    foreach (var effect in skill.skillEffects)
+                    if (skill.skillEffects != null && skill.skillEffects.Count > 0)
                     {
-                        Debug.Log($"[SkillLoader] 파싱 직후: {skill.ID} EffectID: {effect.EffectID}, Value: {effect.Value}, Duration: {effect.Duration}");
+                        Debug.Log($"[SkillLoader] 파싱 직후: {skill.ID} (ParentID: {skill.ParentID}, Specimen: {skill.Specimen}) - skillEffects 개수: {skill.skillEffects.Count}");
+                        foreach (var effect in skill.skillEffects)
+                        {
+                            Debug.Log($"[SkillLoader]   └─ EffectID: {effect.EffectID}, Value: {effect.Value}, Duration: {effect.Duration}");
+                        }
+                    }
+                    else
+                    {
+                        Debug.Log($"[SkillLoader] 파싱 직후: {skill.ID} (ParentID: {skill.ParentID}, Specimen: {skill.Specimen}) - skillEffects가 비어있음 (null: {skill.skillEffects == null}, Count: {skill.skillEffects?.Count ?? 0})");
                     }
                 }
             }
@@ -199,18 +198,13 @@ public class SkillLoader : MonoBehaviour
             if (data.Specimen)
             {
                 specimens[data.ID] = data;
-                Debug.Log($"[SkillLoader] Specimen 스킬 발견: {data.ID}");
             }
         }
-        Debug.Log($"[SkillLoader] 총 Specimen 스킬 수: {specimens.Count}");
-
-        // 스킬 데이터 처리
         foreach (var data in rawList)
         {
             if (data.Specimen) continue;
 
             SkillData final;
-            string allEffects = "";
 
             if (!string.IsNullOrEmpty(data.ParentID))
             {
@@ -219,9 +213,6 @@ public class SkillLoader : MonoBehaviour
                     final = parent.Clone();
                     OverrideSkill(final, data);
                     final.ID = data.ID;
-                    allEffects = string.Join(" | ", final.skillEffects.Select(e =>
-                        $"EffectID: {e.EffectID}, Value: {e.Value}, Duration: {e.Duration}"));
-                    Debug.Log($"[SkillLoader] 스킬 상속 처리: {data.ID} (부모: {data.ParentID}) | {allEffects}");
                 }
                 else
                 {
@@ -231,23 +222,18 @@ public class SkillLoader : MonoBehaviour
             }
             else
             {
-                final = data;
-                allEffects = string.Join(" | ", final.skillEffects.Select(e =>
-                    $"EffectID: {e.EffectID}, Value: {e.Value}, Duration: {e.Duration}"));
+                // ParentID가 없는 경우에도 Clone()을 사용하여 독립적인 복사본 생성
+                final = data.Clone();
             }
 
             if (!SkillData.skillDict.ContainsKey(final.ID))
             {
                 SkillData.skillDict.Add(final.ID, final);
-                Debug.Log($"[SkillLoader] SkillDict 추가 직전: {final.ID} | {allEffects}");
             }
-
-            foreach (var effect in final.skillEffects)
+            else
             {
-                Debug.Log($"[SkillLoader] 파싱된 EffectID: {effect.EffectID}");
+                Debug.LogWarning($"[SkillLoader] 스킬 ID 중복: {final.ID} (이미 SkillDict에 존재)");
             }
-
-            Debug.Log($"[SkillManager] 스킬ID:{final.ID}, 이름:{final.Name}, 타입:{final.Type}");
         }
     }
 
@@ -259,14 +245,14 @@ public class SkillLoader : MonoBehaviour
         int healMin = (int?)skillElement.Element("HealMin") ?? 0;
         int healMax = (int?)skillElement.Element("HealMax") ?? 0;
         
-        // 기존 healAmount 필드가 있으면 범위로 설정
+        // 기존 HealAmount 필드가 있으면 범위로 설정
         if (healMin == 0 && healMax == 0)
         {
-            int healAmount = (int?)skillElement.Element("healAmount") ?? 0;
-            if (healAmount > 0)
+            int HealAmount = (int?)skillElement.Element("HealAmount") ?? 0;
+            if (HealAmount > 0)
             {
-                healMin = healAmount;
-                healMax = healAmount;
+                healMin = HealAmount;
+                healMax = HealAmount;
             }
         }
         
@@ -290,14 +276,25 @@ public class SkillLoader : MonoBehaviour
         if (overrideData.ManaCost != 0) baseData.ManaCost = overrideData.ManaCost;
         if (overrideData.StaminaCost != 0) baseData.StaminaCost = overrideData.StaminaCost;
         if (overrideData.HealthCost != 0) baseData.HealthCost = overrideData.HealthCost;
-        if (overrideData.healAmount != 0) baseData.healAmount = overrideData.healAmount;
+        if (overrideData.HealAmount != 0) baseData.HealAmount = overrideData.HealAmount;
         if (overrideData.HealMin != 0) baseData.HealMin = overrideData.HealMin;
         if (overrideData.HealMax != 0) baseData.HealMax = overrideData.HealMax;
         if (overrideData.KnockdownMultiplier != 1.0f) baseData.KnockdownMultiplier = overrideData.KnockdownMultiplier;
-        if (overrideData.currentCooldown != 0) baseData.currentCooldown = overrideData.currentCooldown;
+        // CurrentCooldown은 게임 내에서만 관리되므로 파싱하지 않음
         baseData.Type = overrideData.Type;
         
+        // skillEffects 덮어쓰기 로직 (자식에 있으면 덮어쓰기, 없으면 부모 것 유지)
         if (overrideData.skillEffects != null && overrideData.skillEffects.Count > 0)
+        {
             baseData.skillEffects = new List<SkillEffectInfo>(overrideData.skillEffects);
+        }
+        else
+        {
+            // 부모의 skillEffects를 새 리스트로 복사하여 참조 문제 방지
+            if (baseData.skillEffects != null && baseData.skillEffects.Count > 0)
+            {
+                baseData.skillEffects = new List<SkillEffectInfo>(baseData.skillEffects);
+            }
+        }
     }
 }

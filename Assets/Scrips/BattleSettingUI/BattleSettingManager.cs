@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -45,9 +46,28 @@ public class BattleSettingManager : MonoBehaviour
 
     private void Start()
     {
+        // CharacterInventoryTab 초기화 대기 후 실행
+        StartCoroutine(InitializeBattleSetting());
+    }
+    
+    private System.Collections.IEnumerator InitializeBattleSetting()
+    {
+        // CharacterInventoryTab이 초기화될 때까지 대기
+        while (CharacterInventoryTab.Instance == null)
+        {
+            yield return null;
+        }
+        
+        // 추가로 한 프레임 더 대기하여 완전히 초기화되도록 보장
+        yield return null;
+        
         if (inventoryTab != null)
         {
             inventoryTab.RefreshInventory();
+            // 인벤토리 블럭 생성 완료 대기
+            yield return new WaitForSeconds(0.1f);
+            yield return null;
+            
             // 인벤토리 블럭 생성 후 주인공 블럭을 1번 슬롯에 자동 배치
             PlaceMainCharacterBlockToSlot1();
         }
@@ -63,18 +83,21 @@ public class BattleSettingManager : MonoBehaviour
         }
     }
 
-    // 주인공 블록을 1번 슬롯에 자동 배치
+    // 주인공 블록을 1번 슬롯에 자동 배치 (보장시스템)
     private void PlaceMainCharacterBlockToSlot1()
     {
-        var mainBlock = CharacterInventoryTab.Instance.GetCharacterBlockByID("000001"); // 주인공 ID
-        if (mainBlock != null && slot1 != null && slot1.currentCharacterBlock != mainBlock)
+        if (CharacterInventoryTab.Instance == null || slot1 == null) return;
+
+        // 주인공 슬롯이 잠겨 있다면 해제 (향후 사용자 조작 허용)
+        slot1.UnlockSlot();
+
+        var mainBlock = CharacterInventoryTab.Instance.GetCharacterBlockByID("000001");
+        if (mainBlock != null && slot1.currentCharacterBlock != mainBlock)
         {
             CharacterInventoryTab.Instance.RemoveBlockFromList(mainBlock);
             mainBlock.gameObject.SetActive(true);
             slot1.PlaceCharacterBlock(mainBlock);
-            slot1.LockSlot();
-            
-            Debug.Log("[BattleSetting] 1번 슬롯에 주인공 블록 자동 배치 및 잠금 완료");
+            Debug.Log("[BattleSetting] 1번 슬롯에 주인공 블록 자동 배치");
         }
     }
 
@@ -143,6 +166,26 @@ public class BattleSettingManager : MonoBehaviour
         {
             partyIDs.Add(slot4.GetCharacterData().ID);
             partyData.Add(slot4.GetCharacterData());
+        }
+
+        // 주인공이 존재한다면 1번 인덱스로 정렬
+        if (partyIDs.Contains("000001"))
+        {
+            int mainIndex = partyIDs.IndexOf("000001");
+            if (mainIndex > 0)
+            {
+                var mainID = partyIDs[mainIndex];
+                var mainData = partyData[mainIndex];
+                partyIDs.RemoveAt(mainIndex);
+                partyData.RemoveAt(mainIndex);
+                partyIDs.Insert(0, mainID);
+                partyData.Insert(0, mainData);
+                Debug.Log("[BattleSetting] 주인공을 첫 번째 위치로 이동했습니다.");
+            }
+        }
+        else
+        {
+            Debug.LogWarning("[BattleSetting] 주인공이 슬롯에서 제거된 상태입니다. 전투에는 현재 슬롯 구성 그대로 전달됩니다.");
         }
 
         // SpawnManager에 파티 정보 업데이트

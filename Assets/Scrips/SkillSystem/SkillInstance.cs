@@ -78,13 +78,6 @@ public class SkillInstance : MonoBehaviour
             isActive = true;
             currentCooldown = 0f;
             UpdateSkillUI();
-
-            Debug.Log($"SkillSlot: {skillID} 스킬 데이터 불러오기 성공");
-        }
-        else
-        {
-            // skillID가 비어있으면 SetSkillData로 나중에 설정될 예정
-            Debug.Log("[SkillInstance] skillID가 비어있거나 스킬 데이터를 찾지 못했습니다. SetSkillData로 설정될 예정입니다.");
         }
     }
 

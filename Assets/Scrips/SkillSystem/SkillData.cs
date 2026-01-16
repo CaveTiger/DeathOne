@@ -6,7 +6,7 @@ public enum SkillType
 {
     Damage,
     Heal,
-    linkage,
+    Linkage,
     Piercing,
     Buff,
     Debuff
@@ -27,7 +27,7 @@ public class SkillData
     public string Description { get; set; }
     public int DamageMin { get; set; }
     public int DamageMax { get; set; }
-    public float Cooldown { get; set; }
+    public int Cooldown { get; set; }
     public float Range { get; set; }
     public string SkillTarget { get; set; }
     public string Motion { get; set; }
@@ -36,9 +36,8 @@ public class SkillData
     public int ManaCost { get; set; }
     public int StaminaCost { get; set; }
     public int HealthCost { get; set; }
-    public int cooldown{  get; set; }
-    public int currentCooldown {  get; set; }
-    public int healAmount { get; set; }
+    public int CurrentCooldown { get; set; }
+    public int HealAmount { get; set; }
     public int HealMin { get; set; }
     public int HealMax { get; set; }
     public SkillType Type { get; set; }
@@ -68,9 +67,8 @@ public class SkillData
             ManaCost = this.ManaCost,
             StaminaCost = this.StaminaCost,
             HealthCost = this.HealthCost,
-            cooldown = this.cooldown,
-            currentCooldown = this.currentCooldown,
-            healAmount = this.healAmount,
+            CurrentCooldown = 0, // 게임 시작 시 항상 0으로 초기화
+            HealAmount = this.HealAmount,
             HealMin = this.HealMin,
             HealMax = this.HealMax,
             Type = this.Type,
@@ -79,7 +77,7 @@ public class SkillData
     }
     public bool IsUsable()
     {
-        return currentCooldown <= 0;
+        return CurrentCooldown <= 0;
     }
 }
 

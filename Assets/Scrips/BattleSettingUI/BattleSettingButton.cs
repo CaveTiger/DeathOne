@@ -5,7 +5,7 @@ public class BattleSettingButton : MonoBehaviour
     [Header("탭 콘텐츠 패널")]
     [SerializeField] private GameObject characterTabPanel;
     [SerializeField] private GameObject skillTabPanel;
-    [SerializeField] private GameObject passiveTabPanel;
+    [SerializeField] private GameObject blessingTabPanel;
 
     private void Start()
     {
@@ -17,20 +17,20 @@ public class BattleSettingButton : MonoBehaviour
     {
         if (characterTabPanel != null) characterTabPanel.SetActive(true);
         if (skillTabPanel != null) skillTabPanel.SetActive(false);
-        if (passiveTabPanel != null) passiveTabPanel.SetActive(false);
+        if (blessingTabPanel != null) blessingTabPanel.SetActive(false);
     }
 
     public void ShowSkillTab()
     {
         if (characterTabPanel != null) characterTabPanel.SetActive(false);
         if (skillTabPanel != null) skillTabPanel.SetActive(true);
-        if (passiveTabPanel != null) passiveTabPanel.SetActive(false);
+        if (blessingTabPanel != null) blessingTabPanel.SetActive(false);
     }
 
-    public void ShowPassiveTab()
+    public void ShowBlessingTab()
     {
         if (characterTabPanel != null) characterTabPanel.SetActive(false);
         if (skillTabPanel != null) skillTabPanel.SetActive(false);
-        if (passiveTabPanel != null) passiveTabPanel.SetActive(true);
+        if (blessingTabPanel != null) blessingTabPanel.SetActive(true);
     }
 } 

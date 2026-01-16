@@ -50,6 +50,16 @@
 				<Value>4</Value>
 				<Duration>2</Duration>
 			</li>
+			<li>
+				<EffectID>020002</EffectID>
+				<Value>3</Value>
+				<Duration>4</Duration>
+			</li>
+			<li>
+				<EffectID>020003</EffectID>
+				<Value>6</Value>
+				<Duration>2</Duration>
+			</li>
 		</SkillEffect>
 		<SkillTarget>Enemy</SkillTarget>
 		<Motion>Attack</Motion>
@@ -68,7 +78,7 @@
 				<Duration>2</Duration>
 			</li>
 			<li>
-				<EffectID>021002</EffectID>
+				<EffectID>024001</EffectID>
 				<Duration>2</Duration>
 			</li>
 		</SkillEffect>
@@ -79,155 +89,11 @@
 	<Skill ID ="010004" ParentID="010000">
 		<Name>주변 살피기</Name>
 		<Icon>SkillIcon/010004</Icon>
-		<SkillEffect>
-			<li>020005</li>
-		</SkillEffect>
-		<SkillTarget>Me</SkillTarget>
-		<Motion>Buff</Motion>
-	</Skill>
-	
-	<!-- 능동형 아이콘 시스템 테스트용 스킬 -->
-	<Skill ID ="999001" ParentID="010000">
-		<Name>능동형 아이콘 테스트</Name>
-		<Icon>SkillIcon/010001</Icon>
 		<Type>Buff</Type>
 		<SkillEffect>
-			<li>
-				<EffectID>021001</EffectID>
-				<Value>-1</Value>
-				<Duration>3</Duration>
-			</li>
-			<li>
-				<EffectID>021002</EffectID>
-				<Value>3</Value>
-				<Duration>3</Duration>
-			</li>
-			<li>
-				<EffectID>021003</EffectID>
-				<Value>-2</Value>
-				<Duration>3</Duration>
-			</li>
-			<li>
-				<EffectID>021004</EffectID>
-				<Value>5</Value>
-				<Duration>3</Duration>
-			</li>
+			<li>021004</li>
 		</SkillEffect>
 		<SkillTarget>Me</SkillTarget>
 		<Motion>Buff</Motion>
-	</Skill>
-	
-	<!-- 범위 스킬 테스트용 스킬 -->
-	<Skill ID ="999002" ParentID="010000">
-		<Name>전체 회복</Name>
-		<Icon>SkillIcon/010003</Icon>
-		<Type>Heal</Type>
-		<HealMin>10</HealMin>
-		<HealMax>15</HealMax>
-		<SkillEffect>
-			<li>
-				<EffectID>021001</EffectID>
-				<Value>1</Value>
-				<Duration>2</Duration>
-			</li>
-		</SkillEffect>
-		<SkillTarget>AllAllies</SkillTarget>
-		<Motion>Buff</Motion>
-	</Skill>
-	
-	<Skill ID ="999003" ParentID="010000">
-		<Name>전체 공격</Name>
-		<Icon>SkillIcon/010001</Icon>
-		<DamageMin>5</DamageMin>
-		<DamageMax>8</DamageMax>
-		<Type>Damage</Type>
-		<SkillEffect>
-			<li>
-				<EffectID>020001</EffectID>
-				<Value>2</Value>
-				<Duration>1</Duration>
-			</li>
-		</SkillEffect>
-		<SkillTarget>AllEnemies</SkillTarget>
-		<Motion>Attack</Motion>
-	</Skill>
-	
-	<!-- 새로운 범위 타입 테스트 스킬들 -->
-	<Skill ID ="999004" ParentID="010000">
-		<Name>인접 공격</Name>
-		<Icon>SkillIcon/010001</Icon>
-		<DamageMin>8</DamageMin>
-		<DamageMax>12</DamageMax>
-		<Type>Damage</Type>
-		<SkillTarget>Adjacent</SkillTarget>
-		<Motion>Attack</Motion>
-	</Skill>
-	
-	<Skill ID ="999005" ParentID="010000">
-		<Name>인접 회복</Name>
-		<Icon>SkillIcon/010003</Icon>
-		<Type>Heal</Type>
-		<HealMin>15</HealMin>
-		<HealMax>20</HealMax>
-		<SkillTarget>SelfAndAdjacent</SkillTarget>
-		<Motion>Buff</Motion>
-	</Skill>
-	
-	<Skill ID ="999006" ParentID="010000">
-		<Name>랜덤 공격</Name>
-		<Icon>SkillIcon/010001</Icon>
-		<DamageMin>6</DamageMin>
-		<DamageMax>10</DamageMax>
-		<Type>Damage</Type>
-		<SkillTarget>RandomEnemy</SkillTarget>
-		<Motion>Attack</Motion>
-	</Skill>
-	
-	<Skill ID ="999007" ParentID="010000">
-		<Name>약점 공격</Name>
-		<Icon>SkillIcon/010001</Icon>
-		<DamageMin>10</DamageMin>
-		<DamageMax>15</DamageMax>
-		<Type>Damage</Type>
-		<SkillTarget>WeakestEnemy</SkillTarget>
-		<Motion>Attack</Motion>
-	</Skill>
-	
-	<Skill ID ="999008" ParentID="010000">
-		<Name>응급 치료</Name>
-		<Icon>SkillIcon/010003</Icon>
-		<Type>Heal</Type>
-		<HealMin>20</HealMin>
-		<HealMax>25</HealMax>
-		<SkillTarget>LowestHpAlly</SkillTarget>
-		<Motion>Buff</Motion>
-	</Skill>
-	
-	<!-- 호환성 테스트용 스킬 -->
-	<Skill ID ="999009" ParentID="010000">
-		<Name>호환성 테스트</Name>
-		<Icon>SkillIcon/010001</Icon>
-		<Type>Damage</Type>
-		<DamageMin>5</DamageMin>
-		<DamageMax>8</DamageMax>
-		<SkillEffect>
-			<li>
-				<EffectID>020001</EffectID>
-				<Value>3</Value>
-				<Duration>2</Duration>
-			</li>
-			<li>
-				<EffectID>021001</EffectID>
-				<Value>-2</Value>
-				<Duration>3</Duration>
-			</li>
-			<li>
-				<EffectID>021002</EffectID>
-				<Value>4</Value>
-				<Duration>3</Duration>
-			</li>
-		</SkillEffect>
-		<SkillTarget>Enemy</SkillTarget>
-		<Motion>Attack</Motion>
 	</Skill>
 </Skills>

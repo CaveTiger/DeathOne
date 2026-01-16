@@ -84,37 +84,60 @@ public class AdeliaEnemyAIController : EnemyAIController
     {
         if (players == null || players.Count == 0)
         {
-            Debug.LogWarning("타겟 후보가 없습니다");
+            Debug.LogWarning("[AI Adelia] 타겟 후보가 없습니다");
             return null;
         }
 
         // 살아있는 플레이어만 필터링
-        var alivePlayers = players.Where(p => p != null && !p.IsDead).ToList();
+        var alivePlayers = players.Where(p => p != null && p.gameObject != null && !p.IsDead).ToList();
         
         if (alivePlayers.Count == 0)
         {
-            Debug.LogWarning("살아있는 타겟이 없습니다");
+            Debug.LogWarning("[AI Adelia] 살아있는 타겟이 없습니다");
             return null;
         }
 
-        // 아델리아는 주인공을 우선 타겟팅하는 경향이 있음
-        var mainCharacter = alivePlayers.FirstOrDefault(p => p.CharacterId == "000001");
-        if (mainCharacter != null)
+        // 주인공 찾기 (CharacterId == "000001")
+        var mainCharacter = alivePlayers.FirstOrDefault(p => p != null && !string.IsNullOrEmpty(p.CharacterId) && p.CharacterId == "000001");
+        
+        // 아군(주인공 제외) 찾기
+        var allies = alivePlayers.Where(p => p != null && (string.IsNullOrEmpty(p.CharacterId) || p.CharacterId != "000001")).ToList();
+        
+        // 아군이 살아있는 경우: 아군 중 하나를 우선 타겟팅 (주인공은 제외)
+        if (allies.Count > 0)
         {
-            // 70% 확률로 주인공 타겟팅
-            if (Random.Range(0f, 1f) < 0.7f)
+            int randomIndex = Random.Range(0, allies.Count);
+            var selectedTarget = allies[randomIndex];
+            
+            if (selectedTarget != null && selectedTarget.gameObject != null)
             {
-                Debug.Log($"[AI Adelia] 주인공 우선 타겟팅: {mainCharacter.Label}");
-                return mainCharacter;
+                Debug.Log($"[AI Adelia] 아군 우선 타겟팅: {selectedTarget.Label} (아군 {allies.Count}명 중 선택, 주인공은 제외)");
+                return selectedTarget;
             }
         }
-
-        // 나머지 30% 또는 주인공이 없으면 랜덤 선택
-        int randomIndex = Random.Range(0, alivePlayers.Count);
-        var selectedTarget = alivePlayers[randomIndex];
         
-        Debug.Log($"[AI Adelia] 랜덤 타겟 선택: {selectedTarget.Label}");
-        return selectedTarget;
+        // 아군이 모두 죽은 경우에만 주인공 타겟팅
+        if (mainCharacter != null && mainCharacter.gameObject != null)
+        {
+            Debug.Log($"[AI Adelia] 아군 전멸 - 주인공 타겟팅: {mainCharacter.Label}");
+            return mainCharacter;
+        }
+        
+        // 주인공도 없으면 랜덤 선택 (폴백)
+        if (alivePlayers.Count > 0)
+        {
+            int randomIndex = Random.Range(0, alivePlayers.Count);
+            var selectedTarget = alivePlayers[randomIndex];
+            
+            if (selectedTarget != null && selectedTarget.gameObject != null)
+            {
+                Debug.Log($"[AI Adelia] 폴백 - 랜덤 타겟 선택: {selectedTarget.Label}");
+                return selectedTarget;
+            }
+        }
+        
+        Debug.LogError("[AI Adelia] 타겟 선택 실패 - 모든 후보가 유효하지 않음");
+        return null;
     }
 
     /// <summary>

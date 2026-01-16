@@ -109,6 +109,9 @@ public class SkillInventoryTab : MonoBehaviour, IPointerEnterHandler, IPointerEx
 
             // 슬롯에 세팅된 스킬ID를 받아와서 사용불가 처리 (안전한 방식으로 개선)
             RefreshSkillBlockInteractable(GetUsedSkillIDsSafely());
+
+            // ScrollRect 작동을 위한 Content Size Fitter 설정 확인
+            CheckAndFixContentSizeFitter();
         }
         catch (System.Exception e)
         {
@@ -124,7 +127,7 @@ public class SkillInventoryTab : MonoBehaviour, IPointerEnterHandler, IPointerEx
         try
         {
             // 1차: SkillPresetHandler에서 가져오기 시도
-            var presetHandler = FindObjectOfType<SkillPresetHandler>();
+            var presetHandler = FindFirstObjectByType<SkillPresetHandler>();
             if (presetHandler != null)
             {
                 var usedSkillIDs = presetHandler.GetUsedSkillIDs();
@@ -241,6 +244,29 @@ public class SkillInventoryTab : MonoBehaviour, IPointerEnterHandler, IPointerEx
         }
         
         return unlockedSkills;
+    }
+
+    /// <summary>
+    /// Content Size Fitter 설정을 확인하고 ScrollRect 작동을 위해 수정
+    /// </summary>
+    private void CheckAndFixContentSizeFitter()
+    {
+        if (skillListContainer == null) return;
+
+        var contentSizeFitter = skillListContainer.GetComponent<UnityEngine.UI.ContentSizeFitter>();
+        if (contentSizeFitter != null)
+        {
+            // Vertical Fit이 Unconstrained면 Preferred Size로 변경
+            if (contentSizeFitter.verticalFit == UnityEngine.UI.ContentSizeFitter.FitMode.Unconstrained)
+            {
+                contentSizeFitter.verticalFit = UnityEngine.UI.ContentSizeFitter.FitMode.PreferredSize;
+                Debug.Log("[SkillInventory] Content Size Fitter Vertical Fit을 Preferred Size로 변경했습니다.");
+            }
+        }
+        else
+        {
+            Debug.LogWarning("[SkillInventory] Content에 Content Size Fitter 컴포넌트가 없습니다. Unity Inspector에서 추가해주세요.");
+        }
     }
 
     public void OnPointerEnter(PointerEventData eventData)

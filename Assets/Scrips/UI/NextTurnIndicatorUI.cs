@@ -13,7 +13,7 @@ public class NextTurnIndicatorUI : MonoBehaviour
     [Header("턴 전환 효과")]
     [SerializeField] private GameObject turnTransitionEffect; // 턴 전환 알림 팝업
     [SerializeField] private TextMeshProUGUI nextTurnText; // "다음 턴: [캐릭터명]" 텍스트
-    [SerializeField] private float highlightDuration = 1.0f; // 강조 지속 시간
+    // [SerializeField] private float highlightDuration = 1.0f; // 사용하지 않는 필드 제거
     
     [Header("턴 블록 소모/파괴 효과")]
     [SerializeField] private float consumeScale = 0.8f; // 소모시 축소 비율

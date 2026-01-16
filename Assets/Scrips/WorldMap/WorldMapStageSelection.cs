@@ -27,7 +27,7 @@ public class WorldMapStageSelection : MonoBehaviour
 
         // StageCameraUI가 없으면 찾아서 할당
         if (stageCameraUI == null)
-            stageCameraUI = FindObjectOfType<StageCameraUI>();
+            stageCameraUI = FindFirstObjectByType<StageCameraUI>();
 
         // Inspector에 클리어 여부 표시
         isCleared = IsStageCleared();
@@ -111,7 +111,7 @@ public class WorldMapStageSelection : MonoBehaviour
     // 모든 Stage 버튼의 Collider를 일괄로 켜거나 끄는 static 메서드 추가
     public static void SetAllStageButtonColliders(bool enabled)
     {
-        foreach (var btn in FindObjectsOfType<WorldMapStageSelection>())
+        foreach (var btn in FindObjectsByType<WorldMapStageSelection>(FindObjectsSortMode.None))
         {
             var col = btn.GetComponent<Collider2D>();
             if (col != null) col.enabled = enabled;

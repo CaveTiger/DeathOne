@@ -8,8 +8,8 @@ public class BuffDebuffPopup : MonoBehaviour
     [SerializeField] public Image iconImage;
     [SerializeField] private TextMeshProUGUI statusEffectNameText;
     
-    [Header("아이콘 경로")]
-    [SerializeField] private string iconPath = "UI/StatusEffect/"; // 기존 StatusEffect 폴더 사용
+    // [Header("아이콘 경로")]
+    // [SerializeField] private string iconPath = "UI/StatusEffect/"; // 사용하지 않는 필드 제거
     
     [Header("애니메이션 설정")]
     [SerializeField] private float animationDuration = 0.9f;

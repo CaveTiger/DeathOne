@@ -17,6 +17,12 @@ public class TurnManager : MonoBehaviour
     public List<SlotHandler> playerSlots = new List<SlotHandler>();
     public List<SlotHandler> enemySlots = new List<SlotHandler>();
 
+    // 안전장치: 짧은 시간에 과도한 턴 진행 호출을 방지
+    private int advanceTurnCalls = 0;
+    private float advanceTurnWindowStart = 0f;
+    private const int ADV_MAX_PER_WINDOW = 100; // 윈도우 내 최대 허용 호출 수
+    private const float ADV_TIME_WINDOW_SEC = 2f; // 윈도우 길이(초)
+
     void Awake()
     {
         Instance = this;
@@ -38,8 +44,11 @@ public class TurnManager : MonoBehaviour
         
         turnQueue.Clear(); // 이전 턴 정보 초기화
 
-        foreach (var slot in allSlots)
+        for (int i = 0; i < allSlots.Count; i++)
         {
+            var slot = allSlots[i];
+            slot.slotIndex = i; // 슬롯 인덱스 설정
+            
             var character = slot.SlotCharacterLoad();  // 이 안에서 FindUnit() 실행됨
             if (character == null || character.IsDead)
                 continue;
@@ -50,16 +59,8 @@ public class TurnManager : MonoBehaviour
 
         Debug.Log($"[AI개선] ResetTurn - turnQueue 크기: {turnQueue.Count}");
 
-        // 여기서 블록 생성!
-        if (NextTurnIndicatorUI.Instance != null)
-        {
-            var turnList = turnQueue
-                .Select(slot => slot.currentCharacter)
-                .Where(c => c != null && !c.IsDead && c.TurnChanse)
-                .OrderByDescending(c => c.Speed)
-                .ToList();
-            NextTurnIndicatorUI.Instance.CreateTurnBlocks(turnList);
-        }
+        // UI 업데이트만 담당 (정렬은 GetNextTurnCharacter에서)
+        UpdateTurnIndicatorUI();
 
         float endTime = Time.realtimeSinceStartup;
         Debug.Log($"[AI개선] ResetTurn 완료 - 소요시간: {(endTime - startTime) * 1000:F2}ms");
@@ -70,49 +71,23 @@ public class TurnManager : MonoBehaviour
         Debug.Log("[턴관리] TurnDecider 시작");
         float startTime = Time.realtimeSinceStartup;
         
-        CharacterStats fastest = null;
-        float topSpeed = float.MinValue;
-        bool hasTurnable = false;
-
-        // 다음 턴 순서 계산을 위한 리스트
-        List<CharacterStats> nextTurns = new List<CharacterStats>();
-
-        foreach (var slot in turnQueue)
+        // 단일 정렬로 다음 턴 캐릭터 결정
+        var nextCharacter = GetNextTurnCharacter();
+        
+        if (nextCharacter != null)
         {
-            var character = slot.currentCharacter;
-            // 파괴된 오브젝트 체크 추가
-            if (character == null || character.gameObject == null || character.IsDead)
-                continue;
-
-            if (character.TurnChanse)
-            {
-                hasTurnable = true;
-                if (character.Speed > topSpeed)
-                {
-                    fastest = character;
-                    topSpeed = character.Speed;
-                }
-                nextTurns.Add(character);
-            }
-        }
-
-        // 속도순으로 정렬
-        nextTurns.Sort((a, b) => b.Speed.CompareTo(a.Speed));
-
-        if (fastest != null && fastest.gameObject != null)
-        {
-            Debug.Log($"[턴관리] TurnDecider - 선택된 캐릭터: {fastest.Label} (속도: {fastest.Speed})");
+            Debug.Log($"[턴관리] TurnDecider - 선택된 캐릭터: {nextCharacter.Label} (속도: {nextCharacter.Speed})");
             
             // 턴 전환 알림 표시
             if (NextTurnIndicatorUI.Instance != null)
             {
-                NextTurnIndicatorUI.Instance.ShowTurnTransition(fastest);
+                NextTurnIndicatorUI.Instance.ShowTurnTransition(nextCharacter);
             }
             
-            TurnIndicatorHandler.Instance.SetIndicator(fastest.transform, true);
-            StartTurn(fastest);
+            TurnIndicatorHandler.Instance.SetIndicator(nextCharacter.transform, true);
+            StartTurn(nextCharacter);
         }
-        else if (!hasTurnable)
+        else
         {
             Debug.Log("[턴관리] TurnDecider - 턴 가능한 캐릭터 없음, ResetTurn 호출");
             // 인디케이터를 숨기고 턴을 리셋
@@ -123,10 +98,7 @@ public class TurnManager : MonoBehaviour
             StartCoroutine(DelayedTurnDecider());
         }
 
-        if (NextTurnIndicatorUI.Instance != null)
-        {
-            NextTurnIndicatorUI.Instance.CreateTurnBlocks(nextTurns);
-        }
+        // UI 업데이트는 UpdateTurnIndicatorUI에서 처리
 
         float endTime = Time.realtimeSinceStartup;
         Debug.Log($"[턴관리] TurnDecider 완료 - 소요시간: {(endTime - startTime) * 1000:F2}ms");
@@ -139,6 +111,42 @@ public class TurnManager : MonoBehaviour
     {
         yield return null; // 다음 프레임까지 대기
         TurnDecider();
+    }
+
+    // 중앙화된 턴 진행 메서드(안전장치 포함)
+    private void AdvanceTurn(string reason)
+    {
+        // 호출 빈도 윈도우 관리
+        if (Time.time - advanceTurnWindowStart > ADV_TIME_WINDOW_SEC)
+        {
+            advanceTurnWindowStart = Time.time;
+            advanceTurnCalls = 0;
+        }
+        advanceTurnCalls++;
+        if (advanceTurnCalls > ADV_MAX_PER_WINDOW)
+        {
+            Debug.LogError($"[TurnManager] AdvanceTurn 과다 호출 감지({advanceTurnCalls}) - 무한 루프 방지. reason={reason}");
+            // 안전하게 턴을 리셋하고 다시 결정
+            ResetTurn();
+            StartCoroutine(DelayedTurnDecider());
+            return;
+        }
+
+        // 현재 캐릭터 턴 플래그 정리
+        if (currentCaster != null)
+        {
+            currentCaster.TurnChanse = false;
+            currentCaster.IsMyTurn = false;
+        }
+
+        // 전투 종료 먼저 확인
+        if (CheckBattleEnd())
+        {
+            return;
+        }
+
+        // 다음 턴으로 진행
+        StartCoroutine(DelayedTurnDecider());
     }
 
     private void StartTurn(CharacterStats character)
@@ -171,12 +179,78 @@ public class TurnManager : MonoBehaviour
         character.IsMyTurn = true;
         currentCaster = character;
 
-        // 2. 상태이상 효과 적용
-        Debug.Log("[턴관리] StartTurn - 상태이상 효과 적용 시작");
-        character.GetComponent<StatusEffectController>().ApplyStatusEffectsOnTurnStart();
+        // 2. 상태이상 효과 적용 (슬롯 컨테이너를 통해 정산 + 연출)
+        Debug.Log("[턴관리] StartTurn - 상태이상 효과 정산 시작 (슬롯)");
+        var slotOfCharacter = allSlots.FirstOrDefault(s => s != null && s.currentCharacter == character);
+        if (slotOfCharacter != null)
+        {
+            // 상태이상 정산 + 연출을 코루틴으로 처리
+            StartCoroutine(ProcessStatusEffectsWithAnimation(slotOfCharacter, character));
+            return; // 연출이 끝날 때까지 대기
+        }
+        else
+        {
+            // 슬롯을 못 찾은 경우 기존 방식 백업
+            var controller = character.GetComponent<StatusEffectController>();
+            if (controller != null)
+                controller.ApplyStatusEffectsOnTurnStart();
+        }
+
+        // 상태이상 정산 중 사망했을 수 있으므로 즉시 검증 후 다음 진행 결정
+        if (character == null || character.gameObject == null || character.IsDead)
+        {
+            Debug.Log("[턴관리] StartTurn - 상태이상 정산 결과 사망/파괴 감지, 다음 턴으로 진행");
+            AdvanceTurn("post-settlement death");
+            return;
+        }
 
         // 모든 캐릭터의 정보 UI 갱신
         Debug.Log("[턴관리] StartTurn - UI 갱신 시작");
+        foreach (var slot in allSlots)
+        {
+            if (slot.currentCharacter == null || slot.currentCharacter.gameObject == null) continue;
+            var infoUI = slot.currentCharacter?.GetComponentInChildren<CharacterInfoPlayer>();
+            if (infoUI != null)
+            {
+                infoUI.UpdateInfo();
+                infoUI.ShowInfo();
+            }
+        }
+
+        if (character.IsPlayer && playerInfoUI != null)
+        {
+            playerInfoUI.SetCharacterStats(character);
+            playerInfoUI.UpdateInfo();
+            playerInfoUI.ShowInfo();
+        }
+
+        // 스킬 UI 업데이트 - 턴이 온 캐릭터의 스킬만 활성화
+        if (BattleUIManager.Instance != null)
+        {
+            BattleUIManager.Instance.UpdateSkillUIForTurn(character);
+        }
+    }
+
+    /// <summary>
+    /// 상태이상 정산 + 연출을 처리하는 코루틴
+    /// </summary>
+    private IEnumerator ProcessStatusEffectsWithAnimation(SlotHandler slotHandler, CharacterStats character)
+    {
+        float startTime = Time.realtimeSinceStartup;
+        
+        // 상태이상 정산 + 연출 실행 (캐릭터 매개변수 전달)
+        yield return StartCoroutine(slotHandler.SettleStatusEffectsWithAnimation(character));
+
+        // 연출 완료 후 상태이상 정산 결과 검증
+        if (character == null || character.gameObject == null || character.IsDead)
+        {
+            Debug.Log("[턴관리] ProcessStatusEffectsWithAnimation - 상태이상 정산 결과 사망/파괴 감지, 다음 턴으로 진행");
+            AdvanceTurn("post-settlement death");
+            yield break;
+        }
+
+        // 모든 캐릭터의 정보 UI 갱신
+        Debug.Log("[턴관리] ProcessStatusEffectsWithAnimation - UI 갱신 시작");
         foreach (var slot in allSlots)
         {
             if (slot.currentCharacter == null || slot.currentCharacter.gameObject == null) continue;
@@ -244,6 +318,14 @@ public class TurnManager : MonoBehaviour
             //    TimelineManager.Instance.CreateNewBlock(currentCaster.IsPlayer);
             //    // TODO: 현재 턴의 행동 로그 추가
             //}
+
+            // 상태이상 턴 종료 처리 (지속시간 감소 및 만료된 상태이상 제거)
+            var statusEffectController = currentCaster.GetComponent<StatusEffectController>();
+            if (statusEffectController != null)
+            {
+                Debug.Log($"[턴관리] {currentCaster.Label}의 상태이상 턴 종료 처리 시작");
+                statusEffectController.ApplyStatusEffectsOnTurnEnd();
+            }
 
             currentCaster.TurnChanse = false;
             currentCaster.IsMyTurn = false;
@@ -327,19 +409,62 @@ public class TurnManager : MonoBehaviour
         return turnQueue.All(slot => slot.currentCharacter != null && !slot.currentCharacter.TurnChanse);
     }
 
-    public List<CharacterStats> GetAliveTurnList()
+    /// <summary>
+    /// 턴 순서대로 정렬된 캐릭터 리스트를 반환합니다 (공통 로직)
+    /// </summary>
+    private List<CharacterStats> GetSortedTurnList()
     {
         return turnQueue
+            .Where(slot => slot.currentCharacter != null && !slot.currentCharacter.IsDead && slot.currentCharacter.TurnChanse)
+            .OrderByDescending(slot => slot.currentCharacter.Speed)
+            .ThenBy(slot => slot.slotIndex) // 같은 속도일 때 슬롯 순서 우선 (O(1) 연산)
             .Select(slot => slot.currentCharacter)
-            .Where(c => c != null && !c.IsDead && c.TurnChanse)
-            .OrderByDescending(c => c.Speed)
             .ToList();
+    }
+
+    /// <summary>
+    /// 다음 턴 캐릭터를 안정적으로 결정합니다 (속도 + 슬롯 순서 기준)
+    /// </summary>
+    private CharacterStats GetNextTurnCharacter()
+    {
+        return GetSortedTurnList().FirstOrDefault();
+    }
+
+    /// <summary>
+    /// 턴 인디케이터 UI를 업데이트합니다
+    /// </summary>
+    private void UpdateTurnIndicatorUI()
+    {
+        if (NextTurnIndicatorUI.Instance != null)
+        {
+            NextTurnIndicatorUI.Instance.CreateTurnBlocks(GetSortedTurnList());
+        }
+    }
+
+    public List<CharacterStats> GetAliveTurnList()
+    {
+        return GetSortedTurnList();
     }
 
     public bool CheckBattleEnd()
     {
         Debug.Log("[턴관리] CheckBattleEnd 시작");
         float startTime = Time.realtimeSinceStartup;
+        
+        // 1번 슬롯(주인공 슬롯) 체크 - 즉시 게임오버
+        if (playerSlots != null && playerSlots.Count > 0)
+        {
+            var slot1 = playerSlots[0];
+            if (slot1 != null && slot1.currentCharacter != null && slot1.currentCharacter.gameObject != null)
+            {
+                if (slot1.currentCharacter.IsDead)
+                {
+                    Debug.Log("[턴관리] CheckBattleEnd - 1번 슬롯(주인공) 사망으로 게임오버");
+                    EndBattle(false); // 패배 처리
+                    return true;
+                }
+            }
+        }
         
         bool allPlayersDead = true;
         bool allEnemiesDead = true;
@@ -383,7 +508,7 @@ public class TurnManager : MonoBehaviour
 
         
         // ★ BattleManager의 EndBattle 호출 (전투 결과 데이터 수집)
-        BattleManager battleManager = FindObjectOfType<BattleManager>();
+        BattleManager battleManager = FindFirstObjectByType<BattleManager>();
         if (battleManager != null)
         {
             battleManager.EndBattle(isPlayerWin);
@@ -392,7 +517,7 @@ public class TurnManager : MonoBehaviour
             if (BattleManager.LastBattleResult != null)
             {
                 // ★ 보상 처리를 즉시 실행 (씬 전환 전에 완료)
-                var rewardManager = FindObjectOfType<RewardManager>();
+                var rewardManager = FindFirstObjectByType<RewardManager>();
                 if (rewardManager != null)
                 {
                     rewardManager.ProcessBattleReward(BattleManager.LastBattleResult);

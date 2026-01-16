@@ -5,8 +5,8 @@
 	<Skill ID ="011001" ParentID="010000">
 		<Name>어설픈 다루기</Name>
 		<Icon>SkillIcon/010001</Icon>
-		<DamageMin>5</DamageMin>
-		<DamageMax>12</DamageMax>
+		<DamageMin>30</DamageMin> <!--게임오버 테스트용으로 데미지 상승 (원래값: 5)-->
+		<DamageMax>50</DamageMax> <!--원래값: 12-->
 		<SkillEffect>
 		</SkillEffect>
 		<SkillTarget>Enemy</SkillTarget>
@@ -21,8 +21,8 @@
 	<Skill ID ="011002" ParentID="010000">
 		<Name>버서크 임펙트</Name>
 		<Icon>SkillIcon/010002</Icon>
-		<DamageMin>25</DamageMin>
-		<DamageMax>40</DamageMax>
+		<DamageMin>80</DamageMin> <!--게임오버 테스트용으로 데미지 대폭 상승 (원래값: 25)-->
+		<DamageMax>120</DamageMax> <!--원래값: 40-->
 		<SkillEffect>
 			<li>
 				<EffectID>022001</EffectID> <!-- 체력 10% 감소 -->

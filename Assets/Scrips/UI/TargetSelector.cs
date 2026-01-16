@@ -28,6 +28,36 @@ public class TargetSelector : MonoBehaviour
                 targetMarker = found.GetComponent<RectTransform>();
         }
     }
+    
+    void Update()
+    {
+        // 전투 중이면 타겟셀렉터 숨기기
+        if (IsInCombatAction())
+        {
+            if (targetMarker != null && targetMarker.gameObject.activeSelf)
+            {
+                HideSelector();
+            }
+        }
+    }
+    
+    /// <summary>
+    /// 전투 행동 수행 중인지 확인 (BattleUIManager의 IsInBattleMode 플래그 사용)
+    /// </summary>
+    /// <returns>true면 전투 행동 수행 중 (타겟셀렉터 비활성화), false면 통상 상태 (타겟셀렉터 활성화)</returns>
+    private bool IsInCombatAction()
+    {
+        // BattleUIManager 싱글톤을 통해 전투 모드 상태 확인
+        if (BattleUIManager.Instance == null)
+        {
+            // BattleUIManager가 없으면 통상 상태로 간주
+            return false;
+        }
+        
+        // IsInBattleMode 플래그로 전투 상태 확인
+        // ChangeUIBattle()에서 true로 설정, ChangeUINormal()에서 false로 설정
+        return BattleUIManager.Instance.IsInBattleMode;
+    }
     public void AutoSelectTarget(List<CharacterStats> enemySlots)
     {
         foreach (var enemy in enemySlots)
@@ -44,6 +74,12 @@ public class TargetSelector : MonoBehaviour
     }
     public void SelectByClick(CharacterStats clicked) //얘는 타겟을 본격적으로 지정하기 위해
     {
+        // 전투 중이면 타겟 선택 불가
+        if (IsInCombatAction())
+        {
+            return;
+        }
+        
         //Debug.Log($"[DEBUG] 선택된 대상: {clicked.name}, 태그: {clicked.tag}, 체력: {clicked.Hp}");
         if (clicked == null || clicked.Hp <= 0)
         {
@@ -66,6 +102,12 @@ public class TargetSelector : MonoBehaviour
     public void ClearTarget() => CurrentTarget = null;
     public void SetTarget(CharacterStats newTarget)
     {
+        // 전투 중이면 타겟 설정 불가
+        if (IsInCombatAction())
+        {
+            return;
+        }
+        
         if (newTarget == null || newTarget.Hp <= 0)
         {
             targetMarker.gameObject.SetActive(false);

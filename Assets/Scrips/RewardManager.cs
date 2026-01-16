@@ -174,7 +174,8 @@ public class RewardManager : MonoBehaviour
         if (result.essenceGained > 0)
         {
             Debug.Log($"[RewardManager] 강자의 정수 지급: +{result.essenceGained}");
-            GameProgressManager.Instance.AddEssence(result.essenceGained);
+            // 전투 보상으로 획득하는 정수는 총량과 현재 보유량 모두 증가
+            GameProgressManager.Instance.AddEssence(result.essenceGained, true);
         }
         else
         {
@@ -226,7 +227,7 @@ public class RewardManager : MonoBehaviour
         // 월드맵 씬에서만 작동
         if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "SampleScene")
         {
-            var currencyUI = FindObjectOfType<WorldMapCurrencyUI>();
+            var currencyUI = FindFirstObjectByType<WorldMapCurrencyUI>();
             if (currencyUI != null)
             {
                 currencyUI.OnCurrencyChanged();

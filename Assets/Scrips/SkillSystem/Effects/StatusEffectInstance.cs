@@ -35,18 +35,12 @@ public class StatusEffectInstance : MonoBehaviour
     [Tooltip("중첩된 효과의 수치를 표시하는 텍스트")]
     private TextMeshProUGUI stackText;
 
-    [Header("팝업 관련")]
-    [Tooltip("상태이상 팝업 핸들러")]
-    public StatusPopupHandler popupHandler;
-
     private bool effectApplied = false;
 
     public int triggerCount; // 인스턴스별로 관리
 
     [Header("시각적 요소")]
     [SerializeField] private SpriteRenderer iconRenderer; // 월드 스프라이트용
-
-    [SerializeField] private GameObject statusEffectPopupInstance; // Inspector에서 직접 연결
 
     /// <summary>
     /// 컴포넌트가 활성화될 때 UI 요소들을 찾아서 초기화
@@ -58,8 +52,15 @@ public class StatusEffectInstance : MonoBehaviour
         durationText = transform.Find("DurationText")?.GetComponent<TextMeshProUGUI>();
         stackText = transform.Find("StackText")?.GetComponent<TextMeshProUGUI>();
 
-        // 팝업 핸들러 참조
-        popupHandler = statusEffectPopupInstance.GetComponent<StatusPopupHandler>();
+        // iconRenderer가 할당되지 않았으면 자동으로 찾기
+        if (iconRenderer == null)
+        {
+            iconRenderer = GetComponent<SpriteRenderer>();
+            if (iconRenderer == null)
+            {
+                iconRenderer = GetComponentInChildren<SpriteRenderer>();
+            }
+        }
     }
 
     /// <summary>
@@ -76,21 +77,98 @@ public class StatusEffectInstance : MonoBehaviour
         value = effectValue;
         owner = target;
         triggerCount = data.maxTriggerCount;
+        
+        // 상태이상 적용 시 지속시간 감소 제거 (정산 시에만 감소)
+        // if (remainingTurns > 0)
+        // {
+        //     remainingTurns--;
+        //     Debug.Log($"[StatusEffectInstance] {data.effectName} 적용 즉시 지속시간 감소: {duration} → {remainingTurns}");
+        // }
+        
+        // UI 즉시 업데이트
+        UpdateUI();
 
-        // 능동형 아이콘 시스템 적용
-        Sprite dynamicIcon = effectData.GetDynamicIcon(effectValue);
+        // iconRenderer가 없으면 다시 찾기
+        if (iconRenderer == null)
+        {
+            iconRenderer = GetComponent<SpriteRenderer>();
+            if (iconRenderer == null)
+            {
+                iconRenderer = GetComponentInChildren<SpriteRenderer>();
+            }
+        }
+        
+        // 호버 감지를 위한 Collider2D 자동 추가 (없으면 추가)
+        Collider2D collider = GetComponent<Collider2D>();
+        if (collider == null)
+        {
+            // BoxCollider2D 추가 (SpriteRenderer 크기에 맞춤)
+            BoxCollider2D boxCollider = gameObject.AddComponent<BoxCollider2D>();
+            if (iconRenderer != null && iconRenderer.sprite != null)
+            {
+                // Sprite 크기에 맞춰 Collider 크기 설정
+                boxCollider.size = iconRenderer.sprite.bounds.size;
+            }
+            else
+            {
+                // 기본 크기 (상태이상 아이콘 크기)
+                boxCollider.size = new Vector2(0.5f, 0.5f);
+            }
+            boxCollider.isTrigger = true; // 트리거로 설정하여 물리 충돌 없이 감지만
+        }
+
+        // 아이콘 설정 (버프/디버프는 동적 아이콘 우선, 그 외는 기본 아이콘)
+        Sprite icon = null;
+        
+        // 버프/디버프 타입은 동적 아이콘 우선 사용 (음수값 대응)
+        if (effectData.effectType == StatusEffectType.Buff || effectData.effectType == StatusEffectType.Debuff)
+        {
+            // 동적 아이콘 시도 (음수값일 때 negativeIcon 사용)
+            icon = effectData.GetDynamicIcon(effectValue);
+            
+            // 동적 아이콘이 없으면 기본 아이콘 시도
+            if (icon == null)
+            {
+                icon = effectData.GetIcon();
+            }
+        }
+        else
+        {
+            // 그 외 타입은 기본 아이콘 우선
+            icon = effectData.GetIcon();
+            
+            // 기본 아이콘이 없으면 동적 아이콘 시도
+            if (icon == null)
+            {
+                icon = effectData.GetDynamicIcon(effectValue);
+            }
+        }
 
         // 월드 스프라이트 갱신
-        if (iconRenderer != null && dynamicIcon != null)
-            iconRenderer.sprite = dynamicIcon;
+        if (iconRenderer != null && icon != null)
+        {
+            iconRenderer.sprite = icon;
+            Debug.Log($"[StatusEffectInstance] 월드 아이콘 설정 완료: {effectData.effectName} - {icon.name}");
+        }
+        else if (iconRenderer == null)
+        {
+            Debug.LogWarning("[StatusEffectInstance] iconRenderer를 찾을 수 없습니다.");
+        }
+        else if (icon == null)
+        {
+            Debug.LogWarning($"[StatusEffectInstance] 아이콘을 찾을 수 없습니다: {effectData.effectName} (ID: {effectData.EffectID})");
+        }
 
         // UI 아이콘 갱신
-        if (effectIcon != null && dynamicIcon != null)
-            effectIcon.sprite = dynamicIcon;
+        if (effectIcon != null && icon != null)
+        {
+            effectIcon.sprite = icon;
+            Debug.Log($"[StatusEffectInstance] UI 아이콘 설정 완료: {effectData.effectName} - {icon.name}");
+        }
 
         UpdateUI();
 
-        Debug.Log($"[StatusEffectInstance] Initialize: {effectData.effectName}, {effectData.effectType}, {effectData.description}, 동적 아이콘 적용 (값: {effectValue})");
+        Debug.Log($"[StatusEffectInstance] Initialize: {effectData.effectName}, {effectData.effectType}, {effectData.description}, 아이콘 적용 (값: {effectValue})");
     }
 
     /// <summary>
@@ -106,16 +184,17 @@ public class StatusEffectInstance : MonoBehaviour
     }
 
     /// <summary>
-    /// 턴이 끝날 때 호출되는 메서드
-    /// 상태이상 효과를 적용하고 지속시간을 감소시킴
+    /// 지속 턴을 감소시키는 메서드 (특정 타이밍에서 호출)
     /// </summary>
-    public void OnTurnEnd()
+    public void ReduceDuration()
     {
         if (!isActive) return;
-
+        
         remainingTurns--;
         UpdateUI();
-
+        
+        Debug.Log($"[StatusEffectInstance] {effectData.effectName} 지속 턴 감소: {remainingTurns + 1} → {remainingTurns}");
+        
         if (remainingTurns <= 0)
         {
             // 효과 해제(복구)
@@ -129,29 +208,19 @@ public class StatusEffectInstance : MonoBehaviour
     }
 
     /// <summary>
-    /// 턴이 시작할 때 호출되는 메서드
-    /// 상태이상 효과를 적용하고 지속시간을 감소시킴
+    /// 상태이상 효과를 적용하는 메서드 (수동 호출)
     /// </summary>
-    /// <param name="target">효과가 적용될 대상</param>
-    public bool OnTurnStart()
+    public bool ApplyEffect()
     {
-        Debug.Log($"[StatusEffectInstance] OnTurnStart: {effectData.effectName}, {effectData.effectType}, {effectData.description}");
+        Debug.Log($"[StatusEffectInstance] ApplyEffect: {effectData.effectName}, {effectData.effectType}, {effectData.description}");
         if (!isActive || owner == null) return false;
         if (!owner.IsMyTurn) return false;
 
-        // 지속피해 효과만 적용
-        owner.Hp -= value;
-        Debug.Log($"[StatusEffect] {owner.Label}: {effectData.effectName} 지속 피해 {value}, 남은 HP: {owner.Hp}");
-        owner.HpUI.UpdateHpBar(owner.Hp, owner.MaxHp);
-
-        owner.Deathcheck();
-        owner.DeathAction();
-        if (owner.IsDead)
-        {
-            // 사망 시 턴 종료는 외부에서 처리됨 (중복 호출 방지)
-            Debug.Log($"[StatusEffect] {owner.Label} 사망으로 인한 턴 종료는 외부에서 처리됨");
-            return true; // 더 이상 처리하지 않음
-        }
+        // 상태이상 피해량 팝업 표시 (체력 감소는 팝업 표시 시 처리됨)
+        CreateStatusEffectDamagePopup(owner.transform.position, value);
+        
+        // 체력 감소 및 사망 체크는 BattleUIManager의 ProcessStatusEffectPopupsCoroutine에서 처리됨
+        // 여기서는 팝업만 큐에 추가
 
         effectData.OnSpecialEffect(owner, this);
 
@@ -160,7 +229,60 @@ public class StatusEffectInstance : MonoBehaviour
 
     private void ShowPopup()
     {
-        statusEffectPopupInstance.SetActive(true);
-        // ... 팝업 내용 갱신 등 ...
+        // 상태이상 팝업 표시는 VirtualMouse를 통해 처리됨
+        // 이 메서드는 레거시 코드로 보이며 현재 사용되지 않음
+    }
+
+    /// <summary>
+    /// 상태이상 피해 팝업을 생성합니다 (BattleUIManager를 통해 처리)
+    /// </summary>
+    /// <param name="position">월드 좌표 위치</param>
+    /// <param name="damage">피해량</param>
+    private void CreateStatusEffectDamagePopup(Vector3 position, int damage)
+    {
+        if (BattleUIManager.Instance != null)
+            {
+            BattleUIManager.Instance.CreateStatusEffectDamagePopup(position, damage, effectData, value, owner);
+        }
+        else
+        {
+            Debug.LogWarning("[StatusEffectInstance] BattleUIManager.Instance를 찾을 수 없습니다.");
+        }
+    }
+
+
+    /// <summary>
+    /// 버추얼 마우스(또는 외부 시스템)가 팝업 표시용 데이터를 가져갈 수 있도록 제공합니다.
+    /// </summary>
+    public void GetStatusPopupData(out Sprite icon, out string description, out int displayValue, out int turns)
+    {
+        icon = null;
+        description = string.Empty;
+        displayValue = 0;
+        turns = 0;
+
+        if (effectData == null) return;
+
+        // 버프/디버프 타입은 동적 아이콘 우선 사용 (음수값 대응)
+        if (effectData.effectType == StatusEffectType.Buff || effectData.effectType == StatusEffectType.Debuff)
+        {
+            icon = effectData.GetDynamicIcon(value);
+            if (icon == null)
+            {
+                icon = effectData.GetIcon();
+            }
+        }
+        else
+        {
+            icon = effectData.icon;
+            if (icon == null)
+            {
+                icon = effectData.GetIcon();
+            }
+        }
+        
+        description = string.IsNullOrEmpty(effectData.description) ? effectData.effectName : effectData.description;
+        displayValue = value;
+        turns = Mathf.Max(remainingTurns, 0);
     }
 }

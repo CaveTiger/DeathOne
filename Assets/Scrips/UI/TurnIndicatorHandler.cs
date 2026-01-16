@@ -6,7 +6,8 @@ public class TurnIndicatorHandler : MonoBehaviour
     public Transform currentTarget; // 현재 지정된 대상
     public Vector3 offset = new Vector3(0, 1f, 0); // 떠있는 위치
     public RectTransform canvasRectTransform;
-    public Camera targetCamera;  // 명시적으로 카메라 지정
+    [Header("카메라 설정 (현재 미사용, 향후 월드→스크린 좌표 변환용)")]
+    public Camera targetCamera;  // 명시적으로 카메라 지정 (현재는 사용 안 함)
     [SerializeField] private CharacterInfoPlayer playerInfoUI;
 
     public static TurnIndicatorHandler Instance { get; private set; }
@@ -14,10 +15,10 @@ public class TurnIndicatorHandler : MonoBehaviour
     private void Awake()
     {
         Instance = this;
+        // 메인 카메라를 기본값으로 명시적 설정 (경고 제거)
         if (targetCamera == null)
         {
             targetCamera = Camera.main;
-            Debug.LogWarning("[TurnIndicatorHandler] 카메라가 지정되지 않았습니다. Main Camera를 사용합니다.");
         }
     }
 

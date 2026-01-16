@@ -48,6 +48,7 @@ public class CharacterStats : MonoBehaviour
     public System.Action<CharacterStats, int, Vector3> OnHealEvent;
     public System.Action<CharacterStats> OnDeathEvent;
     public System.Action<CharacterStats, int, Vector3> OnBuffEvent; // 버프 이벤트 추가
+    public System.Action<CharacterStats> OnCollapseCrisisEvent; // 붕괴 위기 상태 진입 이벤트
 
     public void SetData(CharacterData data)
     {
@@ -79,6 +80,8 @@ public class CharacterStats : MonoBehaviour
         Accuracy = data.Accuracy;
         Speed = data.Speed;
         CharacterId = data.ID; // CharacterId 설정 추가
+        Pattern = data.Pattern; // Pattern 설정 추가 (AI 할당에 필요)
+        Rarity = data.Rarity; // Rarity 설정 추가
         if (data.Skills.Count >= 4)
             Skills = data.Skills.Take(4).ToArray();
         
@@ -114,7 +117,6 @@ public class CharacterStats : MonoBehaviour
         // === [여기서 피해무시 등 특수 효과 체크] ===
         // StatusEffectController에서 activeEffectPrefabs를 직접 가져와서 체크
         var controller = GetComponent<StatusEffectController>();
-        bool damageBlocked = false;
         
         if (controller != null)
         {
@@ -127,7 +129,6 @@ public class CharacterStats : MonoBehaviour
                 if (instance != null && instance.OnTakeDamage(ref dmg))
                 {
                     // 피해가 무시되었으면 블록 효과 표시
-                    damageBlocked = true;
                     Vector3 blockAttackerPos = attackerPosition ?? transform.position + Vector3.right * 2f;
                     if (BattleEffectManager.Instance != null)
                     {
@@ -241,6 +242,24 @@ public class CharacterStats : MonoBehaviour
     {
         if (Hp <= 0 && !IsDead)
         {
+            // 아군(주인공 제외)의 경우 붕괴 체크 먼저 수행
+            bool isAllyNotMainCharacter = IsPlayer && !string.IsNullOrEmpty(CharacterId) && CharacterId != "000001";
+            
+            if (isAllyNotMainCharacter)
+            {
+                // 붕괴 체크 수행
+                TryCollapse();
+                
+                // 붕괴에 실패하여 빈사 상태로 유지되는 경우
+                if (!IsDead)
+                {
+                    // 붕괴 위기 이벤트 발생 (응급 조치 축복 등에서 구독)
+                    OnCollapseCrisisEvent?.Invoke(this);
+                    return; // 사망 처리하지 않고 빈사 상태로 유지
+                }
+            }
+            
+            // 붕괴에 성공했거나, 적/주인공인 경우 사망 처리
             IsDead = true;
             
             // 턴 블록 파괴 효과 호출
@@ -258,6 +277,36 @@ public class CharacterStats : MonoBehaviour
             // 전투 연출 이벤트 발생
             OnDeathEvent?.Invoke(this);
             // DeathAction()은 외부에서 호출
+        }
+    }
+
+    private void Update()
+    {
+        // 보조 안전장치: 체력이 0 이하인데 IsDead가 false인 경우를 감지
+        // 주의: 이는 일반적인 데스 체크(TakeDamage 등)가 제대로 작동하지 않은 경우를 위한 백업입니다.
+        // 
+        // 일반적인 데스 체크 흐름:
+        // 1. TakeDamage() 호출 -> 체력 감소 -> Deathcheck() -> DeathAction()
+        // 2. 이 경우 Update()에서 체크해도 이미 IsDead가 true이므로 실행되지 않음
+        //
+        // Update()가 먼저 실행되는 경우:
+        // - TakeDamage()가 호출되지 않고 체력이 0이 된 경우 (예: 상태이상으로 인한 피해)
+        // - 이 경우 Update()에서 Deathcheck()만 호출하고, DeathAction()은 상태이상 시스템 등에서 호출됨
+        //
+        // 아군의 붕괴 상태:
+        // - 아군이 빈사 상태(Hp <= 0 && !IsDead)로 유지되는 것은 정상적인 상태입니다.
+        // - Update()에서 아군의 빈사 상태를 다시 Deathcheck()로 호출하면 반복 체크가 발생하여 즉사할 수 있습니다.
+        // - 따라서 Update()는 아군이 아닌 경우(주인공 또는 적)에만 작동합니다.
+        if (Hp <= 0 && !IsDead)
+        {
+            // 아군(주인공 제외)의 빈사 상태는 정상 상태이므로 Update()에서 재체크하지 않음
+            bool isAllyNotMainCharacter = IsPlayer && !string.IsNullOrEmpty(CharacterId) && CharacterId != "000001";
+            if (!isAllyNotMainCharacter)
+            {
+                Debug.Log($"[죽음안전장치] {Label}: Update()에서 사망 체크 작동 (TakeDamage()를 거치지 않은 사망)");
+                Deathcheck();
+                // DeathAction()은 TakeDamage()나 상태이상 시스템 등에서 호출되므로 여기서는 호출하지 않음
+            }
         }
     }
     public void DeathAction()

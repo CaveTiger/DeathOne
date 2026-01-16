@@ -23,6 +23,7 @@ public class StatusEffectController : MonoBehaviour
             return;
         }
         GameObject effectObj = Instantiate(cDamageEffectPrefab, statusEffectArea);
+        // 프리팹의 원본 크기 그대로 사용 (스케일 변경 없음)
         effectObj.name = data.effectName;
         activeEffectPrefabs.Add(effectObj);
         Debug.Log("[StatusEffectController] 프리팹 인스턴스 생성됨: " + effectObj);
@@ -47,6 +48,7 @@ public class StatusEffectController : MonoBehaviour
             return;
         }
         GameObject effectObj = Instantiate(buffEffectPrefab, statusEffectArea);
+        // 프리팹의 원본 크기 그대로 사용 (스케일 변경 없음)
         effectObj.name = data.effectName;
         activeEffectPrefabs.Add(effectObj);
         var buff = effectObj.GetComponent<StatusEffectInstanceBuff>();
@@ -68,6 +70,7 @@ public class StatusEffectController : MonoBehaviour
             return;
         }
         GameObject effectObj = Instantiate(reactionEffectPrefab, statusEffectArea);
+        // 프리팹의 원본 크기 그대로 사용 (스케일 변경 없음)
         effectObj.name = data.effectName;
         activeEffectPrefabs.Add(effectObj);
         
@@ -104,10 +107,29 @@ public class StatusEffectController : MonoBehaviour
             var effect = activeEffectPrefabs[i];
             if (effect == null) continue;
 
+            // StatusEffectInstance (지속피해) 처리
             var instance = effect.GetComponent<StatusEffectInstance>();
-            if (instance != null && instance.OnTurnStart())
+            if (instance != null && instance.ApplyEffect())
             {
                 Debug.Log($"[AI개선] ApplyStatusEffectsOnTurnStart - 상태이상 적용: {effect.name}");
+                // 상태이상 적용 후 지속 턴 감소
+                instance.ReduceDuration();
+            }
+            
+            // StatusEffectInstanceBuff (버프) 처리
+            var buffInstance = effect.GetComponent<StatusEffectInstanceBuff>();
+            if (buffInstance != null)
+            {
+                // 버프도 지속 턴 감소
+                buffInstance.ReduceDuration();
+            }
+            
+            // StatusEffectInstanceReaction (반응) 처리
+            var reactionInstance = effect.GetComponent<StatusEffectInstanceReaction>();
+            if (reactionInstance != null)
+            {
+                // 반응 효과도 지속 턴 감소
+                reactionInstance.ReduceDuration();
             }
         }
         
@@ -172,6 +194,79 @@ public class StatusEffectController : MonoBehaviour
                 effect.SetActive(false);
             }
         }
+    }
+
+    /// <summary>
+    /// 턴이 끝날 때 상태이상 지속시간을 감소시키고 만료된 상태이상을 제거합니다.
+    /// </summary>
+    public void ApplyStatusEffectsOnTurnEnd()
+    {
+        Debug.Log("[StatusEffectController] ApplyStatusEffectsOnTurnEnd 시작");
+        float startTime = Time.realtimeSinceStartup;
+        
+        var characterStats = GetComponent<CharacterStats>();
+        if (characterStats == null || !characterStats.IsMyTurn)
+        {
+            Debug.Log("[StatusEffectController] ApplyStatusEffectsOnTurnEnd - 턴이 아니거나 CharacterStats가 null");
+            return;
+        }
+
+        // 현재 적용된 모든 상태이상 효과를 순회 (역순으로 순회하여 삭제 시 인덱스 문제 방지)
+        for (int i = activeEffectPrefabs.Count - 1; i >= 0; i--)
+        {
+            var effect = activeEffectPrefabs[i];
+            if (effect == null) 
+            {
+                // null인 오브젝트는 리스트에서 제거
+                activeEffectPrefabs.RemoveAt(i);
+                continue;
+            }
+
+            // StatusEffectInstance (지속피해) 처리 - Unity 생명주기 제거
+            var instance = effect.GetComponent<StatusEffectInstance>();
+            if (instance != null)
+            {
+                // OnTurnEnd() 제거 - 수동으로 ReduceDuration() 호출
+                // instance.OnTurnEnd(); // ← 이 부분 제거!
+                if (!instance.isActive)
+                {
+                    Debug.Log($"[StatusEffectController] 상태이상 만료로 제거: {effect.name}");
+                    activeEffectPrefabs.RemoveAt(i);
+                }
+                continue;
+            }
+
+            // StatusEffectInstanceBuff (버프) 처리 - Unity 생명주기 제거
+            var buffInstance = effect.GetComponent<StatusEffectInstanceBuff>();
+            if (buffInstance != null)
+            {
+                // OnTurnEnd() 제거 - 수동으로 ReduceDuration() 호출
+                // buffInstance.OnTurnEnd(); // ← 이 부분 제거!
+                if (!buffInstance.isActive)
+                {
+                    Debug.Log($"[StatusEffectController] 버프 만료로 제거: {effect.name}");
+                    activeEffectPrefabs.RemoveAt(i);
+                }
+                continue;
+            }
+
+            // StatusEffectInstanceReaction (반응) 처리 - Unity 생명주기 제거
+            var reactionInstance = effect.GetComponent<StatusEffectInstanceReaction>();
+            if (reactionInstance != null)
+            {
+                // OnTurnEnd() 제거 - 수동으로 ReduceDuration() 호출
+                // reactionInstance.OnTurnEnd(); // ← 이 부분 제거!
+                if (!reactionInstance.isActive)
+                {
+                    Debug.Log($"[StatusEffectController] 반응 효과 만료로 제거: {effect.name}");
+                    activeEffectPrefabs.RemoveAt(i);
+                }
+                continue;
+            }
+        }
+        
+        float endTime = Time.realtimeSinceStartup;
+        Debug.Log($"[StatusEffectController] ApplyStatusEffectsOnTurnEnd 완료 - 소요시간: {(endTime - startTime) * 1000:F2}ms, 남은 상태이상: {activeEffectPrefabs.Count}개");
     }
 
     /// <summary>

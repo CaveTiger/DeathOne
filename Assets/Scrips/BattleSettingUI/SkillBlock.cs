@@ -14,7 +14,7 @@ public class SkillBlock : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDr
 
     [Header("데이터")]
     public SkillData skillData;
-    private bool isDragging = false;
+    // private bool isDragging = false; // 사용하지 않는 필드 제거
     private static DragTool dragToolInstance;
     
     [Header("팝업")]
@@ -52,7 +52,7 @@ public class SkillBlock : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDr
         {
             if (dragToolInstance == null)
             {
-                dragToolInstance = FindObjectOfType<DragTool>();
+                dragToolInstance = FindFirstObjectByType<DragTool>();
                 if (dragToolInstance != null)
                 {
                     Debug.Log("[SkillBlock] DragTool 초기화 성공");
@@ -279,7 +279,7 @@ public class SkillBlock : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDr
             // 프리팹 연결이 안 되어 있으면 씬에서 찾기 (비활성화된 오브젝트 포함)
             if (skillInfoPopup == null)
             {
-                skillInfoPopup = FindObjectsOfType<SkillInfoPopup>(true).FirstOrDefault();
+                skillInfoPopup = FindObjectsByType<SkillInfoPopup>(FindObjectsInactive.Include, FindObjectsSortMode.None).FirstOrDefault();
                 if (skillInfoPopup == null)
                 {
                     Debug.LogError("[SkillBlock] SkillInfoPopup을 찾을 수 없습니다!");
