@@ -12,8 +12,6 @@ public enum SkillType
     Debuff
 }
 
-
-
 public class SkillData
 {
     public static Dictionary<string, SkillData> skillDict = new Dictionary<string, SkillData>();
@@ -41,6 +39,11 @@ public class SkillData
     public int HealMin { get; set; }
     public int HealMax { get; set; }
     public SkillType Type { get; set; }
+    
+    [Header("스킬 사용 횟수 제한")]
+    public bool UseCountYes { get; set; } // 사용 횟수 제한 여부
+    public int UseCount { get; set; } // 최대 사용 횟수
+    public int CurrentUseCount { get; set; } // 현재 남은 사용 횟수
     
     public List<SkillEffectInfo> skillEffects = new List<SkillEffectInfo>();
     public float KnockdownMultiplier { get; set; } = 1.0f;
@@ -77,7 +80,13 @@ public class SkillData
     }
     public bool IsUsable()
     {
-        return CurrentCooldown <= 0;
+        // 쿨다운 체크
+        if (CurrentCooldown > 0) return false;
+        
+        // 사용 횟수 제한 체크
+        if (UseCountYes && CurrentUseCount <= 0) return false;
+        
+        return true;
     }
 }
 

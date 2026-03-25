@@ -96,4 +96,20 @@
 		<SkillTarget>Me</SkillTarget>
 		<Motion>Buff</Motion>
 	</Skill>
+	
+	<!-- 테스트용 회복 스킬 -->
+	<Skill ID ="015005" ParentID="010000">
+		<Name>테스트 회복</Name>
+		<Icon>SkillIcon/010005</Icon>
+		<Type>Heal</Type>
+		<HealMin>10</HealMin>
+		<HealMax>20</HealMax>
+		<SkillEffect></SkillEffect>
+		<SkillTarget>Ally</SkillTarget>
+		<Motion>Buff</Motion>
+		<AttackPoint>Body</AttackPoint>
+		<AttackEffect>None</AttackEffect>
+		<Cooldown>0</Cooldown>
+		<ManaCost>0</ManaCost>
+	</Skill>
 </Skills>

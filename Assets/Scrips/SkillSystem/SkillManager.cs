@@ -36,7 +36,7 @@ public class SkillManager : MonoBehaviour
         string target = skill.SkillTarget.ToLower();
         return target == "allenemies" || target == "allallies";
     }
-    public CharacterInfoPlayer playerInfoUI; // 인스펙터에서 PlayerInfo 오브젝트 할당
+    // public CharacterInfoPlayer playerInfoUI; // 인스펙터에서 PlayerInfo 오브젝트 할당 - 임시 주석처리
 
     public void UseSkill(SkillData skill, CharacterStats caster, CharacterStats target, SkillData motionData)
     {

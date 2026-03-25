@@ -13,7 +13,7 @@ public class TargetSelector : MonoBehaviour
     public GameObject SelectedTarget;
     [SerializeField] private RectTransform targetMarker;
     public RectTransform targetMarkerImage;
-    [SerializeField] private CharacterInfoEnemy enemyInfoUI; // 인스펙터에서 할당
+    // [SerializeField] private CharacterInfoEnemy enemyInfoUI; // 인스펙터에서 할당 - 임시 주석처리
     //현재 타겟과 게임오브젝트로서 타겟을 이중으로 선택상태로 둔다.
     //이중 게임 오브젝트가 감지되지 않는담 그걸 죽은 걸로 본다.
 
@@ -100,10 +100,10 @@ public class TargetSelector : MonoBehaviour
     }
 
     public void ClearTarget() => CurrentTarget = null;
-    public void SetTarget(CharacterStats newTarget)
+    public void SetTarget(CharacterStats newTarget, bool ignoreCombatLock = false)
     {
         // 전투 중이면 타겟 설정 불가
-        if (IsInCombatAction())
+        if (!ignoreCombatLock && IsInCombatAction())
         {
             return;
         }
@@ -112,25 +112,27 @@ public class TargetSelector : MonoBehaviour
         {
             targetMarker.gameObject.SetActive(false);
             CurrentTarget = null;
-            if (enemyInfoUI != null) enemyInfoUI.HideInfo();
+            // if (enemyInfoUI != null) enemyInfoUI.HideInfo(); // 임시 주석처리
+            NotifySelectedTargetInfoUI();
             return;
         }
 
         CurrentTarget = newTarget;
 
         // UI 정보 갱신
-        if (enemyInfoUI != null)
-            enemyInfoUI.SetCharacterStats(CurrentTarget);
+        // if (enemyInfoUI != null) enemyInfoUI.SetCharacterStats(CurrentTarget); // 임시 주석처리
 
         // 월드 공간에서 직접 위치 설정
         Vector3 worldPos = CurrentTarget.transform.position + new Vector3(0, 2f, 0);
         targetMarkerImage.position = worldPos;
         targetMarker.gameObject.SetActive(true);
+        NotifySelectedTargetInfoUI();
     }
     public void HideSelector()//얘는 턴쪽에서 불러올 메서드
     {
         targetMarker.gameObject.SetActive(false);
         CurrentTarget = null;
+        NotifySelectedTargetInfoUI();
     }
 
     public void ShowSelector()
@@ -151,12 +153,31 @@ public class TargetSelector : MonoBehaviour
         if (firstTarget != null)
         {
             //Debug.Log($"[자동 타겟팅 대상] {firstTarget.name}");
-            SetTarget(firstTarget);
+            SetTarget(firstTarget, true);
         }
         else
         {
             Debug.LogWarning("타겟팅 가능한 적이 없음");
             targetMarkerImage.gameObject.SetActive(false); // 마커 감추기
+            NotifySelectedTargetInfoUI();
+        }
+    }
+
+    /// <summary>
+    /// 선택 대상 역할로 지정된 CharacterInfo UI에 현재 타겟을 전달합니다.
+    /// </summary>
+    private void NotifySelectedTargetInfoUI()
+    {
+        var infos = FindObjectsByType<CharacterInfo>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        var target = GetCurrentTarget();
+
+        foreach (var info in infos)
+        {
+            if (info == null || !info.IsSelectedTargetInfo()) continue;
+
+            if (target != null)
+                info.SetCharacterStats(target);
+            // UI는 항상 켜두는 정책이므로 target이 null일 때는 숨기지 않음
         }
     }
 }

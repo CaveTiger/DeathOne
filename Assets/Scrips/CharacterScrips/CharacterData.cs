@@ -28,6 +28,26 @@ public class CharacterData
 
     public int maxPassiveCost = 10; // 기본값 10, 필요시 XML/에디터에서 지정
 
+    [Header("업그레이드 시스템")]
+    // 등급별 영혼먼지 투자 한도
+    private static readonly Dictionary<RarityList, int> MaxSoulDustLimitByRarity = new()
+    {
+        { RarityList.Normal, 100 },
+        { RarityList.Rare, 75 },
+        { RarityList.One, 150 },
+        { RarityList.Uniqu, 50 },
+        { RarityList.Legend, 50 }
+    };
+
+    public int upgradeHpBonus = 0;
+    public int upgradeMaxHpBonus = 0;
+    public int upgradeAtkBonus = 0;
+    public int upgradeDefBonus = 0;
+    public int upgradeSpeedBonus = 0;
+    public float upgradeEvasionBonus = 0f;
+    public float upgradeAccuracyBonus = 0f;
+    public int totalSoulDustSpent = 0; // 투자한 총 영혼먼지
+
     public static Dictionary<string, CharacterData> characterDict = new();
 
     /// <summary>
@@ -99,11 +119,97 @@ public class CharacterData
             Scale = this.Scale,
             IsCustomized = this.IsCustomized,
             IsUnlocked = this.IsUnlocked,
-            maxPassiveCost = this.maxPassiveCost
+            maxPassiveCost = this.maxPassiveCost,
+            // 업그레이드 보너스 필드 초기화 (0으로 시작)
+            upgradeHpBonus = 0,
+            upgradeMaxHpBonus = 0,
+            upgradeAtkBonus = 0,
+            upgradeDefBonus = 0,
+            upgradeSpeedBonus = 0,
+            upgradeEvasionBonus = 0f,
+            upgradeAccuracyBonus = 0f,
+            totalSoulDustSpent = 0
         };
 
         // 등급에 따른 스탯 조절
         clone.AdjustStatsByRarity();
         return clone;
+    }
+
+    /// <summary>
+    /// 업그레이드 보너스를 포함한 최종 스탯 값을 반환합니다.
+    /// </summary>
+    /// <param name="statType">조회할 스탯 타입</param>
+    /// <returns>기본 스탯 + 업그레이드 보너스</returns>
+    public float GetFinalStatValue(TargetStat statType)
+    {
+        switch (statType)
+        {
+            case TargetStat.Hp:
+                return Hp + upgradeHpBonus;
+            case TargetStat.MaxHp:
+                return MaxHp + upgradeMaxHpBonus;
+            case TargetStat.Atk:
+                return Atk + upgradeAtkBonus;
+            case TargetStat.Def:
+                return Def + upgradeDefBonus;
+            case TargetStat.Speed:
+                return Speed + upgradeSpeedBonus;
+            case TargetStat.Evasion:
+                return EvasionRate + upgradeEvasionBonus;
+            case TargetStat.Accuracy:
+                return Accuracy + upgradeAccuracyBonus;
+            default:
+                return 0;
+        }
+    }
+
+    /// <summary>
+    /// 업그레이드 보너스만 반환합니다.
+    /// </summary>
+    /// <param name="statType">조회할 스탯 타입</param>
+    /// <returns>업그레이드 보너스 값</returns>
+    public float GetUpgradeBonus(TargetStat statType)
+    {
+        switch (statType)
+        {
+            case TargetStat.Hp:
+                return upgradeHpBonus;
+            case TargetStat.MaxHp:
+                return upgradeMaxHpBonus;
+            case TargetStat.Atk:
+                return upgradeAtkBonus;
+            case TargetStat.Def:
+                return upgradeDefBonus;
+            case TargetStat.Speed:
+                return upgradeSpeedBonus;
+            case TargetStat.Evasion:
+                return upgradeEvasionBonus;
+            case TargetStat.Accuracy:
+                return upgradeAccuracyBonus;
+            default:
+                return 0;
+        }
+    }
+
+    /// <summary>
+    /// 이 캐릭터 등급에서 사용할 수 있는 최대 영혼먼지 투자량을 반환합니다.
+    /// </summary>
+    public int GetMaxSoulDustLimit()
+    {
+        if (MaxSoulDustLimitByRarity.TryGetValue(Rarity, out int limit))
+            return limit;
+
+        return 0;
+    }
+
+    /// <summary>
+    /// 현재 등급 한도에서 추가로 투자 가능한 영혼먼지량을 반환합니다.
+    /// </summary>
+    public int GetRemainingSoulDustCapacity()
+    {
+        int max = GetMaxSoulDustLimit();
+        int remaining = max - totalSoulDustSpent;
+        return remaining < 0 ? 0 : remaining;
     }
 }

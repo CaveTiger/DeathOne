@@ -8,9 +8,25 @@ using System.Collections.Generic;
 // 따라서 실행 순서는 GameManger -> 다른 데이터 로더 -> GameProgressManager 순으로 제어합니다.
 public class GameManager : MonoBehaviour
 {
+    public enum ScreenState
+    {
+        None = 0,
+        WorldMap = 1,
+        StageSelected = 2,
+        CharacterUpgrade = 3,
+        PartySetting = 4,
+        Blessing = 5,
+        Battle = 6,
+        Pause = 7
+    }
+
     public static GameManager Instance { get; private set; }
 
     public bool IsPaused => Time.timeScale == 0f;
+    public ScreenState CurrentScreenState => currentScreenState;
+
+    [Header("현재 화면 상태")]
+    [SerializeField] private ScreenState currentScreenState = ScreenState.None;
 
     private void Awake()
     {
@@ -53,9 +69,41 @@ public class GameManager : MonoBehaviour
     private void Start()
     {
         Debug.Log("[GameManager] Start() 실행됨");
+        SetCurrentScreenState(ScreenState.WorldMap);
         
         // 보상 처리는 TurnManager에서 씬 전환 전에 완료됨
         // GameManager에서는 추가 보상 처리가 필요하지 않음
         Debug.Log("[GameManager] 보상 처리는 TurnManager에서 이미 완료됨");
+    }
+
+    /// <summary>
+    /// 현재 화면 상태를 변경합니다.
+    /// </summary>
+    public void SetCurrentScreenState(ScreenState state)
+    {
+        currentScreenState = state;
+    }
+
+    /// <summary>
+    /// 인스펙터/버튼 이벤트용: 정수값으로 화면 상태를 변경합니다.
+    /// enum 값이 유효하지 않으면 변경하지 않습니다.
+    /// </summary>
+    public void SetCurrentScreenStateByValue(int stateValue)
+    {
+        if (!System.Enum.IsDefined(typeof(ScreenState), stateValue))
+        {
+            Debug.LogWarning($"[GameManager] 유효하지 않은 ScreenState 값: {stateValue}");
+            return;
+        }
+
+        currentScreenState = (ScreenState)stateValue;
+    }
+
+    /// <summary>
+    /// 현재 화면 상태가 특정 값인지 확인합니다.
+    /// </summary>
+    public bool IsCurrentScreenState(ScreenState state)
+    {
+        return currentScreenState == state;
     }
 }

@@ -204,25 +204,9 @@ public class TurnManager : MonoBehaviour
             return;
         }
 
-        // 모든 캐릭터의 정보 UI 갱신
-        Debug.Log("[턴관리] StartTurn - UI 갱신 시작");
-        foreach (var slot in allSlots)
-        {
-            if (slot.currentCharacter == null || slot.currentCharacter.gameObject == null) continue;
-            var infoUI = slot.currentCharacter?.GetComponentInChildren<CharacterInfoPlayer>();
-            if (infoUI != null)
-            {
-                infoUI.UpdateInfo();
-                infoUI.ShowInfo();
-            }
-        }
-
-        if (character.IsPlayer && playerInfoUI != null)
-        {
-            playerInfoUI.SetCharacterStats(character);
-            playerInfoUI.UpdateInfo();
-            playerInfoUI.ShowInfo();
-        }
+        // 보편 진입점: CharacterInfo 역할(bool) 기반으로 일괄 갱신
+        Debug.Log("[턴관리] StartTurn - CharacterInfo 라우팅 갱신");
+        UpdateCharacterInfoByRole(character);
 
         // 스킬 UI 업데이트 - 턴이 온 캐릭터의 스킬만 활성화
         if (BattleUIManager.Instance != null)
@@ -249,25 +233,9 @@ public class TurnManager : MonoBehaviour
             yield break;
         }
 
-        // 모든 캐릭터의 정보 UI 갱신
-        Debug.Log("[턴관리] ProcessStatusEffectsWithAnimation - UI 갱신 시작");
-        foreach (var slot in allSlots)
-        {
-            if (slot.currentCharacter == null || slot.currentCharacter.gameObject == null) continue;
-            var infoUI = slot.currentCharacter?.GetComponentInChildren<CharacterInfoPlayer>();
-            if (infoUI != null)
-            {
-                infoUI.UpdateInfo();
-                infoUI.ShowInfo();
-            }
-        }
-
-        if (character.IsPlayer && playerInfoUI != null)
-        {
-            playerInfoUI.SetCharacterStats(character);
-            playerInfoUI.UpdateInfo();
-            playerInfoUI.ShowInfo();
-        }
+        // 보편 진입점: CharacterInfo 역할(bool) 기반으로 일괄 갱신
+        Debug.Log("[턴관리] ProcessStatusEffectsWithAnimation - CharacterInfo 라우팅 갱신");
+        UpdateCharacterInfoByRole(character);
 
         // 스킬 UI 업데이트 - 턴이 온 캐릭터의 스킬만 활성화
         if (BattleUIManager.Instance != null)
@@ -438,6 +406,38 @@ public class TurnManager : MonoBehaviour
         if (NextTurnIndicatorUI.Instance != null)
         {
             NextTurnIndicatorUI.Instance.CreateTurnBlocks(GetSortedTurnList());
+        }
+    }
+
+    /// <summary>
+    /// CharacterInfo의 역할 플래그(isTurnTargetInfo / isSelectedTargetInfo)를 기준으로
+    /// 전투 UI를 한 곳에서 라우팅 갱신합니다.
+    /// </summary>
+    private void UpdateCharacterInfoByRole(CharacterStats turnCharacter)
+    {
+        CharacterInfo[] infoUIs = FindObjectsByType<CharacterInfo>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        CharacterStats selectedTarget = TargetSelector.Instance != null ? TargetSelector.Instance.GetCurrentTarget() : null;
+
+        foreach (var infoUI in infoUIs)
+        {
+            if (infoUI == null) continue;
+
+            if (infoUI.IsTurnTargetInfo())
+            {
+                if (turnCharacter != null)
+                    infoUI.SetCharacterStats(turnCharacter);
+                else
+                    infoUI.HideInfo();
+                continue;
+            }
+
+            if (infoUI.IsSelectedTargetInfo())
+            {
+                if (selectedTarget != null)
+                    infoUI.SetCharacterStats(selectedTarget);
+                // 선택 대상 UI는 항상 켜둔다.
+                // 타겟이 아직 없을 때(턴 시작 직후/자동 타겟팅 전) HideInfo로 꺼지지 않게 유지.
+            }
         }
     }
 

@@ -149,8 +149,14 @@ public class BlessingManager : MonoBehaviour
     {
         try
         {
-            // scriptClass 문자열로 타입 찾기
+            // scriptClass 문자열로 타입 찾기 (네임스페이스 없이 클래스 이름만 있는 경우 처리)
             Type effectType = Type.GetType(blessingData.scriptClass);
+            
+            // 네임스페이스 없이 클래스 이름만 있는 경우 현재 어셈블리에서 찾기
+            if (effectType == null)
+            {
+                effectType = Type.GetType(blessingData.scriptClass + ", Assembly-CSharp");
+            }
             
             if (effectType == null)
             {

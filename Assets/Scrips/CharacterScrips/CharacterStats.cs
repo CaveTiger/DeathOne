@@ -18,6 +18,10 @@ public class CharacterStats : MonoBehaviour
     public bool TurnChanse = false; //턴이 올때 기회
     public PatternType Pattern;
     public RarityList Rarity;
+    
+    [Header("붕괴 시스템")]
+    [Tooltip("상태이상 피해로 체력이 0이 되어 방치된 상태인지 추적")]
+    private bool isNeglected = false; // 상태이상 피해로 체력이 0이 되어 방치된 상태
     public string CharacterId;  // ID 필드 모션 참조용
     public string CharacterFolder; // "Player" 또는 "MobA"
     public string CharacterName;   // "Player" 또는 "MobA"
@@ -72,16 +76,21 @@ public class CharacterStats : MonoBehaviour
             }
         }
         Label = data.Label;
-        Hp = data.Hp;
-        MaxHp = data.MaxHp;
-        Atk = data.Atk;
-        Def = data.Def;
-        Evasion = data.EvasionRate;
-        Accuracy = data.Accuracy;
-        Speed = data.Speed;
+        // 업그레이드 보너스를 포함한 최종 스탯 값 설정
+        Hp = (int)data.GetFinalStatValue(TargetStat.Hp);
+        MaxHp = (int)data.GetFinalStatValue(TargetStat.MaxHp);
+        Atk = (int)data.GetFinalStatValue(TargetStat.Atk);
+        Def = (int)data.GetFinalStatValue(TargetStat.Def);
+        Evasion = data.GetFinalStatValue(TargetStat.Evasion);
+        Accuracy = data.GetFinalStatValue(TargetStat.Accuracy);
+        Speed = (int)data.GetFinalStatValue(TargetStat.Speed);
         CharacterId = data.ID; // CharacterId 설정 추가
         Pattern = data.Pattern; // Pattern 설정 추가 (AI 할당에 필요)
         Rarity = data.Rarity; // Rarity 설정 추가
+        CollapseChance = 0f; // 붕괴 확률 초기화 (스테이지 시작 시 0%부터 시작)
+        
+        // 디버그: Pattern 설정 확인
+        Debug.Log($"[CharacterStats] SetData - {Label} (ID: {CharacterId}): Pattern = {Pattern} (CharacterData.Pattern = {data.Pattern})");
         if (data.Skills.Count >= 4)
             Skills = data.Skills.Take(4).ToArray();
         
@@ -142,8 +151,11 @@ public class CharacterStats : MonoBehaviour
         Debug.Log($"[CharacterStats] {Label}: 피해무시 효과 없음. 최종 피해: {dmg}");
 
         // 3. 실제 체력 감소
+        int oldHp = Hp;
         Hp -= dmg;
         Hp = Mathf.Max(0, Hp);
+        
+        Debug.Log($"[붕괴추적] TakeDamage - {Label}: 체력 {oldHp} → {Hp} (피해: {dmg}, 크리티컬: {isCritical})");
 
         // === 전투 연출 시스템 연동 ===
         // 이벤트 발생
@@ -166,6 +178,12 @@ public class CharacterStats : MonoBehaviour
         }
 
         HpUI.UpdateHpBar(Hp, MaxHp);
+        
+        // 체력이 0 이하가 되면 Deathcheck 호출
+        if (Hp <= 0)
+        {
+            Debug.Log($"[붕괴추적] TakeDamage - 체력 0 이하 감지, Deathcheck() 호출 (직접 공격)");
+        }
         Deathcheck();
         DeathAction();
     }
@@ -176,6 +194,28 @@ public class CharacterStats : MonoBehaviour
         Hp += amount;
         Hp = Mathf.Min(Hp, MaxHp);
         Debug.Log($"[CharacterStats] {Label} 힐: {oldHp} -> {Hp} (힐량: {amount}, 최대체력: {MaxHp})");
+        
+        // 체력이 회복되면 방치 상태 해제
+        if (Hp > 0)
+        {
+            isNeglected = false;
+            Debug.Log($"[붕괴추적] {Label}: 체력 회복으로 방치 상태 해제");
+        }
+        
+        // 1 이상의 회복을 받으면 붕괴 확률 감소 (아군만)
+        if (amount >= 1)
+        {
+            bool isAllyNotMainCharacter = IsPlayer && !string.IsNullOrEmpty(CharacterId) && CharacterId != "000001";
+            if (isAllyNotMainCharacter)
+            {
+                float oldChance = CollapseChance;
+                CollapseChance -= 0.05f; // 5% 감소
+                CollapseChance = Mathf.Max(CollapseChance, 0f); // 최소 0%
+                
+                Debug.Log($"[붕괴추적] {Label}: 체력 회복으로 붕괴 확률 감소");
+                Debug.Log($"[붕괴추적] CollapseChance 감소: {oldChance:F3} → {CollapseChance:F3} ({(CollapseChance * 100):F1}%) [회복]");
+            }
+        }
         
         // === 전투 연출 시스템 연동 ===
         // 힐 이벤트 발생 (초록색 표시용)
@@ -242,25 +282,47 @@ public class CharacterStats : MonoBehaviour
     {
         if (Hp <= 0 && !IsDead)
         {
+            Debug.Log($"[붕괴추적] Deathcheck 시작 - {Label} (ID: {CharacterId}, Hp: {Hp}, IsDead: {IsDead}, IsPlayer: {IsPlayer})");
+            
             // 아군(주인공 제외)의 경우 붕괴 체크 먼저 수행
             bool isAllyNotMainCharacter = IsPlayer && !string.IsNullOrEmpty(CharacterId) && CharacterId != "000001";
             
             if (isAllyNotMainCharacter)
             {
+                Debug.Log($"[붕괴추적] 아군(주인공 제외) 감지 - TryCollapse() 호출");
+                Debug.Log($"[붕괴추적] 현재 CollapseChance: {CollapseChance:F2} ({(CollapseChance * 100):F1}%)");
+                
                 // 붕괴 체크 수행
                 TryCollapse();
                 
                 // 붕괴에 실패하여 빈사 상태로 유지되는 경우
                 if (!IsDead)
                 {
+                    Debug.Log($"[붕괴추적] 붕괴 실패 - 빈사 상태로 유지 (CollapseChance: {CollapseChance:F2})");
+                    Debug.Log($"[붕괴추적] OnCollapseCrisisEvent 발생 - 구독자 수: {(OnCollapseCrisisEvent?.GetInvocationList().Length ?? 0)}");
+                    
                     // 붕괴 위기 이벤트 발생 (응급 조치 축복 등에서 구독)
                     OnCollapseCrisisEvent?.Invoke(this);
+                    
+                    // 체력이 0이고 아직 죽지 않았으므로 방치 상태로 표시
+                    SetNeglected();
+                    
+                    Debug.Log($"[붕괴추적] 빈사 상태 유지 완료 - 사망 처리하지 않음");
                     return; // 사망 처리하지 않고 빈사 상태로 유지
                 }
+                else
+                {
+                    Debug.Log($"[붕괴추적] 붕괴 성공 - 사망 처리 진행");
+                }
+            }
+            else
+            {
+                Debug.Log($"[붕괴추적] 아군이 아니거나 주인공 - 즉시 사망 처리");
             }
             
             // 붕괴에 성공했거나, 적/주인공인 경우 사망 처리
             IsDead = true;
+            Debug.Log($"[붕괴추적] IsDead = true 설정 완료 - {Label}");
             
             // 턴 블록 파괴 효과 호출
             if (NextTurnIndicatorUI.Instance != null)
@@ -307,6 +369,7 @@ public class CharacterStats : MonoBehaviour
                 Deathcheck();
                 // DeathAction()은 TakeDamage()나 상태이상 시스템 등에서 호출되므로 여기서는 호출하지 않음
             }
+            // 아군 빈사 상태는 정상 상태이므로 로그 출력하지 않음 (Update()는 매 프레임 호출되므로)
         }
     }
     public void DeathAction()
@@ -380,25 +443,86 @@ public class CharacterStats : MonoBehaviour
     }
     public void TryCollapse()
     {
+        Debug.Log($"[붕괴추적] TryCollapse 시작 - {Label} (ID: {CharacterId})");
+        
         // 플레이어블 아군만, 그리고 주인공은 예외
-        if (!IsPlayer) return;
-        if (CharacterId == "000001") return;
+        if (!IsPlayer)
+        {
+            Debug.Log($"[붕괴추적] TryCollapse 종료 - IsPlayer가 false");
+            return;
+        }
+        if (CharacterId == "000001")
+        {
+            Debug.Log($"[붕괴추적] TryCollapse 종료 - 주인공은 붕괴 체크 불가");
+            return;
+        }
 
-        if (Hp > 0) return; // 체력이 0 이하일 때만
+        if (Hp > 0)
+        {
+            Debug.Log($"[붕괴추적] TryCollapse 종료 - 체력이 0보다 큼 (Hp: {Hp})");
+            return; // 체력이 0 이하일 때만
+        }
 
         float rand = UnityEngine.Random.value; // 0~1
+        Debug.Log($"[붕괴추적] 붕괴 확률 체크 - 랜덤값: {rand:F3}, CollapseChance: {CollapseChance:F3} ({(CollapseChance * 100):F1}%)");
+        
         if (rand < CollapseChance)
         {
             // 즉시 붕괴(사망 처리)
+            Debug.Log($"[붕괴추적] 붕괴 성공! (랜덤값 {rand:F3} < 확률 {CollapseChance:F3})");
             IsDead = true;
+            Debug.Log($"[붕괴추적] IsDead = true 설정");
             // 사망 처리 로직 호출
         }
         else
         {
-            // 붕괴하지 않고 빈사 상태로 버팀, 확률 증가
+            // 붕괴하지 않고 빈사 상태로 버팀, 확률 증가 (직접 공격으로 인한 붕괴 실패)
+            float oldChance = CollapseChance;
             CollapseChance += 0.2f; // 20% 증가
             CollapseChance = Mathf.Min(CollapseChance, 1f); // 최대 100%
+            
+            Debug.Log($"[붕괴추적] 붕괴 실패 - 빈사 상태로 버팀 (랜덤값 {rand:F3} >= 확률 {oldChance:F3})");
+            Debug.Log($"[붕괴추적] CollapseChance 증가: {oldChance:F3} → {CollapseChance:F3} ({(CollapseChance * 100):F1}%) [직접 공격]");
             // 빈사 상태 유지
+        }
+    }
+    
+    /// <summary>
+    /// 자신의 턴이 시작될 때 방치 체크를 수행합니다.
+    /// 체력이 0인 상태로 방치되어 자신의 턴까지 체력을 회복하지 못했다면 붕괴 확률이 증가합니다.
+    /// </summary>
+    public void CheckNeglectOnTurnStart()
+    {
+        // 아군(주인공 제외)만 체크
+        bool isAllyNotMainCharacter = IsPlayer && !string.IsNullOrEmpty(CharacterId) && CharacterId != "000001";
+        if (!isAllyNotMainCharacter) return;
+        
+        // 체력이 0이고 아직 죽지 않았으며, 방치 상태인 경우
+        if (Hp <= 0 && !IsDead && isNeglected)
+        {
+            float oldChance = CollapseChance;
+            CollapseChance += 0.1f; // 10% 증가 (방치 페널티)
+            CollapseChance = Mathf.Min(CollapseChance, 1f); // 최대 100%
+            
+            Debug.Log($"[붕괴추적] {Label}: 방치 체크 - 자신의 턴까지 체력 회복 실패");
+            Debug.Log($"[붕괴추적] CollapseChance 증가: {oldChance:F3} → {CollapseChance:F3} ({(CollapseChance * 100):F1}%) [방치]");
+            
+            // 방치 체크 완료 (다음 턴까지 다시 체력이 0이면 또 체크됨)
+            // isNeglected는 체력이 회복될 때까지 유지
+        }
+    }
+    
+    /// <summary>
+    /// 체력이 0이고 아직 죽지 않은 상태를 방치 상태로 표시합니다.
+    /// 어떤 방식으로든 체력이 0이 되어 방치되면 자신의 턴까지 체력을 회복하지 못하면 페널티가 적용됩니다.
+    /// </summary>
+    public void SetNeglected()
+    {
+        bool isAllyNotMainCharacter = IsPlayer && !string.IsNullOrEmpty(CharacterId) && CharacterId != "000001";
+        if (isAllyNotMainCharacter && Hp <= 0 && !IsDead)
+        {
+            isNeglected = true;
+            Debug.Log($"[붕괴추적] {Label}: 체력 0 도달 - 방치 상태로 표시");
         }
     }
 

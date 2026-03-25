@@ -54,7 +54,6 @@ public class WorldMapCurrencyUI : MonoBehaviour
         {
             int soulDust = GameProgressManager.Instance.GetSoulDust();
             soulDustText.text = soulDust.ToString();
-            Debug.Log($"[영혼먼지][UI] UI 업데이트: {soulDust}");
         }
         else
         {
@@ -66,7 +65,6 @@ public class WorldMapCurrencyUI : MonoBehaviour
         {
             int essence = GameProgressManager.Instance.GetEssence();
             essenceText.text = essence.ToString();
-            Debug.Log($"[강자의 정수][UI] UI 업데이트: {essence}");
         }
         else
         {

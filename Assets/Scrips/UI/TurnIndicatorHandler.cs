@@ -8,7 +8,7 @@ public class TurnIndicatorHandler : MonoBehaviour
     public RectTransform canvasRectTransform;
     [Header("카메라 설정 (현재 미사용, 향후 월드→스크린 좌표 변환용)")]
     public Camera targetCamera;  // 명시적으로 카메라 지정 (현재는 사용 안 함)
-    [SerializeField] private CharacterInfoPlayer playerInfoUI;
+    // [SerializeField] private CharacterInfoPlayer playerInfoUI; // 임시 주석처리
 
     public static TurnIndicatorHandler Instance { get; private set; }
 
@@ -56,12 +56,12 @@ public class TurnIndicatorHandler : MonoBehaviour
         }
 
         // CharacterStats 컴포넌트 접근 시 추가 null 체크
-        if (target.gameObject != null)
-        {
-            CharacterStats characterStats = target.gameObject.GetComponent<CharacterStats>();
-            if (characterStats != null && characterStats.IsPlayer && playerInfoUI != null)
-                playerInfoUI.SetCharacterStats(characterStats);
-        }
+        // if (target.gameObject != null)
+        // {
+        //     CharacterStats characterStats = target.gameObject.GetComponent<CharacterStats>();
+        //     if (characterStats != null && characterStats.IsPlayer && playerInfoUI != null)
+        //         playerInfoUI.SetCharacterStats(characterStats);
+        // } // 임시 주석처리
         
         float endTime = Time.realtimeSinceStartup;
         Debug.Log($"[AI개선] SetIndicator 완료 - 소요시간: {(endTime - startTime) * 1000:F2}ms");

@@ -1,5 +1,6 @@
 using UnityEngine;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq; // Added for .Select()
@@ -45,6 +46,9 @@ public class GameProgressManager : MonoBehaviour
         // 예: ["030001:2", "030002:3"] = "하나를 위한 모두" 축복의 대상이 2번 슬롯, "모두를 위한 하나" 축복의 대상이 3번 슬롯
         // 슬롯 번호: 1(주인공), 2, 3, 4
         public List<string> tacticalBlessingTargets = new List<string>();
+
+        // 업그레이드 패널에서 마지막으로 선택한 캐릭터 ID
+        public string lastSelectedUpgradeCharacterId = "";
     }
 
     private List<CharacterBlockData> partyData; // 캐릭터ID, skillIDs 등 구조체/클래스
@@ -101,39 +105,8 @@ public class GameProgressManager : MonoBehaviour
     /// </summary>
     private void SetupTestInventory()
     {
-        // 현재 슬롯의 인벤토리 데이터를 가져오거나 새로 만듭니다.
-        var inventory = CurrentSaveData.characterInventory;
-        if (inventory == null)
-        {
-            inventory = new List<CharacterData>();
-            CurrentSaveData.characterInventory = inventory;
-        }
-        
-        // 기존 인벤토리를 비우지 않고, 테스트용 캐릭터가 없으면 추가
-        var existingIDs = inventory.Select(c => c.ID).ToList();
-        
-        // 테스트용 캐릭터 추가 (ID, 수량) - 중복 방지
-        if (!existingIDs.Contains("000001")) AddCharacterToInventory("000001", 1);
-        if (!existingIDs.Contains("000002")) AddCharacterToInventory("000002", 1);
-        if (!existingIDs.Contains("000005")) AddCharacterToInventory("000005", 1);
-        
-        // 테스트용 스킬 해금 (중복 방지)
-        // 기본 스킬들
-        UnlockSkill("010001"); // 단검베기
-        UnlockSkill("010002"); // 발목 노리기
-        UnlockSkill("010003"); // 여신의 축복
-        UnlockSkill("010004"); // 주변 살피기
-        
-        // 테스트용 스킬들 (999xxx 시리즈)
-        UnlockSkill("999001"); // 능동형 아이콘 테스트
-        UnlockSkill("999002"); // 전체 회복
-        UnlockSkill("999003"); // 전체 공격
-        UnlockSkill("999004"); // 인접 공격
-        UnlockSkill("999005"); // 인접 회복
-        UnlockSkill("999006"); // 랜덤 공격
-        UnlockSkill("999007"); // 약점 공격
-        UnlockSkill("999008"); // 응급 치료
-        UnlockSkill("999009"); // 호환성 테스트
+        // 테스트용 회복 스킬만 해금 (중복 방지)
+        UnlockSkill("015005"); // 테스트 회복
     }
 
 
@@ -659,6 +632,75 @@ public class GameProgressManager : MonoBehaviour
         get { return CurrentSaveData.characterInventory; }
     }
 
+    /// <summary>
+    /// 캐릭터의 업그레이드 보너스를 강제로 초기화합니다. (환불 없음)
+    /// </summary>
+    public static void ResetCharacterUpgradeBonuses(CharacterData character)
+    {
+        if (character == null) return;
+
+        character.upgradeHpBonus = 0;
+        character.upgradeMaxHpBonus = 0;
+        character.upgradeAtkBonus = 0;
+        character.upgradeDefBonus = 0;
+        character.upgradeSpeedBonus = 0;
+        character.upgradeEvasionBonus = 0f;
+        character.upgradeAccuracyBonus = 0f;
+        character.totalSoulDustSpent = 0;
+        character.Hp = character.MaxHp;
+    }
+
+    /// <summary>
+    /// 업그레이드 패널의 마지막 선택 캐릭터 ID를 저장합니다.
+    /// </summary>
+    public void SetLastSelectedUpgradeCharacterId(string characterId, bool saveImmediately = true)
+    {
+        if (CurrentSaveData == null) return;
+        CurrentSaveData.lastSelectedUpgradeCharacterId = characterId ?? "";
+        if (saveImmediately)
+            SaveGameProgress(currentSlot);
+    }
+
+    /// <summary>
+    /// 업그레이드 패널의 마지막 선택 캐릭터 ID를 가져옵니다.
+    /// </summary>
+    public string GetLastSelectedUpgradeCharacterId()
+    {
+        if (CurrentSaveData == null) return "";
+        return CurrentSaveData.lastSelectedUpgradeCharacterId ?? "";
+    }
+
+    /// <summary>
+    /// 캐릭터를 사용불가로 전환할 때 호출:
+    /// - IsUnlocked를 false로 설정
+    /// - 업그레이드 보너스를 강제 초기화(환불 없음)
+    /// - 마지막 업그레이드 선택 대상이면 선택 ID를 비움
+    /// </summary>
+    public void MarkCharacterUnavailable(string characterId, bool saveImmediately = true)
+    {
+        if (string.IsNullOrEmpty(characterId) || CurrentSaveData == null) return;
+
+        var target = CurrentSaveData.characterInventory.Find(c => c != null && c.ID == characterId);
+        if (target == null) return;
+
+        // 강제 초기화 시 영혼먼지 환불 (투자한 양을 다른 곳에 재투자 가능하게 하려는 목적)
+        int refundAmount = target.totalSoulDustSpent;
+
+        target.IsUnlocked = false;
+        ResetCharacterUpgradeBonuses(target);
+
+        if (CurrentSaveData.lastSelectedUpgradeCharacterId == characterId)
+            CurrentSaveData.lastSelectedUpgradeCharacterId = "";
+
+        if (refundAmount > 0)
+        {
+            CurrentSaveData.soulDust += refundAmount;
+        }
+
+        if (saveImmediately)
+            SaveGameProgress(currentSlot);
+    }
+
     // 영혼먼지 관련 메서드
     public void AddSoulDust(int amount)
     {
@@ -671,7 +713,6 @@ public class GameProgressManager : MonoBehaviour
     public int GetSoulDust()
     {
         int currentAmount = CurrentSaveData.soulDust;
-        Debug.Log($"[영혼먼지] 현재 보유량: {currentAmount}");
         return currentAmount;
     }
 
@@ -687,6 +728,69 @@ public class GameProgressManager : MonoBehaviour
         }
         Debug.LogWarning($"[영혼먼지] 부족: 필요 {amount}, 보유 {CurrentSaveData.soulDust}");
         return false;
+    }
+
+    /// <summary>
+    /// 특정 캐릭터에 영혼먼지를 투자하려고 시도합니다.
+    /// - 등급별 최대 투자 한도(CharacterData.GetRemainingSoulDustCapacity)를 먼저 검사합니다.
+    /// - 한도 내라면 실제 보유 영혼먼지(SpendSoulDust)로 결제합니다.
+    /// - 둘 다 통과하면 CharacterData.totalSoulDustSpent를 증가시킵니다.
+    /// </summary>
+    /// <param name="character">투자 대상 캐릭터</param>
+    /// <param name="amount">투자할 영혼먼지 양</param>
+    /// <returns>투자 성공 여부</returns>
+    public bool TryInvestSoulDust(CharacterData character, int amount)
+    {
+        if (character == null)
+        {
+            Debug.LogWarning("[영혼먼지] TryInvestSoulDust 호출 시 character가 null입니다.");
+            return false;
+        }
+
+        if (amount <= 0)
+        {
+            Debug.LogWarning($"[영혼먼지] TryInvestSoulDust amount가 0 이하입니다: {amount}");
+            return false;
+        }
+
+        int remainingCapacity = character.GetRemainingSoulDustCapacity();
+        if (amount > remainingCapacity)
+        {
+            Debug.LogWarning($"[영혼먼지] 등급 한도 초과: 시도 {amount}, 남은 한도 {remainingCapacity}, 등급 {character.Rarity}");
+            return false;
+        }
+
+        // 실제 보유 영혼먼지로 결제
+        if (!SpendSoulDust(amount))
+        {
+            // SpendSoulDust 내부에서 부족 로그 출력
+            return false;
+        }
+
+        // 투자량 누적
+        character.totalSoulDustSpent += amount;
+        return true;
+    }
+
+    /// <summary>
+    /// 스탯 다운 등으로 투자를 되돌릴 때: 보유 영혼먼지를 돌려주고 totalSoulDustSpent를 감소시킵니다.
+    /// 기록보다 많이 환급 요청되면 기록분까지만 차감합니다.
+    /// </summary>
+    public void RefundSoulDustInvestment(CharacterData character, int amount)
+    {
+        if (character == null)
+        {
+            Debug.LogWarning("[영혼먼지] RefundSoulDustInvestment: character가 null입니다.");
+            return;
+        }
+
+        if (amount <= 0) return;
+
+        int refund = Mathf.Min(amount, character.totalSoulDustSpent);
+        if (refund <= 0) return;
+
+        character.totalSoulDustSpent -= refund;
+        AddSoulDust(refund);
     }
 
     /// <summary>
@@ -730,7 +834,6 @@ public class GameProgressManager : MonoBehaviour
     public int GetEssence()
     {
         int currentAmount = CurrentSaveData.essence;
-        Debug.Log($"[강자의 정수] 현재 보유량: {currentAmount}");
         return currentAmount;
     }
 
