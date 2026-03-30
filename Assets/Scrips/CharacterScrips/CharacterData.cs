@@ -143,25 +143,86 @@ public class CharacterData
     /// <returns>기본 스탯 + 업그레이드 보너스</returns>
     public float GetFinalStatValue(TargetStat statType)
     {
+        float passiveBonus = GetPassiveStatBonus(statType);
+        bool traceMora = DebugTraceFlags.PassiveStatTraceMora && ID == "000007";
+
+        if (traceMora)
+        {
+            Debug.Log($"[PassiveTrace][FinalStat] ID={ID} Stat={statType} Base(Hp/MaxHp/Atk/Def)={Hp}/{MaxHp}/{Atk}/{Def} Upgrade(Hp/MaxHp/Atk/Def)={upgradeHpBonus}/{upgradeMaxHpBonus}/{upgradeAtkBonus}/{upgradeDefBonus} PassiveBonus={passiveBonus}");
+        }
+
         switch (statType)
         {
             case TargetStat.Hp:
-                return Hp + upgradeHpBonus;
+                return Hp + upgradeHpBonus + passiveBonus;
             case TargetStat.MaxHp:
-                return MaxHp + upgradeMaxHpBonus;
+                return MaxHp + upgradeMaxHpBonus + passiveBonus;
             case TargetStat.Atk:
-                return Atk + upgradeAtkBonus;
+                return Atk + upgradeAtkBonus + passiveBonus;
             case TargetStat.Def:
-                return Def + upgradeDefBonus;
+                return Def + upgradeDefBonus + passiveBonus;
             case TargetStat.Speed:
-                return Speed + upgradeSpeedBonus;
+                return Speed + upgradeSpeedBonus + passiveBonus;
             case TargetStat.Evasion:
-                return EvasionRate + upgradeEvasionBonus;
+                return EvasionRate + upgradeEvasionBonus + passiveBonus;
             case TargetStat.Accuracy:
-                return Accuracy + upgradeAccuracyBonus;
+                return Accuracy + upgradeAccuracyBonus + passiveBonus;
             default:
                 return 0;
         }
+    }
+
+    /// <summary>
+    /// 상시 반영되는 스탯 부스트형(Type=None) 패시브 보너스를 계산합니다.
+    /// </summary>
+    private float GetPassiveStatBonus(TargetStat statType)
+    {
+        if (Passives == null || Passives.Count == 0) return 0f;
+
+        bool traceMora = DebugTraceFlags.PassiveStatTraceMora && ID == "000007";
+        float total = 0f;
+
+        for (int i = 0; i < Passives.Count; i++)
+        {
+            string passiveId = Passives[i];
+            if (string.IsNullOrEmpty(passiveId)) continue;
+
+            PassiveData passiveData = PassiveLoader.GetByIdStatic(passiveId);
+            if (passiveData == null)
+            {
+                if (traceMora)
+                    Debug.LogWarning($"[PassiveTrace][Data] ID={ID} passiveId={passiveId} -> PassiveData null");
+                continue;
+            }
+            if (passiveData.passiveType != PassiveType.None)
+            {
+                if (traceMora)
+                    Debug.Log($"[PassiveTrace][Data] ID={ID} passiveId={passiveId} type={passiveData.passiveType} (stat-bonus 계산 제외)");
+                continue;
+            }
+
+            bool matches = passiveData.targetStat == statType;
+
+            // MaxHp 부스트는 전투 시작 시 현재 HP에도 함께 반영되도록 취급한다.
+            if (statType == TargetStat.Hp && passiveData.targetStat == TargetStat.MaxHp)
+            {
+                matches = true;
+            }
+
+            if (!matches) continue;
+
+            if (statType == TargetStat.Evasion || statType == TargetStat.Accuracy)
+                total += passiveData.floatValue != 0f ? passiveData.floatValue : passiveData.value;
+            else
+                total += passiveData.value;
+
+            if (traceMora)
+            {
+                Debug.Log($"[PassiveTrace][Data] ID={ID} passiveId={passiveId} target={passiveData.targetStat} statType={statType} add={(statType == TargetStat.Evasion || statType == TargetStat.Accuracy ? (passiveData.floatValue != 0f ? passiveData.floatValue : passiveData.value) : passiveData.value)} total={total}");
+            }
+        }
+
+        return total;
     }
 
     /// <summary>

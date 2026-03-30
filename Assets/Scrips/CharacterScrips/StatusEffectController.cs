@@ -15,6 +15,20 @@ public class StatusEffectController : MonoBehaviour
     [SerializeField] private List<GameObject> activeEffectPrefabs = new List<GameObject>();
 
     // 적용 예시
+    /// <summary>동일 EffectID의 <see cref="StatusEffectInstance"/>가 있으면 반환 (지속피해 중첩 합산용).</summary>
+    public StatusEffectInstance GetStatusEffectInstance(string effectId)
+    {
+        if (string.IsNullOrEmpty(effectId)) return null;
+        foreach (var effect in activeEffectPrefabs)
+        {
+            if (effect == null) continue;
+            var instance = effect.GetComponent<StatusEffectInstance>();
+            if (instance != null && instance.EffectData != null && instance.EffectData.EffectID == effectId)
+                return instance;
+        }
+        return null;
+    }
+
     public void AddCDamageEffect(StatusEffectData data, int duration, int value)
     {
         if (cDamageEffectPrefab == null || statusEffectArea == null)
@@ -42,6 +56,8 @@ public class StatusEffectController : MonoBehaviour
 
     public void AddBuffEffect(StatusEffectData data, int duration, int value)
     {
+        if (DebugTraceFlags.PassiveStatusEffectFlow)
+            Debug.Log($"[StatusFxTrace] AddBuffEffect id={data?.EffectID} buffPrefab={(buffEffectPrefab != null)} area={(statusEffectArea != null)}");
         if (buffEffectPrefab == null || statusEffectArea == null)
         {
             Debug.LogWarning("[StatusEffectController] 버프 프리팹 또는 생성 위치가 할당되지 않았습니다.");
@@ -55,6 +71,8 @@ public class StatusEffectController : MonoBehaviour
         if (buff != null)
         {
             buff.Initialize(data, duration, value, GetComponent<CharacterStats>());
+            if (DebugTraceFlags.PassiveStatusEffectFlow)
+                Debug.Log($"[StatusFxTrace] AddBuffEffect Instantiate+Initialize ok name={effectObj.name}");
         }
         else
         {

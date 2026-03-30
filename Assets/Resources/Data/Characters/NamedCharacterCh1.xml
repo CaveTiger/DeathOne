@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Characters>
 	<Character ID="000002">
 		<Label>스텔리</Label> <!--캐릭터의 이름-->
@@ -48,6 +48,61 @@
 		<Rarity>Normal</Rarity>
 		<Sprite>UnitSprite/Adelia</Sprite> <!--스프라이트 주소를 찾아 적어넣기-->
 		<Pattern>Adelia</Pattern> <!--행동 패턴 스크립트-->
+		<Scale>1.2</Scale>
+	</Character>
+	
+	<Character ID="000007">
+		<Label>Mora</Label> <!--캐릭터의 이름-->
+		<Description>설명 영혼의 기억에서 확인 가능</Description> <!---->
+		<Stats>
+			<Hp>83</Hp> <!--들어갈때 최대체력 + 현재체력 모두 이걸로 세팅된다.-->
+			<Atk>1</Atk> <!--게임오버 테스트용으로 공격력 대폭 상승 (원래값: 3)-->
+			<Def>2</Def>
+			<KDP>84</KDP>
+			<Evasionrate>0.2</Evasionrate>
+			<Accuracy>0.2</Accuracy>
+			<Speed>14</Speed>
+		</Stats>
+		<Skills>
+			<li>010003</li> <!--보스 전용 스킬로 변경 (원래값: 010001)-->
+			<li>010003</li> <!--원래값: 010002-->
+			<li>010003</li> <!--원래값: 010003-->
+			<li>010003</li> <!--원래값: 010004-->
+		</Skills>
+		<Passives>
+			<li>080001</li>
+		</Passives>
+		<Rarity>Rare</Rarity>
+		<Sprite>UnitSprite/Mora</Sprite> <!--스프라이트 주소를 찾아 적어넣기-->
+		<Pattern>Normal</Pattern> <!--행동 패턴 스크립트-->
+		<Scale>1.2</Scale>
+	</Character>
+	
+	<Character ID="000006">
+		<Label>아즈나얀</Label> <!--캐릭터의 이름-->
+		<Description>설명 영혼의 기억에서 확인 가능</Description> <!---->
+		<Stats>
+			<Hp>122</Hp> <!--들어갈때 최대체력 + 현재체력 모두 이걸로 세팅된다.-->
+			<Atk>1</Atk> <!--게임오버 테스트용으로 공격력 대폭 상승 (원래값: 3)-->
+			<Def>2</Def>
+			<KDP>84</KDP>
+			<Evasionrate>0.2</Evasionrate>
+			<Accuracy>0.2</Accuracy>
+			<Speed>14</Speed>
+		</Stats>
+		<Skills>
+			<li>010001</li> <!--보스 전용 스킬로 변경 (원래값: 010001)-->
+			<li>010002</li> <!--원래값: 010002-->
+			<li>010003</li> <!--원래값: 010003-->
+			<li>010004</li> <!--원래값: 010004-->
+		</Skills>
+		<Passives>
+			<li>080004</li>
+			<li>080001</li>
+		</Passives>
+		<Rarity>Normal</Rarity>
+		<Sprite>UnitSprite/Adelia</Sprite> <!--스프라이트 주소를 찾아 적어넣기-->
+		<Pattern>Normal</Pattern> <!--행동 패턴 스크립트-->
 		<Scale>1.2</Scale>
 	</Character>
 </Characters>

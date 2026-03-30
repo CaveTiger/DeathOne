@@ -18,6 +18,12 @@
 			<li>060002</li>
 		</StageBlock>
 	</Stage>
+	<Stage ID="050003" ParentID="050000">
+		<Label>마을 인근 교회</Label>
+		<StageBlock>
+			<li>060003</li>
+		</StageBlock>
+	</Stage>
 	<Stage ID="050100" ParentID="050000">
 		<Label>테스트 스테이지</Label>
 		<StageBlock>

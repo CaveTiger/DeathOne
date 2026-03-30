@@ -176,6 +176,8 @@ public class TurnManager : MonoBehaviour
             return;
         }
 
+        CapturePlayerTurnSnapshotBeforeStart(character);
+
         character.IsMyTurn = true;
         currentCaster = character;
 
@@ -196,6 +198,8 @@ public class TurnManager : MonoBehaviour
                 controller.ApplyStatusEffectsOnTurnStart();
         }
 
+        character.InvokePassivesOnOwnerTurnStart();
+
         // 상태이상 정산 중 사망했을 수 있으므로 즉시 검증 후 다음 진행 결정
         if (character == null || character.gameObject == null || character.IsDead)
         {
@@ -215,6 +219,27 @@ public class TurnManager : MonoBehaviour
         }
     }
 
+    private void CapturePlayerTurnSnapshotBeforeStart(CharacterStats character)
+    {
+        if (character == null || !character.IsPlayer) return;
+        if (BattleSnapshotManager.Instance == null) return;
+
+        var liveUnits = allSlots
+            .Where(s => s != null && s.currentCharacter != null)
+            .Select(s => s.currentCharacter)
+            .ToList();
+
+        var turnOrder = GetSortedTurnList();
+        var selectedTarget = TargetSelector.Instance != null ? TargetSelector.Instance.GetCurrentTarget() : null;
+        int nextTurnIndex = BattleSnapshotManager.Instance.GetTurnSnapshotCount() + 1;
+
+        BattleSnapshotManager.Instance.CaptureTurnSnapshot(
+            liveUnits,
+            nextTurnIndex,
+            turnOrder,
+            selectedTarget);
+    }
+
     /// <summary>
     /// 상태이상 정산 + 연출을 처리하는 코루틴
     /// </summary>
@@ -232,6 +257,8 @@ public class TurnManager : MonoBehaviour
             AdvanceTurn("post-settlement death");
             yield break;
         }
+
+        character.InvokePassivesOnOwnerTurnStart();
 
         // 보편 진입점: CharacterInfo 역할(bool) 기반으로 일괄 갱신
         Debug.Log("[턴관리] ProcessStatusEffectsWithAnimation - CharacterInfo 라우팅 갱신");

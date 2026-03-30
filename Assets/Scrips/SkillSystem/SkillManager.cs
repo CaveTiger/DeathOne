@@ -562,6 +562,12 @@ public class SkillManager : MonoBehaviour
                 Debug.Log($"[스킬연출] 힐 타겟 위치 조정: {target.Label} -> {targetFrontPosition}");
             }
         }
+        else if (skill.Type == SkillType.Buff)
+        {
+            // 버프 스킬은 시전자만 이동(타겟 이동 없음)
+            if (casterMotion != null && !caster.IsDead)
+                casterMotion.MoveToBattlePosition();
+        }
         else
         {
             // 일반 스킬은 기존 방식
@@ -589,16 +595,22 @@ public class SkillManager : MonoBehaviour
         yield return new WaitForSeconds(hitTiming);
         Debug.Log("[스킬연출] PlaySkillEffect - 타격 타이밍 대기 완료");
 
-        // 6. 타겟 모션 재생 (타격 순간) - 힐/버프 스킬은 제외
+        // 6. 타겟 모션 재생 (타격 순간)
         Debug.Log("[스킬연출] PlaySkillEffect - 타겟 모션 재생 시작");
-        if (targetMotion != null && !target.IsDead)
+        if (skill.Type == SkillType.Buff)
         {
-            if (skill.Type == SkillType.Buff)
+            // 버프 스킬: 실제 수혜자(SkillTarget 기준)에게만 버프 모션/틴트 적용
+            var buffTargetsForMotion = GetBuffTargets(skill, caster, target);
+            if (buffTargetsForMotion.Count > 0)
             {
-                // 버프 스킬: 타겟이 버프 모션 취함
-                targetMotion.PlayBuffMotion();
+                var buffMotion = GetMotionController(buffTargetsForMotion[0]);
+                if (buffMotion != null && !buffTargetsForMotion[0].IsDead)
+                    buffMotion.PlayBuffMotion();
             }
-            else if (skill.Type != SkillType.Heal)
+        }
+        else if (targetMotion != null && !target.IsDead)
+        {
+            if (skill.Type != SkillType.Heal)
             {
                 // 공격 스킬: 타겟이 피격 모션 취함
                 targetMotion.PlayHitMotion();
@@ -617,34 +629,35 @@ public class SkillManager : MonoBehaviour
                 ApplyStatusEffects(skill, target);
                 break;
             case SkillType.Buff:
+                // 상태이상은 ApplyBuffEffects(SkillTarget)에서만 적용. ApplyStatusEffects(skill, target)는
+                // 적 턴 시 target=플레이어로 이중·오적용되므로 호출하지 않음.
                 ApplyBuffEffects(skill, caster, target);
-                ApplyStatusEffects(skill, target);
-                
-                // 스킬의 skillEffects를 직접 사용해서 버프 정보 추출
-                if (skill.skillEffects != null && skill.skillEffects.Count > 0)
+
+                // 연출/레거시 스탯 버프도 실제 수혜자(SkillTarget 기준)에게만 표시/적용
+                var buffTargets = GetBuffTargets(skill, caster, target);
+                if (skill.skillEffects != null && skill.skillEffects.Count > 0 && buffTargets.Count > 0)
                 {
-                    foreach (var effect in skill.skillEffects)
+                    foreach (var buffTarget in buffTargets)
                     {
-                        if (effect != null && !string.IsNullOrEmpty(effect.EffectID))
+                        foreach (var effect in skill.skillEffects)
                         {
-                            // StatusEffectManager를 통해 실제 상태이상 데이터 가져오기
+                            if (effect == null || string.IsNullOrEmpty(effect.EffectID))
+                                continue;
+
                             var effectData = StatusEffectManager.Instance.GetById(effect.EffectID);
                             if (effectData != null)
                             {
                                 string effectName = effectData.effectName;
                                 int buffValue = effect.Value;
                                 bool isBuff = effect.Value >= 0;
-                                
-                                Debug.Log($"[SkillManager] 버프 정보: EffectID={effect.EffectID}, 이름={effectName}, 수치={buffValue}, 스킬={skill.Name}");
-                                
-                                // 실제 버프 적용 (기존 방식 유지)
+
+                                Debug.Log($"[SkillManager] 버프 정보: EffectID={effect.EffectID}, 이름={effectName}, 수치={buffValue}, 스킬={skill.Name}, 대상={buffTarget.Label}");
+
                                 string buffType = GetBuffTypeFromEffectID(effect.EffectID);
-                                target.ApplyBuff(buffType, buffValue);
-                                
-                                // 새로운 팝업 시스템으로 버프 표시 (실제 데이터 사용)
-                                Debug.Log($"[SkillManager] 팝업 생성 시도: {effectName}, 수치={buffValue}");
-                                
-                                // BattleEffectManager를 문자열로 찾기
+                                buffTarget.ApplyBuff(buffType, buffValue);
+
+                                Debug.Log($"[SkillManager] 팝업 생성 시도: {effectName}, 수치={buffValue}, 대상={buffTarget.Label}");
+
                                 var allMonoBehaviours = FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None);
                                 MonoBehaviour battleEffectManager = null;
                                 foreach (var mb in allMonoBehaviours)
@@ -655,14 +668,14 @@ public class SkillManager : MonoBehaviour
                                         break;
                                     }
                                 }
-                                
+
                                 if (battleEffectManager != null)
                                 {
                                     Debug.Log($"[SkillManager] BattleEffectManager 찾음: {battleEffectManager.GetType().Name}");
                                     var method = battleEffectManager.GetType().GetMethod("CreateNewBuffDebuffPopup");
                                     if (method != null)
                                     {
-                                        method.Invoke(battleEffectManager, new object[] { target.transform.position, effectName, buffValue, isBuff, effectData });
+                                        method.Invoke(battleEffectManager, new object[] { buffTarget.transform.position, effectName, buffValue, isBuff, effectData });
                                         Debug.Log($"[SkillManager] 팝업 생성 완료: {effectName}");
                                     }
                                     else
@@ -857,7 +870,7 @@ public class SkillManager : MonoBehaviour
             if (target != null && !target.IsDead)
             {
                 var targetMotion = GetMotionController(target);
-                if (targetMotion != null && skill.Type != SkillType.Heal)
+                if (targetMotion != null && skill.Type != SkillType.Heal && skill.Type != SkillType.Buff)
                     targetMotion.PlayHitMotion();
 
                 // 피해/효과 처리
@@ -871,7 +884,6 @@ public class SkillManager : MonoBehaviour
                         break;
                     case SkillType.Buff:
                         ApplyBuffEffects(skill, caster, target);
-                        ApplyStatusEffects(skill, target);
                         break;
                     case SkillType.Heal:
                         int rangeHealAmount = UnityEngine.Random.Range(skill.HealMin, skill.HealMax + 1);
@@ -1192,6 +1204,34 @@ public class SkillManager : MonoBehaviour
         }
     }
 
+    private List<CharacterStats> GetBuffTargets(SkillData skill, CharacterStats caster, CharacterStats target)
+    {
+        List<CharacterStats> targets = new List<CharacterStats>();
+        if (skill == null || caster == null) return targets;
+
+        switch (skill.SkillTarget)
+        {
+            case "Me":
+                targets.Add(caster);
+                break;
+            case "Ally":
+                // 아군만, 본인 제외
+                if (target != null && target.IsPlayer == caster.IsPlayer && !target.IsDead && target != caster)
+                    targets.Add(target);
+                break;
+            case "AllAllies":
+                foreach (var slot in TurnManager.Instance.allSlots)
+                {
+                    var character = slot.currentCharacter;
+                    if (character != null && !character.IsDead && character.IsPlayer == caster.IsPlayer)
+                        targets.Add(character);
+                }
+                break;
+        }
+
+        return targets;
+    }
+
     private void ApplyBuffEffects(SkillData skill, CharacterStats caster, CharacterStats target)
     {
         Debug.Log($"[SkillManager] ApplyBuffEffects: skill={skill?.Name} (ID: {skill?.ID}), caster={caster?.Label}");
@@ -1222,26 +1262,7 @@ public class SkillManager : MonoBehaviour
         
         Debug.Log($"[SkillManager] 스킬 {skill.Name} (ID: {skill.ID})의 skillEffects 개수: {skill.skillEffects.Count}");
 
-        List<CharacterStats> targets = new List<CharacterStats>();
-        switch (skill.SkillTarget)
-        {
-            case "Me":
-                targets.Add(caster);
-                break;
-            case "Ally":
-                // 아군만, 본인 제외
-                if (target != null && target.IsPlayer == caster.IsPlayer && !target.IsDead && target != caster)
-                    targets.Add(target);
-                break;
-            case "AllAllies":
-                foreach (var slot in TurnManager.Instance.allSlots)
-                {
-                    var character = slot.currentCharacter;
-                    if (character != null && !character.IsDead && character.IsPlayer == caster.IsPlayer)
-                        targets.Add(character);
-                }
-                break;
-        }
+        List<CharacterStats> targets = GetBuffTargets(skill, caster, target);
 
         // 적을 타겟팅한 경우 아무에게도 버프를 적용하지 않음
         if (targets.Count == 0)

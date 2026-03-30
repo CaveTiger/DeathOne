@@ -47,6 +47,9 @@ public class CharacterStats : MonoBehaviour
     [Tooltip("현재 적용된 패시브 효과들의 리스트")]
     private List<string> activePassiveIDs = new List<string>();
 
+    /// <summary> 패시브 ID별 자기 턴 시작 유즈 누적(TurnIntervalGrantStatus 등, 임계 도달 시 0으로 리셋).</summary>
+    private readonly Dictionary<string, int> passiveOwnerTurnUseAccumulators = new Dictionary<string, int>();
+
     // 전투 연출 이벤트
     public System.Action<CharacterStats, int, bool, Vector3> OnTakeDamageEvent;
     public System.Action<CharacterStats, int, Vector3> OnHealEvent;
@@ -57,6 +60,7 @@ public class CharacterStats : MonoBehaviour
     public void SetData(CharacterData data)
     {
         this.data = data;
+        bool traceMora = data != null && data.ID == "000007" && DebugTraceFlags.PassiveStatTraceMora;
         if (spriteRenderer == null)
             spriteRenderer = GetComponentInChildren<SpriteRenderer>();
 
@@ -76,6 +80,12 @@ public class CharacterStats : MonoBehaviour
             }
         }
         Label = data.Label;
+
+        if (traceMora)
+        {
+            string passives = data.Passives != null ? string.Join(",", data.Passives) : "(null)";
+            Debug.Log($"[PassiveTrace][SetData-Before] ID={data.ID} Label={data.Label} BaseStats Hp/MaxHp/Atk/Def={data.Hp}/{data.MaxHp}/{data.Atk}/{data.Def} Passives={passives}");
+        }
         // 업그레이드 보너스를 포함한 최종 스탯 값 설정
         Hp = (int)data.GetFinalStatValue(TargetStat.Hp);
         MaxHp = (int)data.GetFinalStatValue(TargetStat.MaxHp);
@@ -96,6 +106,11 @@ public class CharacterStats : MonoBehaviour
         
         // 패시브 효과 적용
         ApplyPassives(data.Passives);
+
+        if (traceMora)
+        {
+            Debug.Log($"[PassiveTrace][SetData-After] ID={data.ID} RuntimeStats Hp/MaxHp/Atk/Def={Hp}/{MaxHp}/{Atk}/{Def} ActivePassives={string.Join(",", activePassiveIDs)}");
+        }
         
         // Debug.Log($"[SetData 완료] ID: {data.ID}, HP: {Hp}, Atk: {Atk}, Sprite: {data.Sprite}");
     }
@@ -403,6 +418,9 @@ public class CharacterStats : MonoBehaviour
             return;
         }
 
+        if (DebugTraceFlags.PassiveStatusEffectFlow)
+            Debug.Log($"[StatusFxTrace] AddStatusEffectPrefab enter {Label} id={effectData.EffectID} type={effectData.effectType} dur={duration} val={value}");
+
         // StatusEffectController를 통해 타입별로 분기하여 적용
         var controller = GetComponent<StatusEffectController>();
         if (controller == null)
@@ -411,10 +429,28 @@ public class CharacterStats : MonoBehaviour
             return;
         }
 
-        // 중복 체크: 같은 상태이상이 이미 적용되어 있으면 새로 생성하지 않음
+        // 중복: 지속피해(ContinuousDamage)는 3안 — 재적용 시 들어온 수치의 절반(내림)만 합산, 지속은 유지. 그 외 타입은 기존처럼 무시.
         if (controller.HasStatusEffect(effectData.EffectID))
         {
-            Debug.Log($"[CharacterStats] {Label}: 상태이상 {effectData.effectName} (ID: {effectData.EffectID})이 이미 적용되어 있습니다. 중복 적용 무시.");
+            if (effectData.effectType == StatusEffectType.ContinuousDamage)
+            {
+                var existing = controller.GetStatusEffectInstance(effectData.EffectID);
+                if (existing != null)
+                {
+                    int before = existing.value;
+                    existing.MergeHalfIncomingDamage(value);
+                    if (DebugTraceFlags.PassiveStatusEffectFlow)
+                        Debug.Log($"[StatusFxTrace] AddStatusEffectPrefab merge CD {Label} id={effectData.EffectID} incoming={value} +{Mathf.FloorToInt(value / 2f)} → value {before}→{existing.value}");
+                    else
+                        Debug.Log($"[CharacterStats] {Label}: 지속피해 {effectData.effectName} 중첩 합산 (3안) incoming={value} → 총 피해량 {existing.value}");
+                }
+                return;
+            }
+
+            if (DebugTraceFlags.PassiveStatusEffectFlow)
+                Debug.Log($"[StatusFxTrace] AddStatusEffectPrefab SKIP duplicate {Label} id={effectData.EffectID}");
+            else
+                Debug.Log($"[CharacterStats] {Label}: 상태이상 {effectData.effectName} (ID: {effectData.EffectID})이 이미 적용되어 있습니다. 중복 적용 무시.");
             return;
         }
 
@@ -424,6 +460,8 @@ public class CharacterStats : MonoBehaviour
                 controller.AddCDamageEffect(effectData, duration, value);
                 break;
             case StatusEffectType.Buff:
+                if (DebugTraceFlags.PassiveStatusEffectFlow)
+                    Debug.Log($"[StatusFxTrace] AddStatusEffectPrefab branch Buff → controller.AddBuffEffect");
                 controller.AddBuffEffect(effectData, duration, value);
                 break;
             case StatusEffectType.Debuff:
@@ -437,6 +475,8 @@ public class CharacterStats : MonoBehaviour
                 controller.AddReactionEffect(effectData, duration, value);
                 break;
             default:
+                if (DebugTraceFlags.PassiveStatusEffectFlow)
+                    Debug.LogWarning($"[StatusFxTrace] AddStatusEffectPrefab unsupported type {effectData.effectType} id={effectData.EffectID}");
                 Debug.LogWarning($"[CharacterStats] {Label}: 지원하지 않는 상태이상 타입: {effectData.effectType}");
                 break;
         }
@@ -542,6 +582,57 @@ public class CharacterStats : MonoBehaviour
     }
 
     /// <summary>
+    /// 자신의 턴이 시작되어 상태이상 정산이 끝난 뒤 호출합니다.
+    /// 턴 연동 패시브 확장 절차는 <see cref="PassiveSystemExtensionGuide"/>.
+    /// </summary>
+    public void InvokePassivesOnOwnerTurnStart()
+    {
+        if (activePassiveIDs == null || activePassiveIDs.Count == 0) return;
+
+        foreach (string passiveID in activePassiveIDs)
+        {
+            if (string.IsNullOrEmpty(passiveID)) continue;
+
+            PassiveData passiveData = PassiveLoader.GetByIdStatic(passiveID);
+            if (passiveData == null) continue;
+
+            if (PassiveEffectLibrary.TryGetEffect(passiveData.passiveType, out PassiveEffectBase mappedEffect) &&
+                mappedEffect != null)
+            {
+                mappedEffect.OnOwnerTurnStart(this, passiveData);
+            }
+            else if (passiveData.passiveType == PassiveType.CustomScript &&
+                     TryCreateCustomPassiveEffect(passiveData.scriptClass, out PassiveEffectBase customEffect))
+            {
+                customEffect.OnOwnerTurnStart(this, passiveData);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 자기 턴 시작 시 패시브 유즈를 1 올리고, 발동 여부를 반환합니다.
+    /// <paramref name="useCountThreshold"/>가 0 이하면 누적 없이 매번 true(상시). 1 이상이면 누적이 임계 이상일 때 true이고 누적은 0으로 리셋합니다.
+    /// <paramref name="startUseCount"/>는 해당 패시브 누적을 처음 볼 때의 시작값(이후 발동 리셋 후에는 0부터).
+    /// </summary>
+    public bool TryTickOwnerTurnPassiveUseAndShouldFire(string passiveId, int useCountThreshold, int startUseCount = 0)
+    {
+        if (string.IsNullOrEmpty(passiveId)) return false;
+        if (useCountThreshold <= 0)
+            return true;
+
+        if (!passiveOwnerTurnUseAccumulators.TryGetValue(passiveId, out int acc))
+            acc = Mathf.Max(0, startUseCount);
+        acc++;
+        if (acc >= useCountThreshold)
+        {
+            passiveOwnerTurnUseAccumulators[passiveId] = 0;
+            return true;
+        }
+        passiveOwnerTurnUseAccumulators[passiveId] = acc;
+        return false;
+    }
+
+    /// <summary>
     /// 패시브 효과들을 캐릭터에 적용합니다.
     /// </summary>
     /// <param name="passiveIDs">적용할 패시브 ID 리스트</param>
@@ -552,11 +643,66 @@ public class CharacterStats : MonoBehaviour
         foreach (string passiveID in passiveIDs)
         {
             if (string.IsNullOrEmpty(passiveID)) continue;
+            if (activePassiveIDs.Contains(passiveID)) continue;
 
-            // 패시브 ID를 활성 리스트에 추가 (임시)
+            PassiveData passiveData = PassiveLoader.GetByIdStatic(passiveID);
+            if (passiveData == null)
+            {
+                Debug.LogWarning($"[CharacterStats] {Label}: 패시브 데이터를 찾을 수 없습니다. ID={passiveID}");
+                continue;
+            }
+
+            bool applied = false;
+
+            if (PassiveEffectLibrary.TryGetEffect(passiveData.passiveType, out PassiveEffectBase mappedEffect) &&
+                mappedEffect != null)
+            {
+                mappedEffect.Apply(this, passiveData);
+                applied = true;
+            }
+            else if (passiveData.passiveType == PassiveType.CustomScript &&
+                     TryCreateCustomPassiveEffect(passiveData.scriptClass, out PassiveEffectBase customEffect))
+            {
+                customEffect.Apply(this, passiveData);
+                applied = true;
+            }
+            else if (passiveData.passiveType == PassiveType.None)
+            {
+                // 스탯부스트형(Type=None)은 CharacterData.GetFinalStatValue에서 상시 반영한다.
+                applied = true;
+            }
+
+            if (!applied)
+            {
+                Debug.LogWarning($"[CharacterStats] {Label}: 적용 가능한 패시브 효과가 없습니다. ID={passiveID}, Type={passiveData.passiveType}, Script={passiveData.scriptClass}");
+                continue;
+            }
+
             activePassiveIDs.Add(passiveID);
-            Debug.Log($"[CharacterStats] {Label}: 패시브 {passiveID}가 적용되었습니다.");
+            Debug.Log($"[CharacterStats] {Label}: 패시브 {passiveID} 적용 완료 (Type={passiveData.passiveType})");
         }
+    }
+
+    private bool TryCreateCustomPassiveEffect(string scriptClass, out PassiveEffectBase effect)
+    {
+        effect = null;
+        if (string.IsNullOrEmpty(scriptClass)) return false;
+
+        Type type = Type.GetType(scriptClass);
+        if (type == null)
+        {
+            Debug.LogWarning($"[CharacterStats] {Label}: 스크립트 클래스를 찾을 수 없습니다. {scriptClass}");
+            return false;
+        }
+
+        if (!typeof(PassiveEffectBase).IsAssignableFrom(type))
+        {
+            Debug.LogWarning($"[CharacterStats] {Label}: PassiveEffectBase를 상속하지 않은 클래스입니다. {scriptClass}");
+            return false;
+        }
+
+        effect = Activator.CreateInstance(type) as PassiveEffectBase;
+        return effect != null;
     }
 
     /// <summary>

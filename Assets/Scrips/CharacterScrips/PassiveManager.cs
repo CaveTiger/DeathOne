@@ -19,7 +19,9 @@ public class PassiveManager : MonoBehaviour
 
     private void LoadAllPassives()
     {
-        var allPassives = PassiveLoader.GetAllPassives(); // PassiveLoader에서 전체 PassiveData 리스트 반환
+        var allPassives = PassiveLoader.Instance != null
+            ? PassiveLoader.Instance.GetAllPassives()
+            : new Dictionary<string, PassiveData>(); // PassiveLoader에서 전체 PassiveData 리스트 반환
         passiveDict.Clear();
         foreach (var pair in allPassives)
         {

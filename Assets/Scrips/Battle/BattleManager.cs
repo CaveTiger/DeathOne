@@ -377,7 +377,11 @@ public class BattleManager : MonoBehaviour
     public void EndBattle(bool isVictory)
     {
 
-        
+        if (BattleSnapshotManager.Instance != null)
+        {
+            BattleSnapshotManager.Instance.CaptureBattleEndSnapshot(allCharacters);
+        }
+
         SavePartyStatusToStageSetting();
         
         // 전투 결과 데이터 수집

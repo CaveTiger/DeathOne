@@ -40,6 +40,17 @@
 		</SetEnemy>
 	</Block>
 
+	<Block ID="060003" ParentId="060000">
+		<BlockLabel>교회</BlockLabel>
+		<BlockType>Battle</BlockType>
+		<FrontCut>false</FrontCut>
+		<BackCut>false</BackCut>
+		<Last>true</Last>
+		<SetEnemy>
+			<li>000007</li>
+		</SetEnemy>
+	</Block>
+
 	<!-- 테스트용 스테이지 블록 -->
 	<Block ID="060100" ParentId="060000">
 		<BlockLabel>테스트 스테이지 1</BlockLabel>

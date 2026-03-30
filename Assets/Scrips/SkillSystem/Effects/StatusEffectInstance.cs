@@ -172,6 +172,16 @@ public class StatusEffectInstance : MonoBehaviour
     }
 
     /// <summary>
+    /// 지속피해 중첩(3안): 이미 같은 ID가 있을 때 재적용되면, 들어온 수치의 절반(내림)만 현재 피해량에 합산. 지속 턴은 바꾸지 않음.
+    /// </summary>
+    public void MergeHalfIncomingDamage(int incomingValue)
+    {
+        int add = Mathf.FloorToInt(incomingValue / 2f);
+        value += add;
+        UpdateUI();
+    }
+
+    /// <summary>
     /// UI 요소들을 현재 상태에 맞게 업데이트
     /// </summary>
     private void UpdateUI()

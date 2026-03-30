@@ -2660,3 +2660,98 @@
 - 캐릭터 선택 → 닫았다가 재오픈 → 이전 선택 유지 동작 확인
 - 회피/명중: 증가/감소 및 `Spent`/환급 정합성 확인(감소 버튼이 역할/단계 기준으로 정상 동작)
 - HP: 클릭당 +10/-10 동작 확인
+
+### 검증 결과
+- 업그레이드 UX/정합성 검증 **전체 통과(PASS)**.
+- 캐릭터 전환/재선택/재오픈/저장 복원 시 값 유지 정상.
+- 스프라이트 표시, 증감, 환급, `Spent` 표시 모두 의도대로 동작 확인.
+
+### 다음 작업(우선순위)
+1. **사용불가 판정 시스템 구현**
+   - 캐릭터가 사용불가로 전환되는 조건/타이밍 정의
+   - 판정 발생 시 `MarkCharacterUnavailable(characterId)` 실제 호출 연결
+2. **전투 UI 데이터 타입 정리**
+   - `CharacterInfo`의 `Text`/`TMP` 혼용 여부 정리 및 참조 일관성 점검
+3. **업그레이드 UI 폴리싱**
+   - 선택 카드 하이라이트/기본 선택 연출/스크롤 포커스 개선
+
+---
+
+## 스냅샷 시스템 기반 구축(턴 되돌리기/연전 상태 승계 준비)
+### 작업 일자
+- 2026-03-26 (목)
+
+### 구현/수정 사항
+- `BattleSnapshotManager` 신규 작성 (`Assets/Scrips/Battle/BattleSnapshotManager.cs`)
+  - 싱글톤 기반(`Instance`)으로 전투 스냅샷 관리
+  - **턴 스냅샷 히스토리**(기본 최대 8개) + **전투 종료 스냅샷**(1개) 구조 분리
+  - 저장 데이터: `characterId`, `hp`, `isDead`, `kdp`, `collapseChance` (+ turn 메타 일부)
+
+- 전투 종료 스냅샷 저장 연결
+  - `BattleManager.EndBattle(bool isVictory)`에서
+  - `BattleSnapshotManager.Instance.CaptureBattleEndSnapshot(allCharacters)` 호출
+
+- 턴 스냅샷 저장 연결(정책 반영)
+  - `TurnManager.StartTurn(...)`에서 턴 시작 직전에 저장
+  - **플레이어 턴(`character.IsPlayer`)에서만 저장**하도록 제한
+
+- 패시브 로더 패턴 통일 작업 병행
+  - `PassiveLoader`를 `Instance + Initialize()` 패턴으로 변경
+  - `GameManager`에서 `PassiveLoader.Instance.Initialize()` 호출로 전환
+
+### 현재 상태(중요)
+- 스냅샷 **저장 기반은 연결 완료**
+  - 전투 종료 시점 저장: 연결됨
+  - 플레이어 턴 시작 전 저장: 연결됨
+- 스냅샷 **복원/되돌리기 실제 적용은 미완**
+  - TurnManager/BattleManager에서 `TryRestore...` 호출 경로 미연결
+  - 월드맵 도달 시 `ClearAllSnapshots()` 강제 정리 훅 미연결
+
+### 다음 작업 예정
+1. `TryRestoreTurnSnapshot(...)` 실제 호출 지점 연결(턴 되돌리기 UI/입력 연동)
+2. `TryRestoreBattleEndSnapshot(...)`를 다음 전투 진입 직후에 연결
+3. 월드맵 복귀 시 `ClearAllSnapshots()` 확정 호출
+4. 보상/자원/랜덤 처리와 충돌 없는 복원 규칙 확정
+
+---
+
+## 패시브 미적용 트러블슈팅(원인 규명 및 해결)
+### 작업 일자
+- 2026-03-27 (금)
+
+### 사건 발단
+- 캐릭터 `Mora(ID=000007)`에 `080001(체력 강화, MaxHp +20)`를 부여했으나 전투 UI/인스펙터에서 HP가 `83`으로 유지됨.
+- 기대값은 `103`이었고, 실제 수치가 오르지 않아 패시브 적용 루트 점검 시작.
+
+### 점검 과정
+- 1차 점검: 패시브 XML 및 로더 검증
+  - `BasePassive.xml`에서 `080001` 스펙(`Type=None`, `TargetStat=MaxHp`, `Value=20`) 확인
+  - `PassiveLoader`에서 `5개 로드` 로그 확인
+- 2차 점검: 실제 적용 지점 추적
+  - 적용 기준은 `CharacterStats.SetData()` -> `ApplyPassives(data.Passives)`로 확인
+  - `PassiveTrace` 로그 추가 후, `Passives=080001`이 들어오는데 `PassiveBonus=0`이 찍히는 현상 확인
+  - 동시에 `패시브 데이터를 찾을 수 없습니다. ID=080001` 경고 확인
+- 3차 점검: 저장소 구조 비교
+  - Character/Skill은 `Data` 클래스 static 딕셔너리 기반
+  - Passive는 조회 경로가 `PassiveLoader.Instance` 의존이라, 로드 성공 후에도 조회 시점에 참조 불일치가 발생할 수 있는 구조임을 확인
+
+### 원인
+- 패시브 데이터 저장 자체보다 **조회 경로의 인스턴스 의존성**이 문제.
+- 로더는 정상 로드됐지만 적용 시점 조회에서 `Instance` 경로가 안정적이지 않아 `GetById` 미스가 발생.
+
+### 해결
+- `PassiveLoader` 저장소를 전역 static 딕셔너리로 고정
+- `CharacterData`/`CharacterStats`의 패시브 조회를 `Instance` 의존 경로에서 static 조회 경로로 통일
+  - `PassiveLoader.GetByIdStatic(id)` 추가
+  - 상시 스탯 계산(`CharacterData.GetFinalStatValue`) 및 전투 적용(`CharacterStats.ApplyPassives`) 모두 static 조회 사용
+- 스탯부스트 패시브(`Type=None`)는 데이터 단계 상시 반영, 클래스형 패시브는 전투 중 동작 분리 정책 유지
+
+### 결과
+- 로그에서 `PassiveBonus=20` 확인
+- `SetData-After` 기준 `Mora Hp/MaxHp = 103/103` 정상 반영 확인
+- `ActivePassives=080001` 확인
+- 패시브 적용 경로 정상화 완료
+
+### 후속 정리 예정
+- 추적용 `PassiveTrace` / `[Spec]` 상세 로그는 안정화 확인 후 축소 또는 토글화
+- `PassiveManager` 역할(레지스트리/중간 캐시) 정리 여부 추후 결정

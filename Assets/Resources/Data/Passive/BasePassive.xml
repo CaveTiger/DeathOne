@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Type: 스탯만 올리면 None+TargetStat. 그 외는 enum 이름(ManaBoost, TurnIntervalGrantStatus 등) 또는 CustomScript+ScriptClass. PassiveSystemExtensionGuide.cs 참고 -->
 <Passives>
     <Passive ID="080000" Specimen="True">
         <Name>기본 패시브</Name>
@@ -68,5 +69,25 @@
         <ManaRegenInterval>2</ManaRegenInterval>
         <Rarity>Rare</Rarity>
         <Cost>10</Cost>
+    </Passive>
+
+    <Passive ParentID="080000" ID="080010">
+        <Name>테스트: 유즈마다 방어력 버프</Name>
+        <Description>자기 턴 시작마다 유즈+1, 누적이 UseCount 이상이면 방어력 버프(021001) 부여 후 유즈 0. StartCount는 첫 누적 전 시작값(UseCount=2, StartCount=1 → 첫 자기 턴에 발동).</Description>
+        <!-- Type은 PassiveType enum 이름과 동일해야 로드됨 (한글/설명 문자열 불가) -->
+        <Type>TurnIntervalGrantStatus</Type>
+        <UseCount>2</UseCount><!-- 턴 시작 시 누적이 이 값 이상이면 발동 후 0. 0=상시(매 턴 발동). 1=매 턴, 3=3턴에 한 번 등 -->
+        <StartCount>1</StartCount><!-- 첫 TryTick 전 누적 시작값. 1이면 UseCount=2일 때 첫 자기 턴에 1+1로 발동. 별칭: startcount -->
+        <Duration>1</Duration><!-- 부여될 상태이상의 지속 턴 -->
+        <statusEffectID>021001</statusEffectID><!-- 방어력 증가 버프(StatusEffect_021001_GuardPowerBuffData) -->
+        <statusEffectValue>5</statusEffectValue><!-- 버프 수치(방어력 +n, UI/스탯에서 확인) -->
+        <TargetStat>None</TargetStat>
+        <Value>0</Value>
+        <FloatValue>0.0</FloatValue>
+        <GrantsMana>False</GrantsMana>
+        <MaxMana>0</MaxMana>
+        <ManaRegenInterval>0</ManaRegenInterval>
+        <Rarity>Normal</Rarity>
+        <Cost>0</Cost>
     </Passive>
 </Passives> 

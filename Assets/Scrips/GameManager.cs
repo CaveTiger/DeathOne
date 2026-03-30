@@ -46,7 +46,10 @@ public class GameManager : MonoBehaviour
         CharacterLoader.Instance.LoadAllCharacters();
         StageLoader.Instance.Initialize();
         SkillLoader.Instance.Initialize();
-        // PassiveLoader.LoadPassivesFromXML("Data/Passive/BasePassive"); // 패시브 시스템 완성 후 활성화
+        if (PassiveLoader.Instance != null)
+            PassiveLoader.Instance.Initialize();
+        else
+            Debug.LogWarning("[GameManager] PassiveLoader.Instance가 없어 패시브 로더 초기화를 건너뜁니다.");
         
         // 2. 기본 데이터 로딩이 끝난 후, 이 데이터를 사용하는 다른 매니저를 초기화합니다.
         GameProgressManager.Instance.Initialize();

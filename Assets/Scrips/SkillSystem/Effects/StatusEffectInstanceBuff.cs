@@ -54,8 +54,9 @@ public class StatusEffectInstanceBuff : StatusEffectInstanceBase
         
         remainingTurns--;
         UpdateUI();
-        
-        Debug.Log($"[StatusEffectInstanceBuff] {effectData.effectName} 지속 턴 감소: {remainingTurns + 1} → {remainingTurns}");
+
+        if (DebugTraceFlags.StatBuffDetailLogs)
+            Debug.Log($"[StatusEffectInstanceBuff] {effectData.effectName} 지속 턴 감소: {remainingTurns + 1} → {remainingTurns}");
         
         if (remainingTurns <= 0)
         {
@@ -128,7 +129,8 @@ public class StatusEffectInstanceBuff : StatusEffectInstanceBase
             if (icon != null)
             {
                 iconRenderer.sprite = icon;
-                Debug.Log($"[StatusEffectInstanceBuff] 아이콘 설정 완료: {effectData.effectName} (값: {value}) - {icon.name}");
+                if (DebugTraceFlags.StatBuffDetailLogs)
+                    Debug.Log($"[StatusEffectInstanceBuff] 아이콘 설정 완료: {effectData.effectName} (값: {value}) - {icon.name}");
             }
             else
             {
@@ -153,8 +155,8 @@ public class StatusEffectInstanceBuff : StatusEffectInstanceBase
     /// </summary>
     private void UpdateUI()
     {
-        // UI 업데이트 로직이 필요하면 여기에 추가
-        Debug.Log($"[StatusEffectInstanceBuff] {effectData.effectName} UI 업데이트 - 남은 턴: {remainingTurns}");
+        if (DebugTraceFlags.StatBuffDetailLogs)
+            Debug.Log($"[StatusEffectInstanceBuff] {effectData.effectName} UI 업데이트 - 남은 턴: {remainingTurns}");
     }
 
     public void ApplyEffect()
