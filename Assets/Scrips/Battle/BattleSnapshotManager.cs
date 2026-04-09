@@ -16,11 +16,18 @@ public class UnitStateSnapshot
 public class TurnSnapshot
 {
     public int turnIndex;
+    public string currentActorId;
     public string currentTargetId;
     public List<string> turnOrderIds = new List<string>();
     public List<UnitStateSnapshot> units = new List<UnitStateSnapshot>();
 }
 
+/// <summary>
+/// 전투 스냅샷: (1) 턴 되돌리기용 히스토리 (2) 전투 종료 직후 상태.
+/// <para><b>전투 종료 스냅샷(battleEnd)</b>은 월드맵으로 돌아가지 않고 <b>연속 전투</b>를 이어갈 때,
+/// 직전 전투 종료 시점의 HP·KDP 등을 다음 <see cref="BattleManager.StartBattle"/> 한 번에만 복원하기 위함.</para>
+/// <para>월드맵 복귀 시에는 <see cref="ClearAllSnapshots"/>로 턴 히스토리와 battleEnd를 함께 버려 세션을 끊는다.</para>
+/// </summary>
 public class BattleSnapshotManager : MonoBehaviour
 {
     public static BattleSnapshotManager Instance { get; private set; }
@@ -57,6 +64,7 @@ public class BattleSnapshotManager : MonoBehaviour
         battleEndSnapshot = null;
     }
 
+    /// <summary>턴 되돌리기 히스토리 + 전투 종료 스냅샷까지 전부 제거. 월드맵 복귀 시 호출 전제.</summary>
     public void ClearAllSnapshots()
     {
         ClearTurnSnapshots();
@@ -66,10 +74,11 @@ public class BattleSnapshotManager : MonoBehaviour
     public void CaptureTurnSnapshot(
         IEnumerable<CharacterStats> units,
         int turnIndex,
+        CharacterStats currentActor = null,
         IEnumerable<CharacterStats> turnOrder = null,
         CharacterStats currentTarget = null)
     {
-        TurnSnapshot snapshot = BuildSnapshot(units, turnIndex, turnOrder, currentTarget);
+        TurnSnapshot snapshot = BuildSnapshot(units, turnIndex, currentActor, turnOrder, currentTarget);
         turnSnapshots.Add(snapshot);
 
         if (maxTurnSnapshots < 1) maxTurnSnapshots = 1;
@@ -98,11 +107,13 @@ public class BattleSnapshotManager : MonoBehaviour
         return true;
     }
 
+    /// <summary>직전 전투가 끝난 직후 유닛 상태를 저장. 다음 전투가 같은 스테이지 체인(맵 미복귀)일 때만 소비됨.</summary>
     public void CaptureBattleEndSnapshot(IEnumerable<CharacterStats> units)
     {
-        battleEndSnapshot = BuildSnapshot(units, -1, null, null);
+        battleEndSnapshot = BuildSnapshot(units, -1, null, null, null);
     }
 
+    /// <summary>스폰 직후 liveUnits에 battleEnd 스냅샷을 한 번 적용. 성공 시 호출부에서 <see cref="ClearBattleEndSnapshot"/>로 비움.</summary>
     public bool TryRestoreBattleEndSnapshot(IList<CharacterStats> liveUnits)
     {
         if (battleEndSnapshot == null) return false;
@@ -113,12 +124,14 @@ public class BattleSnapshotManager : MonoBehaviour
     private TurnSnapshot BuildSnapshot(
         IEnumerable<CharacterStats> units,
         int turnIndex,
+        CharacterStats currentActor,
         IEnumerable<CharacterStats> turnOrder,
         CharacterStats currentTarget)
     {
         TurnSnapshot snapshot = new TurnSnapshot
         {
             turnIndex = turnIndex,
+            currentActorId = currentActor != null ? currentActor.CharacterId : string.Empty,
             currentTargetId = currentTarget != null ? currentTarget.CharacterId : string.Empty
         };
 
@@ -141,7 +154,7 @@ public class BattleSnapshotManager : MonoBehaviour
                     characterId = unit.CharacterId,
                     hp = unit.Hp,
                     isDead = unit.IsDead,
-                    kdp = unit.data != null ? unit.data.KDP : 0,
+                    kdp = !unit.IsPlayer ? unit.KnockdownBuildup : 0,
                     collapseChance = unit.CollapseChance
                 });
             }
@@ -167,10 +180,10 @@ public class BattleSnapshotManager : MonoBehaviour
             live.IsDead = state.isDead;
             live.CollapseChance = Mathf.Max(0f, state.collapseChance);
 
-            if (live.data != null)
-            {
-                live.data.KDP = Mathf.Max(0, state.kdp);
-            }
+            if (!live.IsPlayer)
+                live.KnockdownBuildup = Mathf.Max(0, state.kdp);
+            else
+                live.KnockdownBuildup = 0;
 
             if (live.HpUI != null)
             {

@@ -6,13 +6,49 @@ using System.Linq;
 
 public class StageManager : MonoBehaviour
 {
+    // 저장 방침:
+    // - 스테이지 진행도는 반드시 "세이브 슬롯 기준"으로 저장/로드한다.
+    // - 유저 설정(UserSettings)과 절대 혼합하지 않는다.
+    // - 단일 공용 stage_progress.json 형태로 되돌리지 않는다.
     public static StageManager Instance { get; private set; }
 
     public Dictionary<string, StageData> stageDict = new();
     public Dictionary<string, StageBlockData> stageBlockDict = new();
     public Dictionary<string, StageProgressData> stageProgressDict = new();
     
-    private string SavePath => $"{Application.persistentDataPath}/stage_progress.json";
+    private string GetSavePath()
+    {
+        int slot = GetCurrentSaveSlotSafe();
+        return Path.Combine(GetSlotDirectoryPath(slot), "stage_progress.json");
+    }
+
+    private string GetLegacySavePath()
+    {
+        int slot = GetCurrentSaveSlotSafe();
+        return Path.Combine(Application.persistentDataPath, $"stage_progress_slot_{slot}.json");
+    }
+
+    private string GetSlotDirectoryPath(int slot)
+    {
+        return Path.Combine(Application.persistentDataPath, $"slot_{slot}");
+    }
+
+    private void EnsureSlotDirectory()
+    {
+        int slot = GetCurrentSaveSlotSafe();
+        string slotDirectory = GetSlotDirectoryPath(slot);
+        if (!Directory.Exists(slotDirectory))
+        {
+            Directory.CreateDirectory(slotDirectory);
+        }
+    }
+
+    private static int GetCurrentSaveSlotSafe()
+    {
+        if (GameProgressManager.Instance != null)
+            return Mathf.Clamp(GameProgressManager.Instance.CurrentSlot, 0, 2);
+        return 0;
+    }
     private const string GAME_VERSION = "1.0.0"; // 게임 버전 관리
 
     // 현재 선택된 스테이지 관련
@@ -174,7 +210,8 @@ public class StageManager : MonoBehaviour
             };
 
             string json = JsonUtility.ToJson(wrapper, true); // true로 설정하여 가독성 있는 JSON 생성
-            File.WriteAllText(SavePath, json);
+            EnsureSlotDirectory();
+            File.WriteAllText(GetSavePath(), json);
         }
         catch (Exception e)
         {
@@ -189,9 +226,19 @@ public class StageManager : MonoBehaviour
         {
             stageProgressDict.Clear();
 
-            if (File.Exists(SavePath))
+            string savePath = GetSavePath();
+            string legacyPath = GetLegacySavePath();
+            bool loadedFromLegacy = false;
+
+            if (!File.Exists(savePath) && File.Exists(legacyPath))
             {
-                string json = File.ReadAllText(SavePath);
+                savePath = legacyPath;
+                loadedFromLegacy = true;
+            }
+
+            if (File.Exists(savePath))
+            {
+                string json = File.ReadAllText(savePath);
                 var wrapper = JsonUtility.FromJson<StageProgressWrapper>(json);
 
                 // 버전 체크 및 마이그레이션 로직
@@ -203,6 +250,14 @@ public class StageManager : MonoBehaviour
                 foreach (var progress in wrapper.progressData)
                 {
                     stageProgressDict[progress.stageId] = progress;
+                }
+
+                // 구 경로 파일을 읽은 경우 새 슬롯 폴더 경로로 1회 마이그레이션 저장
+                if (loadedFromLegacy)
+                {
+                    EnsureSlotDirectory();
+                    File.WriteAllText(GetSavePath(), json);
+                    Debug.Log($"[StageManager] 구 경로 진행도 파일을 슬롯 폴더 경로로 마이그레이션 완료: {GetSavePath()}");
                 }
             }
             else

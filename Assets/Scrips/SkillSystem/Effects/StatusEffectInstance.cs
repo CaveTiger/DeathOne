@@ -74,7 +74,7 @@ public class StatusEffectInstance : MonoBehaviour
     {
         effectData = data;
         remainingTurns = duration;
-        value = effectValue;
+        value = NormalizeContinuousValueByMode(effectValue);
         owner = target;
         triggerCount = data.maxTriggerCount;
         
@@ -176,9 +176,28 @@ public class StatusEffectInstance : MonoBehaviour
     /// </summary>
     public void MergeHalfIncomingDamage(int incomingValue)
     {
-        int add = Mathf.FloorToInt(incomingValue / 2f);
+        int normalizedIncoming = NormalizeContinuousValueByMode(incomingValue);
+        int add;
+        if (normalizedIncoming >= 0)
+            add = Mathf.FloorToInt(normalizedIncoming / 2f);
+        else
+            add = -Mathf.FloorToInt(Mathf.Abs(normalizedIncoming) / 2f);
         value += add;
         UpdateUI();
+    }
+
+    /// <summary>
+    /// ContinuousDamage 타입의 값 해석 모드(피해/회복)에 맞게 수치를 정규화한다.
+    /// </summary>
+    private int NormalizeContinuousValueByMode(int rawValue)
+    {
+        if (effectData == null)
+            return rawValue;
+
+        if (effectData.effectType == StatusEffectType.ContinuousDamage && effectData.treatContinuousValueAsHeal)
+            return -Mathf.Abs(rawValue);
+
+        return rawValue;
     }
 
     /// <summary>

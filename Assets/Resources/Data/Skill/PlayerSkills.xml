@@ -6,6 +6,7 @@
 		<DamageMin>0</DamageMin>
 		<DamageMax>0</DamageMax>
 		<Type>Damage</Type>
+		<UseSkill></UseSkill> <!-- 상호작용형 스킬 사용 시 사용할 스킬 ID -->
 		<HealMin>0</HealMin>
 		<HealMax>0</HealMax>
 		<SkillEffect>
@@ -13,11 +14,13 @@
 				<EffectID></EffectID>
 				<Value>0</Value>
 				<Duration>0</Duration>
+				<Chance>1.0</Chance>
 			</li>
 		</SkillEffect>
 		<SkillTarget>All</SkillTarget>
 		<Motion>Stand</Motion>
 		<AttackPoint>Body</AttackPoint>
+		<AttackType>None</AttackType>
 		<AttackEffect>None</AttackEffect>
 		<ActiveCount>None</ActiveCount>
 		<ManaCost>0</ManaCost>
@@ -36,6 +39,7 @@
 		<SkillTarget>Enemy</SkillTarget>
 		<Motion>Attack</Motion>
 		<AttackPoint>Body</AttackPoint>
+		<AttackType>Cut</AttackType>
 		<AttackEffect>Cut</AttackEffect>
 	</Skill>
 	
@@ -64,6 +68,7 @@
 		<SkillTarget>Enemy</SkillTarget>
 		<Motion>Attack</Motion>
 		<AttackPoint>Foot</AttackPoint>
+		<AttackType>Cut</AttackType>
 		<AttackEffect>Cut</AttackEffect>
 	</Skill>
 	
@@ -111,5 +116,28 @@
 		<AttackEffect>None</AttackEffect>
 		<Cooldown>0</Cooldown>
 		<ManaCost>0</ManaCost>
+	</Skill>
+
+	<Skill ID ="015055" ParentID="010000">
+		<Name>테스트 기절</Name>
+		<Icon>SkillIcon/010010</Icon>
+		<DamageMin>1</DamageMin>
+		<DamageMax>1</DamageMax>
+		<SkillEffect>
+			<!-- 기절 023001: Value/Duration 없음(토큰형). Chance만 적용 확률 -->
+			<li>
+				<EffectID>023001</EffectID>
+				<Chance>1</Chance>
+			</li>
+		</SkillEffect>
+		<SkillTarget>Enemy</SkillTarget>
+		<Motion>Attack</Motion>
+		<AttackPoint>Body</AttackPoint>
+		<AttackType>Cut</AttackType>
+		<AttackEffect>Cut</AttackEffect>
+		<ActiveCount>None</ActiveCount>
+		<ManaCost>0</ManaCost>
+		<CoolTime>1</CoolTime>
+		<priority>0</priority>
 	</Skill>
 </Skills>

@@ -16,11 +16,22 @@ public class WorldMapStageSelection : MonoBehaviour
     [Header("이 오브젝트에 대응하는 스테이지 ID")]
     public string stageID;
 
+    [Header("진입 조건 (선택)")]
+    [Tooltip("비어있으면 조건 없음. 값이 있으면 이 스테이지의 클리어 여부를 조건으로 사용.")]
+    [SerializeField] private string conditionStageId = "";
+    [Tooltip("끄면: conditionStageId 클리어 시 진입 가능. 켜면: conditionStageId 미클리어 시 진입 가능.")]
+    [SerializeField] private bool allowWhenConditionNotCleared = false;
+
     [Header("디버그: 클리어 여부 표시")]
     [SerializeField] private bool isCleared;
+    [SerializeField] private bool isEntryLockedByCondition;
+    [SerializeField] private bool isEntryLockedByProgress;
 
     private void Start()
     {
+        // 씬 복귀 시 static 플래그가 남아 월드맵 클릭이 막히는 것을 방지
+        SetUIOpen(false);
+
         rend = GetComponent<Renderer>();
         originalColor = rend.material.color;
         originalLayer = gameObject.layer;
@@ -31,9 +42,11 @@ public class WorldMapStageSelection : MonoBehaviour
 
         // Inspector에 클리어 여부 표시
         isCleared = IsStageCleared();
+        isEntryLockedByCondition = IsEntryLockedByCondition();
+        isEntryLockedByProgress = IsEntryLockedByProgress();
 
-        // 클리어된 스테이지는 회색으로 표시 (임시처리)
-        if (isCleared && rend != null)
+        // 클리어되었거나 진입 조건으로 잠긴 스테이지는 어둡게 표시
+        if ((isCleared || isEntryLockedByCondition || isEntryLockedByProgress) && rend != null)
         {
             rend.material.color = Color.gray;
         }
@@ -42,17 +55,23 @@ public class WorldMapStageSelection : MonoBehaviour
     private void OnMouseEnter()
     {
         if (ShouldBlockWorldMapInteraction()) return;
+        if (IsEntryLockedByProgress()) return;
+        if (IsEntryLockedByCondition()) return;
         rend.material.color = hoverColor;
     }
 
     private void OnMouseExit()
     {
-        rend.material.color = originalColor;
+        if (isCleared || IsEntryLockedByProgress() || IsEntryLockedByCondition())
+            rend.material.color = Color.gray;
+        else
+            rend.material.color = originalColor;
     }
 
     void OnMouseDown()
     {
         if (ShouldBlockWorldMapInteraction()) return;
+        if (ShouldBlockByEntryCondition()) return;
         
         rend.material.color = clickColor;
         Debug.Log($"스테이지 클릭됨: {stageID}");
@@ -66,6 +85,7 @@ public class WorldMapStageSelection : MonoBehaviour
     {
         // 다른 UI가 열려 있을 때는 스테이지 선택 처리 무시
         if (ShouldBlockWorldMapInteraction()) return;
+        if (ShouldBlockByEntryCondition()) return;
 
         if (stageStarterUI == null)
         {
@@ -195,5 +215,47 @@ public class WorldMapStageSelection : MonoBehaviour
         if (!GameManager.Instance.IsCurrentScreenState(GameManager.ScreenState.WorldMap)) return true;
         if (isAnyUIOpen) return true;
         return false;
+    }
+
+    /// <summary>
+    /// 인스펙터 조건 필드(conditionStageId) 기반 진입 차단.
+    /// </summary>
+    private bool ShouldBlockByEntryCondition()
+    {
+        if (IsEntryLockedByProgress())
+        {
+            Debug.Log($"[WorldMapStageSelection] 진행도 조건 미충족(잠금): stage={stageID}");
+            return true;
+        }
+
+        if (!IsEntryLockedByCondition()) return false;
+
+        string conditionText = allowWhenConditionNotCleared ? "미클리어일 때만 진입 가능" : "클리어 시 진입 가능";
+        Debug.Log($"[WorldMapStageSelection] 진입 조건 미충족: stage={stageID}, condition={conditionStageId}, rule={conditionText}");
+        return true;
+    }
+
+    private bool IsEntryLockedByCondition()
+    {
+        if (string.IsNullOrWhiteSpace(conditionStageId)) return false;
+        if (StageManager.Instance == null) return false;
+
+        bool isConditionCleared = StageManager.Instance.IsStageCleared(conditionStageId);
+        bool allow = allowWhenConditionNotCleared ? !isConditionCleared : isConditionCleared;
+        isEntryLockedByCondition = !allow;
+        return isEntryLockedByCondition;
+    }
+
+    private bool IsEntryLockedByProgress()
+    {
+        if (StageManager.Instance == null || string.IsNullOrWhiteSpace(stageID))
+        {
+            isEntryLockedByProgress = false;
+            return false;
+        }
+
+        bool canEnter = StageManager.Instance.CanEnterStage(stageID);
+        isEntryLockedByProgress = !canEnter;
+        return isEntryLockedByProgress;
     }
 }

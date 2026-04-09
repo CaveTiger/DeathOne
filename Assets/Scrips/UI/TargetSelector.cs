@@ -81,9 +81,10 @@ public class TargetSelector : MonoBehaviour
         }
         
         //Debug.Log($"[DEBUG] 선택된 대상: {clicked.name}, 태그: {clicked.tag}, 체력: {clicked.Hp}");
-        if (clicked == null || clicked.Hp <= 0)
+        // 빈사(Hp≤0, IsDead=false) 아군 케어용으로 체력 0도 선택 허용. 사망 처리된 대상만 제외.
+        if (clicked == null || clicked.IsDead)
         {
-            Debug.Log("타겟 무효 (null 또는 체력 0이하)");
+            Debug.Log("타겟 무효 (null 또는 사망 처리됨)");
             return;
         }
         //Debug.Log($"적 클릭됨:{clicked.name}");
@@ -93,10 +94,10 @@ public class TargetSelector : MonoBehaviour
     }
     public CharacterStats GetCurrentTarget() //얘는 클릭후 타겟 정보를 스킬로 보내는 애
     {
-        if (CurrentTarget != null && CurrentTarget.Hp > 0)
+        if (CurrentTarget != null && !CurrentTarget.IsDead)
             return CurrentTarget;
 
-        return null; // 죽었거나 지정되지 않은 경우
+        return null; // 사망했거나 지정되지 않은 경우
     }
 
     public void ClearTarget() => CurrentTarget = null;
@@ -108,7 +109,7 @@ public class TargetSelector : MonoBehaviour
             return;
         }
         
-        if (newTarget == null || newTarget.Hp <= 0)
+        if (newTarget == null || newTarget.IsDead)
         {
             targetMarker.gameObject.SetActive(false);
             CurrentTarget = null;

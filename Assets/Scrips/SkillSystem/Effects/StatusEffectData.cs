@@ -7,7 +7,23 @@ public enum StatusEffectType
     Debuff,
     ContinuousDamage,
     Stun,
-    Token
+    Token,
+    Knockdown
+}
+
+public enum ReactionEffectMode
+{
+    None,
+    DamageNullify,
+    ReflectFixed,
+    ReflectPercentOfReceived
+}
+
+public enum ReactionDamageReductionMode
+{
+    None,
+    Fixed,
+    PercentOfReceived
 }
 
 public enum StatType
@@ -45,10 +61,48 @@ public class StatusEffectData : ScriptableObject
     public Color effectColor = Color.red; // 상태이상 고유 색상
     public GameObject effectPrefab;       // 시각적 이펙트 프리팹
     public int duration;                  // 지속 턴
-    public int value;                    // 피해량 
+    public int value;                    // 효과 수치(지속피해는 +, 지속회복은 -)
     public string iconPath = "StatusEffect/Bleed";
     public int maxTriggerCount = 0; // 사용 횟수 제한(0이면 횟수제한 없음)
     public StatType statType;
+    [Header("타겟 제한")]
+    [Tooltip("체크 시, 이 버프를 가진 시전자는 자기 자신을 제외한 아군을 타겟으로 지정할 수 없습니다. (도발 기믹용)")]
+    public bool blockOtherAlliesAsTarget = false;
+    [Tooltip("체크 시, 랜덤 타겟 스킬에도 도발 우선 타겟팅을 적용합니다. (일반 도발은 보통 해제)")]
+    public bool tauntAffectsRandomTargeting = false;
+    [Tooltip("체크 시, 광역/범위 타겟 스킬에도 도발 우선 타겟팅을 적용합니다. (완전 보호형 도발용)")]
+    public bool tauntProtectsAgainstAoE = false;
+    [Tooltip("체크 시, 지목형 디버프로 간주하여 AI가 이 대상을 우선 고려합니다.")]
+    public bool markPriorityTarget = false;
+    [Tooltip("지목형 디버프가 걸린 대상이 받는 피해 배율. 기본 1.1 (10% 증가)")]
+    public float markDamageTakenMultiplier = 1.1f;
+    [Header("지속 효과 해석")]
+    [Tooltip("체크 시 XML 양수를 자동으로 음수로 전환해 사용")]
+    public bool treatContinuousValueAsHeal = false;
+
+    [Header("리액션(Reaction) 설정")]
+    [Tooltip("리액션 동작 선택: 없음 / 피해무시 / 고정 반사 / 받은 피해 비율 반사")]
+    public ReactionEffectMode reactionMode = ReactionEffectMode.None;
+    [Tooltip("고정 반사 피해량. (useAppliedValueForReaction=true면 XML/스킬 Value를 사용)")]
+    public int reactionFixedValue = 0;
+    [Tooltip("받은 피해의 반사 비율(%). (useAppliedValueForReaction=true면 XML/스킬 Value를 퍼센트로 사용)")]
+    [Range(0f, 100f)] public float reactionPercent = 0f;
+    [Tooltip("켜면 반사 수치를 SO 고정값 대신 XML/스킬 Value에서 읽음")]
+    public bool useAppliedValueForReaction = true;
+    [Tooltip("켜면 반사량 = 이번 피격에서 실제로 줄어든 피해량(감소량)")]
+    public bool reflectReducedAmountDirect = false;
+    [Tooltip("퍼센트 반사 기준을 '받은 원피해' 대신 '감소량'으로 계산할지")]
+    public bool useReducedAmountAsReflectBase = false;
+
+    [Header("리액션 피해 감소 설정 (선택)")]
+    [Tooltip("피격 시 먼저 적용할 피해 감소 방식: 없음 / 고정 감소 / 퍼센트 감소")]
+    public ReactionDamageReductionMode reductionMode = ReactionDamageReductionMode.None;
+    [Tooltip("고정 피해 감소량. (useAppliedValueForReduction=true면 XML/스킬 Value를 사용)")]
+    public int reductionFixedValue = 0;
+    [Tooltip("피해 감소 비율(%). (useAppliedValueForReduction=true면 XML/스킬 Value를 퍼센트로 사용)")]
+    [Range(0f, 100f)] public float reductionPercent = 0f;
+    [Tooltip("켜면 감소 수치를 SO 고정값 대신 XML/스킬 Value에서 읽음")]
+    public bool useAppliedValueForReduction = false;
 
     /// <summary>
     /// ScriptableObject 활성화 시 호출 - EffectID가 비어있으면 경고

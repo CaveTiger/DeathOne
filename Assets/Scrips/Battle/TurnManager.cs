@@ -12,10 +12,19 @@ public class TurnManager : MonoBehaviour
     private List<SlotHandler> turnQueue = new List<SlotHandler>();
     public List<SlotHandler> allSlots = new(); 
     public CharacterStats currentCaster;
+    private float currentTurnStartRealtime = -1f; // 현재 턴 시작 시각(realtime)
     public static TurnManager Instance { get; private set; }
     public CharacterInfoPlayer playerInfoUI; // 인스펙터에서 PlayerInfo 오브젝트 할당
     public List<SlotHandler> playerSlots = new List<SlotHandler>();
     public List<SlotHandler> enemySlots = new List<SlotHandler>();
+
+    [Header("턴 되돌리기(롤백) 디버그")]
+    [SerializeField] private bool enableTurnRewindKey = true;
+    [SerializeField] private KeyCode turnRewindKey = KeyCode.F8;
+    [SerializeField] private int turnsBackOnRewind = 1;
+
+    // 스냅샷 복원 중에는 StartTurn에서 스냅샷을 다시 덮어쓰지 않도록 막는다.
+    private bool isRestoringSnapshot = false;
 
     // 안전장치: 짧은 시간에 과도한 턴 진행 호출을 방지
     private int advanceTurnCalls = 0;
@@ -28,6 +37,20 @@ public class TurnManager : MonoBehaviour
         Instance = this;
     }
 
+    /// <summary>
+    /// 상태이상 정산 직후 턴을 강제로 넘길지. 플레이어 빈사(Hp≤0·IsDead 아님)는 케어 스킬을 쓸 수 있도록 제외한다.
+    /// </summary>
+    private static bool ShouldAbortTurnAfterStatusSettlement(CharacterStats character)
+    {
+        if (character == null || character.gameObject == null)
+            return true;
+        if (character.IsDead)
+            return true;
+        if (character.Hp <= 0 && !(character.IsPlayer && !character.IsDead))
+            return true;
+        return false;
+    }
+
     void Start()
     {
         playerSlots = allSlots.Where(slot => slot.name.StartsWith("Pslot")).ToList();
@@ -35,6 +58,16 @@ public class TurnManager : MonoBehaviour
 
         ResetTurn();
         TurnDecider();
+    }
+
+    private void Update()
+    {
+        if (!enableTurnRewindKey) return;
+        if (SceneManager.GetActiveScene().name != "TestBattle") return;
+        if (!Input.GetKeyDown(turnRewindKey)) return;
+        if (BattleSnapshotManager.Instance == null) return;
+
+        TryRestorePreviousTurn(turnsBackOnRewind);
     }
 
     private void ResetTurn()
@@ -180,6 +213,17 @@ public class TurnManager : MonoBehaviour
 
         character.IsMyTurn = true;
         currentCaster = character;
+        currentTurnStartRealtime = Time.realtimeSinceStartup;
+        Debug.Log($"[TurnTiming] START unit={character.Label} t={currentTurnStartRealtime:F3}");
+
+        // 쿨다운은 "해당 캐릭터의 턴 시작"에 1 감소한다.
+        TickSkillCooldownOnTurnStart(character);
+
+        // 기절 소모 직후 쌓아 둔 피격 자세 → 이번 턴 진입 시 스탠드 복구
+        character.ApplyPostStunTurnStartMotionRecover();
+
+        // 넉다운(KDP) 누적: 자기 턴 시작 시 절반 감쇠(적, data.MaxKDP>0만)
+        character.DecayKnockdownBuildupAtTurnStart();
 
         // 2. 상태이상 효과 적용 (슬롯 컨테이너를 통해 정산 + 연출)
         Debug.Log("[턴관리] StartTurn - 상태이상 효과 정산 시작 (슬롯)");
@@ -196,13 +240,31 @@ public class TurnManager : MonoBehaviour
             var controller = character.GetComponent<StatusEffectController>();
             if (controller != null)
                 controller.ApplyStatusEffectsOnTurnStart();
+
+            float midElapsedMs = (Time.realtimeSinceStartup - currentTurnStartRealtime) * 1000f;
+            int stCount = controller != null && controller.GetActiveEffectPrefabs() != null ? controller.GetActiveEffectPrefabs().Count : 0;
+            Debug.Log($"[TurnTiming] MID unit={character.Label} fromStartMs={midElapsedMs:F2} statusEffects={stCount}");
         }
 
         character.InvokePassivesOnOwnerTurnStart();
 
-        // 상태이상 정산 중 사망했을 수 있으므로 즉시 검증 후 다음 진행 결정
-        if (character == null || character.gameObject == null || character.IsDead)
+        if (character.IsCommandPhaseBlockedByStatus())
         {
+            character.ConsumeStunTokenAfterForcedTurnSkip();
+            Debug.Log($"[TurnManager] 행동불가 상태 감지: {character.Label} 턴을 강제 종료합니다.");
+            EndTurn();
+            return;
+        }
+
+        // 상태이상 정산 중 사망했을 수 있으므로 즉시 검증 후 다음 진행 결정
+        // (주의) IsDead 플래그 반영보다 HP 갱신이 먼저 일어날 수 있어 Hp<=0도 함께 체크한다. 플레이어 빈사는 턴 유지.
+        if (ShouldAbortTurnAfterStatusSettlement(character))
+        {
+            if (character != null && character.gameObject != null && character.Hp <= 0 && !character.IsDead)
+            {
+                character.Deathcheck(allowAllyCollapseDiceRoll: false);
+                character.DeathAction();
+            }
             Debug.Log("[턴관리] StartTurn - 상태이상 정산 결과 사망/파괴 감지, 다음 턴으로 진행");
             AdvanceTurn("post-settlement death");
             return;
@@ -219,10 +281,38 @@ public class TurnManager : MonoBehaviour
         }
     }
 
+    private void TickSkillCooldownOnTurnStart(CharacterStats character)
+    {
+        if (character == null || character.Skills == null || character.Skills.Length == 0)
+            return;
+
+        // 동일 스킬 ID가 여러 슬롯에 있어도 쿨다운 감소는 1회만 적용한다.
+        HashSet<string> processedIds = new HashSet<string>();
+
+        for (int i = 0; i < character.Skills.Length; i++)
+        {
+            string skillId = character.Skills[i];
+            if (string.IsNullOrEmpty(skillId))
+                continue;
+            if (!processedIds.Add(skillId))
+                continue;
+
+            if (SkillData.skillDict.TryGetValue(skillId, out var skillData) && skillData != null)
+            {
+                if (skillData.CurrentCooldown > 0)
+                {
+                    skillData.CurrentCooldown = Mathf.Max(0, skillData.CurrentCooldown - 1);
+                    Debug.Log($"[SkillCooldown] 턴 시작 감소: {character.Label} {skillData.ID}:{skillData.Name} -> {skillData.CurrentCooldown}");
+                }
+            }
+        }
+    }
+
     private void CapturePlayerTurnSnapshotBeforeStart(CharacterStats character)
     {
         if (character == null || !character.IsPlayer) return;
         if (BattleSnapshotManager.Instance == null) return;
+        if (isRestoringSnapshot) return;
 
         var liveUnits = allSlots
             .Where(s => s != null && s.currentCharacter != null)
@@ -236,8 +326,116 @@ public class TurnManager : MonoBehaviour
         BattleSnapshotManager.Instance.CaptureTurnSnapshot(
             liveUnits,
             nextTurnIndex,
+            character,
             turnOrder,
             selectedTarget);
+    }
+
+    private void TryRestorePreviousTurn(int turnsBack)
+    {
+        if (turnsBack < 1) turnsBack = 1;
+        if (currentCaster == null) return;
+
+        // 현재 턴이 진행 중인데도 복원되면 흐름이 꼬일 수 있으므로,
+        // "아직 행동을 끝내지 않은(=TurnChanse true)" 상태에서만 허용.
+        if (!currentCaster.IsMyTurn) return;
+        if (!currentCaster.TurnChanse) return;
+
+        if (!BattleSnapshotManager.Instance.TryGetTurnSnapshot(turnsBack, out TurnSnapshot snapshot) || snapshot == null)
+        {
+            Debug.LogWarning($"[TurnManager][롤백] 턴 스냅샷 없음. turnsBack={turnsBack}");
+            return;
+        }
+
+        var liveUnits = allSlots
+            .Where(s => s != null && s.currentCharacter != null)
+            .Select(s => s.currentCharacter)
+            .ToList();
+
+        isRestoringSnapshot = true;
+        BattleSnapshotManager.Instance.TryRestoreTurnSnapshot(turnsBack, liveUnits);
+
+        // 턴 큐를 스냅샷의 turnOrderIds 기준으로 재구성
+        foreach (var slot in allSlots)
+        {
+            if (slot == null || slot.currentCharacter == null) continue;
+            slot.currentCharacter.TurnChanse = false;
+            slot.currentCharacter.IsMyTurn = false;
+        }
+
+        turnQueue.Clear();
+
+        if (snapshot.turnOrderIds != null && snapshot.turnOrderIds.Count > 0)
+        {
+            foreach (var id in snapshot.turnOrderIds)
+            {
+                if (string.IsNullOrEmpty(id)) continue;
+
+                var slot = allSlots.FirstOrDefault(s =>
+                    s != null &&
+                    s.currentCharacter != null &&
+                    s.currentCharacter.CharacterId == id);
+
+                if (slot == null || slot.currentCharacter == null) continue;
+                if (slot.currentCharacter.IsDead) continue;
+
+                slot.currentCharacter.TurnChanse = true;
+                turnQueue.Add(slot);
+            }
+        }
+
+        // 스냅샷에 turnOrderIds가 없거나 매칭이 하나도 안되면 안전하게 재시작
+        if (turnQueue.Count == 0)
+        {
+            isRestoringSnapshot = false;
+            ResetTurn();
+            return;
+        }
+
+        UpdateTurnIndicatorUI();
+
+        CharacterStats targetCharacter = null;
+        if (!string.IsNullOrEmpty(snapshot.currentActorId))
+        {
+            var slot = allSlots.FirstOrDefault(s =>
+                s != null &&
+                s.currentCharacter != null &&
+                s.currentCharacter.CharacterId == snapshot.currentActorId);
+            targetCharacter = slot != null ? slot.currentCharacter : null;
+        }
+
+        if (targetCharacter == null)
+        {
+            // 행동 주체를 못 찾으면, 스냅샷에 저장된 턴 순서의 첫 캐릭터를 우선 사용
+            if (snapshot.turnOrderIds != null && snapshot.turnOrderIds.Count > 0)
+            {
+                string firstTurnId = snapshot.turnOrderIds[0];
+                var firstSlot = allSlots.FirstOrDefault(s =>
+                    s != null &&
+                    s.currentCharacter != null &&
+                    s.currentCharacter.CharacterId == firstTurnId);
+                if (firstSlot != null)
+                    targetCharacter = firstSlot.currentCharacter;
+            }
+        }
+
+        if (targetCharacter == null)
+        {
+            targetCharacter = GetNextTurnCharacter();
+        }
+
+        if (targetCharacter != null)
+        {
+            // TurnDecider가 담당하던 인디케이터/전환 표시를 롤백 직후에도 맞춰준다.
+            if (NextTurnIndicatorUI.Instance != null)
+                NextTurnIndicatorUI.Instance.ShowTurnTransition(targetCharacter);
+            if (TurnIndicatorHandler.Instance != null)
+                TurnIndicatorHandler.Instance.SetIndicator(targetCharacter.transform, true);
+
+            StartTurn(targetCharacter);
+        }
+
+        isRestoringSnapshot = false;
     }
 
     /// <summary>
@@ -250,15 +448,34 @@ public class TurnManager : MonoBehaviour
         // 상태이상 정산 + 연출 실행 (캐릭터 매개변수 전달)
         yield return StartCoroutine(slotHandler.SettleStatusEffectsWithAnimation(character));
 
+        var controller = character != null ? character.GetComponent<StatusEffectController>() : null;
+        int stCount = controller != null && controller.GetActiveEffectPrefabs() != null ? controller.GetActiveEffectPrefabs().Count : 0;
+        float midElapsedMs = currentTurnStartRealtime > 0f ? (Time.realtimeSinceStartup - currentTurnStartRealtime) * 1000f : -1f;
+        Debug.Log($"[TurnTiming] MID unit={character?.Label} fromStartMs={midElapsedMs:F2} statusEffects={stCount}");
+
         // 연출 완료 후 상태이상 정산 결과 검증
-        if (character == null || character.gameObject == null || character.IsDead)
+        // (주의) IsDead 플래그 반영보다 HP 갱신이 먼저 일어날 수 있어 Hp<=0도 함께 체크한다. 플레이어 빈사는 턴 유지.
+        if (ShouldAbortTurnAfterStatusSettlement(character))
         {
+            if (character != null && character.gameObject != null && character.Hp <= 0 && !character.IsDead)
+            {
+                character.Deathcheck(allowAllyCollapseDiceRoll: false);
+                character.DeathAction();
+            }
             Debug.Log("[턴관리] ProcessStatusEffectsWithAnimation - 상태이상 정산 결과 사망/파괴 감지, 다음 턴으로 진행");
             AdvanceTurn("post-settlement death");
             yield break;
         }
 
         character.InvokePassivesOnOwnerTurnStart();
+
+        if (character.IsCommandPhaseBlockedByStatus())
+        {
+            character.ConsumeStunTokenAfterForcedTurnSkip();
+            Debug.Log($"[TurnManager] 행동불가 상태 감지: {character.Label} 턴을 강제 종료합니다.");
+            EndTurn();
+            yield break;
+        }
 
         // 보편 진입점: CharacterInfo 역할(bool) 기반으로 일괄 갱신
         Debug.Log("[턴관리] ProcessStatusEffectsWithAnimation - CharacterInfo 라우팅 갱신");
@@ -285,7 +502,20 @@ public class TurnManager : MonoBehaviour
             {
                 BattleUIManager.Instance.DisableAllSkillUI();
             }
-            StartCoroutine(character.GetComponent<EnemyAIController>().EnemyActionRoutine(character));
+            if (!character.IsCombatCapable())
+            {
+                Debug.Log($"[턴관리] 적 생존/행동 불가(IsCombatCapable=false) — AI 생략: {character.Label}");
+                AdvanceTurn("enemy not combat capable before ai");
+                yield break;
+            }
+            var enemyAi = character.GetComponent<EnemyAIController>();
+            if (enemyAi == null)
+            {
+                Debug.LogWarning($"[턴관리] EnemyAIController 없음 — 턴 스킵: {character.Label}");
+                AdvanceTurn("enemy missing ai");
+                yield break;
+            }
+            StartCoroutine(enemyAi.EnemyActionRoutine(character));
         }
 
         float endTime = Time.realtimeSinceStartup;
@@ -304,6 +534,7 @@ public class TurnManager : MonoBehaviour
     {
         Debug.Log($"[턴관리] EndTurnCoroutine 시작 - 현재 캐릭터: {currentCaster?.Label}");
         float startTime = Time.realtimeSinceStartup;
+        CharacterStats turnOwner = currentCaster;
         
         if (currentCaster != null && currentCaster.gameObject != null)
         {
@@ -356,6 +587,12 @@ public class TurnManager : MonoBehaviour
 
         float endTime = Time.realtimeSinceStartup;
         Debug.Log($"[턴관리] EndTurnCoroutine 완료 - 소요시간: {(endTime - startTime) * 1000:F2}ms");
+        if (turnOwner != null && currentTurnStartRealtime > 0f)
+        {
+            float totalMs = (Time.realtimeSinceStartup - currentTurnStartRealtime) * 1000f;
+            Debug.Log($"[TurnTiming] END unit={turnOwner.Label} totalFromStartMs={totalMs:F2}");
+        }
+        currentTurnStartRealtime = -1f;
     }
 
     private IEnumerator WaitForDeathEffects()
@@ -367,12 +604,12 @@ public class TurnManager : MonoBehaviour
         if (TurnTransitionSkipManager.Instance != null)
         {
             Debug.Log("[턴관리] WaitForDeathEffects - TurnTransitionSkipManager 사용");
-            yield return TurnTransitionSkipManager.Instance.WaitForTurnTransition(1.5f, "death");
+            yield return TurnTransitionSkipManager.Instance.WaitForTurnTransition(2.2f, "death");
         }
         else
         {
-            Debug.Log("[턴관리] WaitForDeathEffects - 기본 대기 방식 사용 (1.5초)");
-            yield return new WaitForSeconds(1.5f); // 기존 방식 (스킵 불가)
+            Debug.Log("[턴관리] WaitForDeathEffects - 기본 대기 방식 사용 (2.2초)");
+            yield return new WaitForSeconds(2.2f); // 기존 방식 (스킵 불가)
         }
         
         float endTime = Time.realtimeSinceStartup;
@@ -571,6 +808,8 @@ public class TurnManager : MonoBehaviour
     private IEnumerator ReturnToStageCoroutine()
     {
         yield return new WaitForSeconds(2f);
+        if (GameManager.Instance != null)
+            GameManager.Instance.SetCurrentScreenStateByValue((int)GameManager.ScreenState.WorldMap);
         SceneManager.LoadScene("SampleScene"); // 월드맵으로 복귀
     }
 }

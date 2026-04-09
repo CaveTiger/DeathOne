@@ -84,6 +84,44 @@ public class VirtualMouse : MonoBehaviour
             Destroy(gameObject);
         }
     }
+
+    void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+        StopHoverValidation();
+        // 파괴 직전에도 패널이 남지 않도록 (DontDestroyOnLoad 재구성 시)
+        ForceHidePanelsInternal();
+    }
+
+    /// <summary>
+    /// 스킬/상태이상 호버 UI를 모두 끕니다. 전투 종료·UI 정상 모드 전환·호버 유효성 상실 시.</summary>
+    public void DismissAllHoverUi()
+    {
+        StopHoverValidation();
+        currentHoveredObject = null;
+        ForceHidePanelsInternal();
+        SetCursor(CursorType.Default);
+    }
+
+    private void ForceHidePanelsInternal()
+    {
+        HideStatusEffectPopup();
+        if (currentActivePanel != null)
+        {
+            if (currentActivePanel is VirtualMouseSkillPanel)
+            {
+                currentActivePanel.SetVisible(false, false);
+                if (stEfDecAnchor != null)
+                    stEfDecAnchor.SetActive(false);
+            }
+            else
+            {
+                currentActivePanel.SetVisible(false, false);
+            }
+            currentActivePanel = null;
+        }
+    }
     
     void Start()
     {
@@ -158,7 +196,7 @@ public class VirtualMouse : MonoBehaviour
         // 스킬 패널은 SetActive로만 제어
         if (skillPanel != null)
         {
-            skillPanel.gameObject.SetActive(false);
+            skillPanel.SetVisible(false, false);
         }
         var panelSkillInfoObj = transform.Find("PanelSkillInfo");
         if (panelSkillInfoObj != null)
@@ -195,6 +233,8 @@ public class VirtualMouse : MonoBehaviour
     /// </summary>
     private void RegisterStatusEffectExtractors()
     {
+        statusEffectExtractors[typeof(StatusEffectInstanceStun)] = ExtractStatusEffectStunData;
+
         // StatusEffectInstance: GetStatusPopupData 메서드 사용
         statusEffectExtractors[typeof(StatusEffectInstance)] = ExtractStatusEffectInstanceData;
         
@@ -385,7 +425,6 @@ public class VirtualMouse : MonoBehaviour
                 if (go == null) continue;
                 // 맞은 오브젝트 또는 부모 체인에서 스킬 관련 컴포넌트 탐색
                 var skillInstance = go.GetComponentInParent<SkillInstance>();
-                var skillSlot = go.GetComponentInParent<SkillSlot>();
                 var skillBlock = go.GetComponentInParent<SkillBlock>();
                 var statusEffectComponent = FindStatusEffectComponent(go);
                 
@@ -403,13 +442,6 @@ public class VirtualMouse : MonoBehaviour
                     newHoveredObject = skillInstance.gameObject;
                     uiDetectedSkill = true;
                     if (debugHoverDetect && debugHoverVerbose) Debug.Log($"[VM-Hit][UI] {go.name} → SkillInstance({newHoveredObject.name})");
-                    break;
-                }
-                if (skillSlot != null)
-                {
-                    newHoveredObject = skillSlot.gameObject;
-                    uiDetectedSkill = true;
-                    if (debugHoverDetect && debugHoverVerbose) Debug.Log($"[VM-Hit][UI] {go.name} → SkillSlot({newHoveredObject.name})");
                     break;
                 }
                 if (skillBlock != null)
@@ -458,18 +490,12 @@ public class VirtualMouse : MonoBehaviour
                 if (newHoveredObject == null)
                 {
                     var skillInstance = go.GetComponentInParent<SkillInstance>();
-                    var skillSlot = go.GetComponentInParent<SkillSlot>();
                     var skillBlock = go.GetComponentInParent<SkillBlock>();
                     
                     if (skillInstance != null)
                     {
                         newHoveredObject = skillInstance.gameObject;
                         if (debugHoverDetect && debugHoverVerbose) Debug.Log($"[VM-Hit][PHY] {go.name} → SkillInstance({newHoveredObject.name})");
-                    }
-                    else if (skillSlot != null)
-                    {
-                        newHoveredObject = skillSlot.gameObject;
-                        if (debugHoverDetect && debugHoverVerbose) Debug.Log($"[VM-Hit][PHY] {go.name} → SkillSlot({newHoveredObject.name})");
                     }
                     else if (skillBlock != null)
                     {
@@ -677,15 +703,11 @@ public class VirtualMouse : MonoBehaviour
             // 다른 패널이 활성화되어 있으면 숨김(즉시)
             if (currentActivePanel != null && currentActivePanel != targetPanel)
             {
-                // 스킬 패널인 경우 SetActive로만 제어
                 if (currentActivePanel is VirtualMouseSkillPanel)
                 {
-                    currentActivePanel.gameObject.SetActive(false);
-                    // StEfDecAnchor도 함께 비활성화
+                    currentActivePanel.SetVisible(false, false);
                     if (stEfDecAnchor != null)
-                    {
                         stEfDecAnchor.SetActive(false);
-                    }
                 }
                 else
                 {
@@ -707,19 +729,14 @@ public class VirtualMouse : MonoBehaviour
             // 패널 활성화 (같은 패널이어도 다시 표시하여 갱신 보장)
             currentActivePanel = targetPanel;
             
-            // 스킬 패널인 경우 SetActive로만 제어
             if (targetPanel is VirtualMouseSkillPanel)
             {
-                targetPanel.gameObject.SetActive(true);
-                // StEfDecAnchor도 함께 활성화
+                targetPanel.SetVisible(true, false);
                 if (stEfDecAnchor != null)
-                {
                     stEfDecAnchor.SetActive(true);
-                }
             }
             else
             {
-                // 다른 패널은 기존 방식 유지
                 targetPanel.SetVisible(true, false);
             }
             
@@ -765,15 +782,11 @@ public class VirtualMouse : MonoBehaviour
                 Debug.Log($"[VirtualMouse] OnHoverExit에서 다른 패널 숨김: {currentActivePanel.name}");
             }
             
-            // 스킬 패널인 경우 페이드아웃 연출 제거하고 SetActive(false)로 전환
             if (currentActivePanel is VirtualMouseSkillPanel)
             {
-                currentActivePanel.gameObject.SetActive(false);
-                // StEfDecAnchor도 함께 비활성화
+                currentActivePanel.SetVisible(false, false);
                 if (stEfDecAnchor != null)
-                {
                     stEfDecAnchor.SetActive(false);
-                }
             }
             else
             {
@@ -814,7 +827,6 @@ public class VirtualMouse : MonoBehaviour
     {
         // 컴포넌트 기준으로 판단 (태그 의존 제거)
         if (hoveredObject.GetComponentInParent<SkillInstance>() != null ||
-            hoveredObject.GetComponentInParent<SkillSlot>() != null ||
             hoveredObject.GetComponentInParent<SkillBlock>() != null)
             return skillPanel;
         
@@ -858,6 +870,10 @@ public class VirtualMouse : MonoBehaviour
             //     Debug.LogWarning("[VM-Status] FindStatusEffectComponent: obj가 null입니다.");
             return null;
         }
+
+        // 넉다운 전용 슬롯은 호버하지 않음(투명 프리팹 대비). 부모에 다른 상태이상이 있어도 여기서 차단.
+        if (obj.GetComponentInParent<StatusEffectInstanceKnockdown>() != null)
+            return null;
         
         // if (debugHoverDetect)
         // {
@@ -916,10 +932,9 @@ public class VirtualMouse : MonoBehaviour
             {
                 Debug.Log($"[VirtualMouse] 상태이상 호버 시 다른 패널 숨김: {currentActivePanel.name}");
             }
-            // 스킬 패널인 경우 SetActive로만 제어 (알파값 1 유지)
             if (currentActivePanel is VirtualMouseSkillPanel)
             {
-                currentActivePanel.gameObject.SetActive(false);
+                currentActivePanel.SetVisible(false, false);
             }
             else
             {
@@ -929,15 +944,24 @@ public class VirtualMouse : MonoBehaviour
         }
         
         // 상태이상 인스턴스에서 정보만 읽기
-        StatusEffectInstance statusInstance = statusObj.GetComponent<StatusEffectInstance>();
-        StatusEffectInstanceBuff statusBuff = statusObj.GetComponent<StatusEffectInstanceBuff>();
-        StatusEffectInstanceReaction statusReaction = statusObj.GetComponent<StatusEffectInstanceReaction>();
+        StatusEffectInstanceStun statusStun = statusObj.GetComponentInParent<StatusEffectInstanceStun>();
+        StatusEffectInstance statusInstance = statusObj.GetComponentInParent<StatusEffectInstance>();
+        StatusEffectInstanceBuff statusBuff = statusObj.GetComponentInParent<StatusEffectInstanceBuff>();
+        StatusEffectInstanceReaction statusReaction = statusObj.GetComponentInParent<StatusEffectInstanceReaction>();
         
         StatusEffectData effectData = null;
         int value = 0;
         int turns = 0;
         
-        if (statusInstance != null)
+        if (statusStun != null)
+        {
+            effectData = statusStun.EffectData;
+            value = 0;
+            turns = 0;
+            if (debugHoverDetect)
+                Debug.Log($"[VirtualMouse] StatusEffectInstanceStun 발견: effectData={(effectData != null ? effectData.effectName : "null")}");
+        }
+        else if (statusInstance != null)
         {
             effectData = statusInstance.EffectData;
             value = statusInstance.value;
@@ -1035,11 +1059,22 @@ public class VirtualMouse : MonoBehaviour
                 }
             }
             
-            string description = string.IsNullOrEmpty(effectData.description) ? effectData.effectName : effectData.description;
+            string description;
+            bool stunDescriptionPanel = effectData.effectType == StatusEffectType.Stun;
+            if (stunDescriptionPanel)
+            {
+                description = string.IsNullOrWhiteSpace(effectData.description)
+                    ? "한 턴간 쉽니다."
+                    : effectData.description.Trim();
+            }
+            else
+            {
+                description = string.IsNullOrEmpty(effectData.description) ? effectData.effectName : effectData.description;
+            }
             
             if (debugHoverDetect)
             {
-                Debug.Log($"[VirtualMouse] VirtualMouseStEfPanel로 팝업 표시: icon={(icon != null ? icon.name : "null")}, desc={description}, value={value}, turns={turns}");
+                Debug.Log($"[VirtualMouse] VirtualMouseStEfPanel로 팝업 표시: icon={(icon != null ? icon.name : "null")}, desc={description}, value={value}, turns={turns}, stunDescMode={stunDescriptionPanel}");
             }
             
             // 오브젝트가 활성화되어 있는지 다시 확인
@@ -1058,7 +1093,7 @@ public class VirtualMouse : MonoBehaviour
                 statusStEfPanel.gameObject.SetActive(true);
             }
             
-            statusStEfPanel.ShowStatusPopup(icon, description, value, turns);
+            statusStEfPanel.ShowStatusPopup(icon, description, value, turns, stunDescriptionPanel);
             statusHoverActive = true;
         }
         else
@@ -1068,6 +1103,20 @@ public class VirtualMouse : MonoBehaviour
     }
     
     // === 상태이상 타입별 데이터 추출 메서드 ===
+
+    private void ExtractStatusEffectStunData(GameObject obj, out Sprite icon, out string description, out int value, out int turns)
+    {
+        icon = null;
+        description = string.Empty;
+        value = 0;
+        turns = 0;
+        var st = obj.GetComponentInParent<StatusEffectInstanceStun>();
+        if (st == null || st.EffectData == null) return;
+        icon = st.EffectData.GetIcon();
+        description = string.IsNullOrWhiteSpace(st.EffectData.description)
+            ? "한 턴간 쉽니다."
+            : st.EffectData.description.Trim();
+    }
     
     /// <summary>
     /// StatusEffectInstance 타입 데이터 추출
@@ -1178,13 +1227,6 @@ public class VirtualMouse : MonoBehaviour
             return skillInstance.GetSkillData();
         }
         
-        // SkillSlot에서 스킬 데이터 가져오기
-        var skillSlot = obj.GetComponent<SkillSlot>();
-        if (skillSlot != null)
-        {
-            return skillSlot.GetSkillData();
-        }
-        
         // SkillBlock에서 스킬 데이터 가져오기
         var skillBlock = obj.GetComponent<SkillBlock>();
         if (skillBlock != null)
@@ -1202,13 +1244,8 @@ public class VirtualMouse : MonoBehaviour
     public void SetHoverDetectionEnabled(bool enabled)
     {
         enableHoverDetection = enabled;
-        
-        if (!enabled && currentActivePanel != null)
-        {
-            currentActivePanel.HidePanel();
-            currentActivePanel = null;
-            currentHoveredObject = null;
-        }
+        if (!enabled)
+            DismissAllHoverUi();
     }
     
     /// <summary>
@@ -1276,7 +1313,7 @@ public class VirtualMouse : MonoBehaviour
                 Debug.Log($"[VirtualMouse] 호버 유효성 체크 실행 - currentHoveredObject: {(currentHoveredObject != null ? currentHoveredObject.name : "null")}, statusHoverActive: {statusHoverActive}, activeInHierarchy: {(currentHoveredObject != null ? currentHoveredObject.activeInHierarchy.ToString() : "N/A")}");
             }
             
-            // 호버 상태가 없으면 코루틴 종료
+            // 호버 상태가 없으면 코루틴 종료 (스킬 패널만 SetActive로 켠 경우 isVisible 불일치로 패널이 남을 수 있어 강제 정리)
             if (currentHoveredObject == null && !statusHoverActive)
             {
                 if (debugHoverDetect)
@@ -1284,6 +1321,8 @@ public class VirtualMouse : MonoBehaviour
                     Debug.Log("[VirtualMouse] 호버 상태가 없어 유효성 체크 코루틴 종료");
                 }
                 hoverValidationCoroutine = null;
+                ForceHidePanelsInternal();
+                SetCursor(CursorType.Default);
                 yield break;
             }
             

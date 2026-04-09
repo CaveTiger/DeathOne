@@ -36,8 +36,7 @@ public class StatusEffectInstanceBuff : StatusEffectInstanceBase
         var statField = owner.GetType().GetField(effectData.statType.ToString());
         if (statField != null)
         {
-            int current = (int)statField.GetValue(owner);
-            statField.SetValue(owner, current - value);
+            ApplyDeltaToStatField(statField, -value);
         }
         else
         {
@@ -167,12 +166,32 @@ public class StatusEffectInstanceBuff : StatusEffectInstanceBase
         var statField = owner.GetType().GetField(effectData.statType.ToString());
         if (statField != null)
         {
-            int current = (int)statField.GetValue(owner);
-            statField.SetValue(owner, current + value);
+            ApplyDeltaToStatField(statField, value);
         }
         else
         {
             Debug.LogWarning($"[StatusEffectInstanceBuff] {effectData.statType} 필드를 찾을 수 없습니다.");
         }
+    }
+
+    private void ApplyDeltaToStatField(System.Reflection.FieldInfo statField, int delta)
+    {
+        if (statField == null || owner == null) return;
+
+        if (statField.FieldType == typeof(int))
+        {
+            int current = (int)statField.GetValue(owner);
+            statField.SetValue(owner, current + delta);
+            return;
+        }
+
+        if (statField.FieldType == typeof(float))
+        {
+            float current = (float)statField.GetValue(owner);
+            statField.SetValue(owner, current + delta);
+            return;
+        }
+
+        Debug.LogWarning($"[StatusEffectInstanceBuff] 지원하지 않는 필드 타입: {statField.Name} ({statField.FieldType.Name})");
     }
 }

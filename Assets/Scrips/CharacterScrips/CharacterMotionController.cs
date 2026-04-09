@@ -7,6 +7,16 @@ public class CharacterMotionController : MonoBehaviour
     [SerializeField] private CharacterStats characterStats;
     private string currentMotion;  // 현재 모션을 저장할 필드 추가
 
+    /// <summary>인스펙터 미할당 시 부모·루트에서 CharacterStats를 찾는다(넉다운/기절 자세 적용 누락 방지).</summary>
+    private CharacterStats ResolveCharacterStats()
+    {
+        if (characterStats != null) return characterStats;
+        characterStats = GetComponent<CharacterStats>();
+        if (characterStats == null)
+            characterStats = GetComponentInParent<CharacterStats>(true);
+        return characterStats;
+    }
+
     // 전투 위치 관련 변수
     private Vector3 originalPosition = Vector3.zero;  // 원래 위치 (0,0,0)
     [SerializeField] private Transform battlePoint;    // 전투 위치 오브젝트
@@ -103,6 +113,18 @@ public class CharacterMotionController : MonoBehaviour
     }
 
     /// <summary>
+    /// 스킬 모션 타입의 예상 지속 시간(초). MotionData에 duration이 있으면 사용하고, 없거나 0이면 fallback을 쓴다.
+    /// 영체 연출 등 공격 모션 길이에 맞춰 소멸 타이밍을 맞출 때 사용.
+    /// </summary>
+    public float GetExpectedSkillMotionDuration(string motionType, float fallbackSeconds = 0.45f)
+    {
+        var motionData = GetAdvancedMotionData(motionType);
+        if (motionData != null && motionData.duration > 0f)
+            return motionData.duration;
+        return fallbackSeconds;
+    }
+
+    /// <summary>
     /// 고급 모션 데이터를 가져옵니다.
     /// </summary>
     private MotionData GetAdvancedMotionData(string motionType)
@@ -192,19 +214,67 @@ public class CharacterMotionController : MonoBehaviour
         }
     }
 
+    private SpriteRenderer GetPrimarySpriteRenderer()
+    {
+        if (spriteRenderer != null) return spriteRenderer;
+
+        // BattleEffectManager.KnockbackCharacter와 동일: 캐릭터 루트의 "Sprite" 자식 우선 (첫 번째 SR이 UI/바일 때 오동작 방지)
+        var stats = ResolveCharacterStats();
+        if (stats != null)
+        {
+            Transform sp = stats.transform.Find("Sprite");
+            if (sp != null)
+            {
+                var r = sp.GetComponent<SpriteRenderer>();
+                if (r != null) return r;
+            }
+        }
+
+        return GetComponentInChildren<SpriteRenderer>(true);
+    }
+
+    /// <summary>
+    /// 넉다운 부착 직시(코드에서 호출), 또는 기절/넉다운 토큰 소모 직후 ~ 다음 본인 턴 시작까지 유지할 피격 자세(스프라이트 Hit, 틴트 흰색).
+    /// </summary>
+    public void ApplyPostStunReleaseHitHold()
+    {
+        ResolveCharacterStats();
+        if (characterStats == null || characterStats.data == null) return;
+        var sr = GetPrimarySpriteRenderer();
+        if (sr == null) return;
+
+        currentMotion = "Hit";
+        string hitPath = $"{characterStats.data.Sprite}/Hit";
+        Sprite hitSprite = Resources.Load<Sprite>(hitPath);
+        if (hitSprite != null)
+        {
+            sr.sprite = hitSprite;
+            Debug.Log($"[MotionController] 피격 자세 유지(Hit): {hitPath} ({gameObject.name})");
+        }
+        else
+        {
+            Debug.LogWarning($"[MotionController] {hitPath} 스프라이트를 찾지 못했습니다. ({gameObject.name})");
+        }
+
+        sr.color = Color.white;
+    }
+
     /// <summary>
     /// 피격 모션을 실행합니다.
     /// </summary>
     public void PlayHitMotion()
     {
-        if (!characterStats.IsActive) return;
+        ResolveCharacterStats();
+        if (characterStats == null || !characterStats.IsActive) return;
         currentMotion = "Hit";
-        // 실제 스프라이트 변경
+        var sr = GetPrimarySpriteRenderer();
+        if (sr == null) return;
+
         string hitPath = $"{characterStats.data.Sprite}/Hit";
         Sprite hitSprite = Resources.Load<Sprite>(hitPath);
         if (hitSprite != null)
         {
-            spriteRenderer.sprite = hitSprite;
+            sr.sprite = hitSprite;
             Debug.Log($"[MotionController] 피격 모션 스프라이트 변경: {hitPath}");
         }
         else
@@ -212,8 +282,7 @@ public class CharacterMotionController : MonoBehaviour
             Debug.LogWarning($"[MotionController] {hitPath} 스프라이트를 찾지 못했습니다.");
         }
 
-        // === 빨간색으로 색상 변경 ===
-        spriteRenderer.color = Color.red;
+        sr.color = Color.red;
     }
 
     /// <summary>
@@ -270,13 +339,19 @@ public class CharacterMotionController : MonoBehaviour
 
     public void ResetMotion()
     {
+        ResolveCharacterStats();
+        if (characterStats == null) return;
+        if (characterStats.IsDead) return;
+
         currentMotion = "Stand";
-        // Stand 스프라이트로 실제로 변경
+        var sr = GetPrimarySpriteRenderer();
+        if (sr == null || characterStats.data == null) return;
+
         string standPath = $"{characterStats.data.Sprite}/Stand";
         Sprite standSprite = Resources.Load<Sprite>(standPath);
         if (standSprite != null)
         {
-            spriteRenderer.sprite = standSprite;
+            sr.sprite = standSprite;
             Debug.Log($"[MotionController] 스탠드로 복귀: {standPath}");
         }
         else
@@ -284,8 +359,7 @@ public class CharacterMotionController : MonoBehaviour
             Debug.LogWarning($"[MotionController] {standPath} 스프라이트를 찾지 못했습니다.");
         }
 
-        // === 색상도 원래대로 복구 ===
-        spriteRenderer.color = Color.white;
+        sr.color = Color.white;
     }
 
     /// <summary>

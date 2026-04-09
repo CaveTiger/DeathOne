@@ -98,8 +98,10 @@ public class VirtualMouseUIPanel : MonoBehaviour
     /// <param name="animate">애니메이션 사용 여부 (무시됨, SetActive만 사용)</param>
     public void SetVisible(bool visible, bool animate = true)
     {
-        if (isVisible == visible) return;
-        
+        // 자식이 SetActive만 호출한 뒤 isVisible이 어긋나면 true→true로 조기 return 하며 영원히 안 켜지는 버그 방지
+        if (isVisible == visible && gameObject.activeSelf == visible)
+            return;
+
         isVisible = visible;
         gameObject.SetActive(visible);
         
@@ -117,8 +119,9 @@ public class VirtualMouseUIPanel : MonoBehaviour
     /// </summary>
     public void ShowPanel()
     {
-        if (isVisible) return;
-        
+        if (isVisible && gameObject.activeSelf)
+            return;
+
         isVisible = true;
         gameObject.SetActive(true);
         
@@ -133,8 +136,9 @@ public class VirtualMouseUIPanel : MonoBehaviour
     /// </summary>
     public void HidePanel()
     {
-        if (!isVisible) return;
-        
+        if (!isVisible && !gameObject.activeSelf)
+            return;
+
         isVisible = false;
         gameObject.SetActive(false);
         

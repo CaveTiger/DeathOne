@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Characters>
-	<Character ID="000002">
+	<Character ID="001001">
 		<Label>스텔리</Label> <!--캐릭터의 이름-->
 		<Description>설명 영혼의 기억에서 확인 가능</Description> <!---->
 		<Stats>
 			<Hp>20</Hp> <!--들어갈때 최대체력 + 현재체력 모두 이걸로 세팅된다.-->
 			<Atk>1</Atk>
 			<Def>2</Def>
-			<KDP>20</KDP>
+			<KDP>0</KDP> <!-- 현재 누적 -->
+			<MaxKDP>20</MaxKDP> <!-- 한도 도달 시 넉다운 처리(코드 연동은 TriggerKnockdown) -->
 			<Evasionrate>0.05</Evasionrate>
 			<Accuracy>0.0</Accuracy>
 			<Speed>16</Speed>
@@ -22,17 +23,18 @@
 		</Passives>
 		<Rarity>Rare</Rarity>
 		<Sprite>UnitSprite/Stelly</Sprite> <!--스프라이트 주소를 찾아 적어넣기-->
-		<Pattern>Normal</Pattern> <!--행동 패턴 스크립트-->
+		<Pattern>OpeningBuff</Pattern> <!--행동 패턴 스크립트-->
 	</Character>
 	
-	<Character ID="000005">
+	<Character ID="001002">
 		<Label>아델리아</Label> <!--캐릭터의 이름-->
 		<Description>설명 영혼의 기억에서 확인 가능</Description> <!---->
 		<Stats>
 			<Hp>512</Hp> <!--들어갈때 최대체력 + 현재체력 모두 이걸로 세팅된다.-->
 			<Atk>50</Atk> <!--게임오버 테스트용으로 공격력 대폭 상승 (원래값: 3)-->
 			<Def>1</Def>
-			<KDP>256</KDP>
+			<KDP>0</KDP>
+			<MaxKDP>1</MaxKDP><!-- 원본 256 -->
 			<Evasionrate>0.1</Evasionrate>
 			<Accuracy>0.0</Accuracy>
 			<Speed>22</Speed>
@@ -51,50 +53,52 @@
 		<Scale>1.2</Scale>
 	</Character>
 	
-	<Character ID="000007">
+	<Character ID="001003">
 		<Label>Mora</Label> <!--캐릭터의 이름-->
 		<Description>설명 영혼의 기억에서 확인 가능</Description> <!---->
 		<Stats>
 			<Hp>83</Hp> <!--들어갈때 최대체력 + 현재체력 모두 이걸로 세팅된다.-->
 			<Atk>1</Atk> <!--게임오버 테스트용으로 공격력 대폭 상승 (원래값: 3)-->
 			<Def>2</Def>
-			<KDP>84</KDP>
+			<KDP>0</KDP>
+			<MaxKDP>84</MaxKDP>
 			<Evasionrate>0.2</Evasionrate>
 			<Accuracy>0.2</Accuracy>
 			<Speed>14</Speed>
 		</Stats>
 		<Skills>
-			<li>010003</li> <!--보스 전용 스킬로 변경 (원래값: 010001)-->
-			<li>010003</li> <!--원래값: 010002-->
-			<li>010003</li> <!--원래값: 010003-->
-			<li>010003</li> <!--원래값: 010004-->
+			<li>011005</li>
+			<li>011006</li>
+			<li>011007</li>
+			<li>011008</li>
 		</Skills>
 		<Passives>
 			<li>080001</li>
 		</Passives>
 		<Rarity>Rare</Rarity>
 		<Sprite>UnitSprite/Mora</Sprite> <!--스프라이트 주소를 찾아 적어넣기-->
-		<Pattern>Normal</Pattern> <!--행동 패턴 스크립트-->
+		<Pattern>OpeningBuff</Pattern> <!--행동 패턴 스크립트-->
 		<Scale>1.2</Scale>
 	</Character>
 	
-	<Character ID="000006">
+	<Character ID="001004">
 		<Label>아즈나얀</Label> <!--캐릭터의 이름-->
 		<Description>설명 영혼의 기억에서 확인 가능</Description> <!---->
 		<Stats>
 			<Hp>122</Hp> <!--들어갈때 최대체력 + 현재체력 모두 이걸로 세팅된다.-->
 			<Atk>1</Atk> <!--게임오버 테스트용으로 공격력 대폭 상승 (원래값: 3)-->
 			<Def>2</Def>
-			<KDP>84</KDP>
+			<KDP>0</KDP>
+			<MaxKDP>84</MaxKDP>
 			<Evasionrate>0.2</Evasionrate>
 			<Accuracy>0.2</Accuracy>
 			<Speed>14</Speed>
 		</Stats>
 		<Skills>
-			<li>010001</li> <!--보스 전용 스킬로 변경 (원래값: 010001)-->
-			<li>010002</li> <!--원래값: 010002-->
-			<li>010003</li> <!--원래값: 010003-->
-			<li>010004</li> <!--원래값: 010004-->
+			<li>010001</li>
+			<li>010002</li>
+			<li>010003</li>
+			<li>010004</li>
 		</Skills>
 		<Passives>
 			<li>080004</li>

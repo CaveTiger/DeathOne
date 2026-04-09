@@ -1,5 +1,8 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Skills>
+	<!-- 사용자 매핑 기준: MobCharacter.xml, NamedCharacterCh1.xml, PlayerCharacter.xml -->
+	<!-- 형식: 캐릭터ID(이름) -->
+	<!-- 010005 사용자: 000003(호송병), 000004(귀족 신참병), 000005(데인마르 방패병), 000006(데인마르 기수), 000007(데인마르 궁수), 001001(스텔리) -->
 	<Skill ID ="010005" ParentID="010000">
 		<Name>기초적인 검격</Name>
 		<Icon>SkillIcon/010005</Icon>
@@ -9,6 +12,7 @@
 		<SkillTarget>Enemy</SkillTarget>
 		<Motion>Attack</Motion>
 		<AttackPoint>Body</AttackPoint>
+		<AttackType>Cut</AttackType>
 		<AttackEffect>Cut</AttackEffect>
 		<ActiveCount>None</ActiveCount>
 		<ManaCost>0</ManaCost>
@@ -18,25 +22,32 @@
 	
 	<!-- 플레이어 기본 스킬 -->
 	
+	<!-- 010006 사용자: 000003(호송병), 000004(귀족 신참병), 000005(데인마르 방패병), 000006(데인마르 기수), 000007(데인마르 궁수), 001001(스텔리) -->
 	<Skill ID ="010006" ParentID="010000">
 		<Name>방어</Name>
 		<Icon>SkillIcon/010006</Icon>
 		<DamageMin>0</DamageMin>
 		<DamageMax>0</DamageMax>
-		<SkillEffect>0</SkillEffect>
+		<SkillEffect>
+			<li>
+				<EffectID>021007</EffectID>
+				<Value>7</Value>
+				<Duration>1</Duration>
+			</li>
+		</SkillEffect>
 		<SkillTarget>Me</SkillTarget>
 		<Motion>Buff</Motion>
 		<AttackPoint>Body</AttackPoint>
 		<AttackEffect>Buff</AttackEffect>
 	</Skill>
 
+	<!-- 010007 사용자: 000003(호송병), 001001(스텔리) -->
 	<Skill ID ="010007" ParentID="010000">
 		<Name>참수</Name>
 		<Icon>SkillIcon/010007</Icon>
 		<DamageMin>1</DamageMin>
 		<DamageMax>18</DamageMax>
 		<SkillEffect>
-			<li>020004</li>
 		</SkillEffect>
 		<SkillTarget>Enemy</SkillTarget>
 		<Motion>Attack</Motion>
@@ -45,6 +56,7 @@
 		<CoolTime>1</CoolTime>
 	</Skill>
 	
+	<!-- 010008 사용자: 000004(귀족 신참병), 000005(데인마르 방패병), 000006(데인마르 기수), 000007(데인마르 궁수), 001001(스텔리) -->
 	<Skill ID ="010008" ParentID="010000">
 		<Name>지목</Name>
 		<Icon>SkillIcon/010008</Icon>
@@ -55,6 +67,7 @@
 		<Motion>Buff</Motion>
 	</Skill>
 	
+	<!-- 010009 사용자: 000004(귀족 신참병), 000005(데인마르 방패병), 000006(데인마르 기수), 000007(데인마르 궁수) -->
 	<Skill ID ="010009" ParentID="010000">
 		<Name>성실히 갈아낸 날</Name>
 		<Icon>SkillIcon/010009</Icon>
@@ -66,6 +79,7 @@
 		<SkillTarget>Enemy</SkillTarget>
 		<Motion>Attack</Motion>
 		<AttackPoint>Body</AttackPoint>
+		<AttackType>Cut</AttackType>
 		<AttackEffect>Cut</AttackEffect>
 		<ActiveCount>None</ActiveCount>
 		<ManaCost>0</ManaCost>
@@ -73,6 +87,7 @@
 		<priority>0</priority>
 	</Skill>
 	
+	<!-- 010010 사용자: 000003(호송병) -->
 	<Skill ID ="010010" ParentID="010000">
 		<Name>녹슨 날</Name>
 		<Icon>SkillIcon/010010</Icon>
@@ -84,7 +99,174 @@
 		<SkillTarget>Enemy</SkillTarget>
 		<Motion>Attack</Motion>
 		<AttackPoint>Body</AttackPoint>
+		<AttackType>Cut</AttackType>
 		<AttackEffect>Cut</AttackEffect>
+		<ActiveCount>None</ActiveCount>
+		<ManaCost>0</ManaCost>
+		<CoolTime>1</CoolTime>
+		<priority>0</priority>
+	</Skill>
+	
+	<!-- 010011 사용자: 미사용 -->
+	<Skill ID ="010011" ParentID="010000"> <!-- 상호작용형 스킬 -->
+		<Name>방어 태세</Name>
+		<Icon>SkillIcon/010010</Icon>
+		<Type>Buff</Type>
+		<DamageMin>3</DamageMin>
+		<DamageMax>7</DamageMax>
+		<SkillEffect>
+			<li>
+				<EffectID>021001</EffectID>
+				<Value>2</Value>
+				<Duration>2</Duration>
+			</li>
+		</SkillEffect>
+		<SkillTarget>Me</SkillTarget>
+		<Motion>Attack</Motion>
+		<AttackPoint>Body</AttackPoint>
+		<AttackType>Cut</AttackType>
+		<AttackEffect>Cut</AttackEffect>
+		<ActiveCount>None</ActiveCount>
+		<ManaCost>0</ManaCost>
+		<CoolTime>1</CoolTime>
+		<priority>0</priority>
+	</Skill>
+	
+	<!-- 010012 사용자: 미사용 -->
+	<Skill ID ="010012" ParentID="010000">
+		<Name>명령 : 방어 태세</Name>
+		<Icon>SkillIcon/010010</Icon>
+		<Type>Buff</Type>
+		<UseSkill>010011</UseSkill>
+		<SkillEffect>
+			<li>
+				<EffectID>021001</EffectID>
+				<Value>2</Value>
+				<Duration>2</Duration>
+			</li>
+		</SkillEffect>
+		<SkillTarget>Me</SkillTarget>
+		<Motion>Attack</Motion>
+		<AttackPoint>Body</AttackPoint>
+		<AttackType>Cut</AttackType>
+		<AttackEffect>Cut</AttackEffect>
+		<ActiveCount>None</ActiveCount>
+		<ManaCost>0</ManaCost>
+		<CoolTime>1</CoolTime>
+		<priority>0</priority>
+	</Skill>
+	
+	<!-- 010013 사용자: 미사용 -->
+	<Skill ID ="010013" ParentID="010000">
+		<Name>원칙적 대응</Name>
+		<Icon>SkillIcon/010010</Icon>
+		<DamageMin>8</DamageMin>
+		<DamageMax>12</DamageMax>
+		<SkillEffect>
+		</SkillEffect>
+		<SkillTarget>Enemy</SkillTarget>
+		<Motion>Attack</Motion>
+		<AttackPoint>Body</AttackPoint>
+		<AttackType>Cut</AttackType>
+		<AttackEffect>Cut</AttackEffect>
+		<ActiveCount>None</ActiveCount>
+		<ManaCost>0</ManaCost>
+		<CoolTime>1</CoolTime>
+		<priority>0</priority>
+	</Skill>
+	
+	<!-- 010013(중복 ID) 사용자: 미사용 -->
+	<Skill ID ="010014" ParentID="010000">
+		<Name>문명식 제압</Name>
+		<Icon>SkillIcon/010010</Icon>
+		<DamageMin>2</DamageMin>
+		<DamageMax>7</DamageMax>
+		<SkillEffect>
+			<!-- 기절 023001: Value/Duration 없음(토큰형). Chance만 적용 확률 -->
+			<li>
+				<EffectID>023001</EffectID>
+				<Chance>0.05</Chance>
+			</li>
+		</SkillEffect>
+		<SkillTarget>Enemy</SkillTarget>
+		<Motion>Attack</Motion>
+		<AttackPoint>Body</AttackPoint>
+		<AttackType>Blunt</AttackType>
+		<AttackEffect>Blunt</AttackEffect>
+		<ActiveCount>None</ActiveCount>
+		<ManaCost>0</ManaCost>
+		<CoolTime>1</CoolTime>
+		<priority>0</priority>
+	</Skill>
+	
+	<!-- 010014 사용자: 미사용 -->
+	<Skill ID ="010015" ParentID="010000">
+		<Name>비살상 화살</Name>
+		<Icon>SkillIcon/010010</Icon>
+		<DamageMin>2</DamageMin>
+		<DamageMax>7</DamageMax>
+		<SkillEffect>
+			<!-- 기절 023001: Value/Duration 없음(토큰형). Chance만 적용 확률 -->
+			<li>
+				<EffectID>023001</EffectID>
+				<Chance>0.05</Chance>
+			</li>
+		</SkillEffect>
+		<SkillTarget>Enemy</SkillTarget>
+		<Motion>Attack</Motion>
+		<AttackPoint>Body</AttackPoint>
+		<AttackType>Cut</AttackType>
+		<AttackEffect>Cut</AttackEffect>
+		<ActiveCount>None</ActiveCount>
+		<ManaCost>0</ManaCost>
+		<CoolTime>1</CoolTime>
+		<priority>0</priority>
+	</Skill>
+	
+	<!-- 010015 사용자: 미사용 -->
+	<Skill ID ="010016" ParentID="010000">
+		<Name>깃발을 높게 쳐들어!</Name>
+		<Icon>SkillIcon/010015</Icon>
+		<Type>Buff</Type>
+		<DamageMin>0</DamageMin>
+		<DamageMax>0</DamageMax>
+		<SkillEffect>
+			<li>
+				<EffectID>021002</EffectID>
+				<Value>1</Value>
+				<Duration>2</Duration>
+			</li>
+		</SkillEffect>
+		<SkillTarget>AllAllies</SkillTarget>
+		<Motion>Buff</Motion>
+		<AttackPoint>Body</AttackPoint>
+		<AttackType>none</AttackType>
+		<AttackEffect>Buff</AttackEffect>
+		<ActiveCount>None</ActiveCount>
+		<ManaCost>0</ManaCost>
+		<CoolTime>1</CoolTime>
+		<priority>0</priority>
+	</Skill>
+	
+	<!-- 010016 사용자: 미사용 -->
+	<Skill ID ="010017" ParentID="010000">
+		<Name>깃발 아래에 모여 싸우게!</Name>
+		<Icon>SkillIcon/010015</Icon>
+		<Type>Buff</Type>
+		<DamageMin>0</DamageMin>
+		<DamageMax>0</DamageMax>
+		<SkillEffect>
+			<li>
+				<EffectID>021001</EffectID>
+				<Value>1</Value>
+				<Duration>2</Duration>
+			</li>
+		</SkillEffect>
+		<SkillTarget>AllAllies</SkillTarget>
+		<Motion>Buff</Motion>
+		<AttackPoint>Body</AttackPoint>
+		<AttackType>none</AttackType>
+		<AttackEffect>Buff</AttackEffect>
 		<ActiveCount>None</ActiveCount>
 		<ManaCost>0</ManaCost>
 		<CoolTime>1</CoolTime>

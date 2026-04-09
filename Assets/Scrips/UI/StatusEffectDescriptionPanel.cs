@@ -90,12 +90,13 @@ public class StatusEffectDescriptionPanel : MonoBehaviour
     private void CreateDescriptionPanel(StatusEffectData effectData, int effectValue, int duration)
     {
         if (statusEffectDescriptionPrefab == null || containerAnchor == null) return;
+        int displayValue = GetDisplayEffectValue(effectData, effectValue);
         
         GameObject panelObj = Instantiate(statusEffectDescriptionPrefab, containerAnchor);
         panelObj.name = $"StatusEffect_{effectData.EffectID}";
         currentDescriptionPanels.Add(panelObj);
         if (debugDescription)
-            Debug.Log($"[SEDesc] Create: {effectData.EffectID}, v={effectValue}, d={duration}");
+            Debug.Log($"[SEDesc] Create: {effectData.EffectID}, v={displayValue}, d={duration}");
         
         // 아이콘 설정: 버프/디버프는 동적 아이콘 우선, 그 외는 기본 아이콘
         Image iconImage = panelObj.transform.Find("Icon")?.GetComponent<Image>();
@@ -107,7 +108,7 @@ public class StatusEffectDescriptionPanel : MonoBehaviour
             if (effectData.effectType == StatusEffectType.Buff || effectData.effectType == StatusEffectType.Debuff)
             {
                 // 동적 아이콘 시도 (음수값일 때 negativeIcon 사용)
-                sprite = effectData.GetDynamicIcon(effectValue);
+                sprite = effectData.GetDynamicIcon(displayValue);
                 
                 // 동적 아이콘이 없으면 기본 아이콘 시도
                 if (sprite == null)
@@ -152,13 +153,25 @@ public class StatusEffectDescriptionPanel : MonoBehaviour
                 : "효과 설명 없음";
             
             // 수치 정보 추가 (값이 0이 아닐 때만)
-            if (effectValue != 0) description += $" ({effectValue:+#;-#;0})";
+            if (displayValue != 0) description += $" ({displayValue})";
             
             // 지속 턴 정보 추가
             if (duration > 0) description += $" - {duration}턴 지속";
             
             descriptionText.text = description;
         }
+    }
+
+    private static int GetDisplayEffectValue(StatusEffectData effectData, int effectValue)
+    {
+        if (effectData != null
+            && effectData.effectType == StatusEffectType.ContinuousDamage
+            && effectData.treatContinuousValueAsHeal)
+        {
+            return Mathf.Abs(effectValue);
+        }
+
+        return effectValue;
     }
     
     /// <summary>

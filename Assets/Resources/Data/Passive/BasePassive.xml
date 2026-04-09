@@ -71,7 +71,7 @@
         <Cost>10</Cost>
     </Passive>
 
-    <Passive ParentID="080000" ID="080010">
+    <Passive ParentID="080000" ID="081000">
         <Name>테스트: 유즈마다 방어력 버프</Name>
         <Description>자기 턴 시작마다 유즈+1, 누적이 UseCount 이상이면 방어력 버프(021001) 부여 후 유즈 0. StartCount는 첫 누적 전 시작값(UseCount=2, StartCount=1 → 첫 자기 턴에 발동).</Description>
         <!-- Type은 PassiveType enum 이름과 동일해야 로드됨 (한글/설명 문자열 불가) -->
@@ -81,6 +81,21 @@
         <Duration>1</Duration><!-- 부여될 상태이상의 지속 턴 -->
         <statusEffectID>021001</statusEffectID><!-- 방어력 증가 버프(StatusEffect_021001_GuardPowerBuffData) -->
         <statusEffectValue>5</statusEffectValue><!-- 버프 수치(방어력 +n, UI/스탯에서 확인) -->
+        <TargetStat>None</TargetStat>
+        <Value>0</Value>
+        <FloatValue>0.0</FloatValue>
+        <GrantsMana>False</GrantsMana>
+        <MaxMana>0</MaxMana>
+        <ManaRegenInterval>0</ManaRegenInterval>
+        <Rarity>Normal</Rarity>
+        <Cost>0</Cost>
+    </Passive>
+
+    <Passive ParentID="080000" ID="082000">
+        <Name>테스트: 출혈 면역</Name>
+        <Description>지정한 상태이상 ID를 무효화합니다. 현재는 출혈(020001) 면역. 여러 개는 쉼표로 나열.</Description>
+        <Type>StatusEffectImmunity</Type>
+        <ImmuneStatusEffectIDs>020001</ImmuneStatusEffectIDs><!-- 예: 020001,020002 -->
         <TargetStat>None</TargetStat>
         <Value>0</Value>
         <FloatValue>0.0</FloatValue>

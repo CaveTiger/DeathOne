@@ -51,10 +51,8 @@ MonoBehaviour:
   value: 0
   isActive: 1
   owner: {fileID: 0}
-  popupHandler: {fileID: 7385369773845056564, guid: abe21bb03df809348a9e4279d8f731cd, type: 3}
   triggerCount: 0
   iconRenderer: {fileID: 1503861853129264291}
-  statusEffectPopupInstance: {fileID: 3789017772416734550, guid: abe21bb03df809348a9e4279d8f731cd, type: 3}
   damageCountPrefab: {fileID: 3814621287692205089, guid: d925bd749ecb801439646102e9e3cb98, type: 3}
 --- !u!212 &1503861853129264291
 SpriteRenderer:

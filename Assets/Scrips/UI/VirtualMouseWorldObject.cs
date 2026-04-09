@@ -186,13 +186,19 @@ public class VirtualMouseWorldObject : MonoBehaviour
     private bool IsStatusEffectObject(GameObject obj)
     {
         if (obj == null) return false;
+
+        // 넉다운 슬롯은 투명·비표시로 둘 예정 — 호버/팝업 대상에서 제외 (로직만 유지)
+        if (obj.GetComponentInParent<StatusEffectInstanceKnockdown>() != null)
+            return false;
         
         // 상태이상 컴포넌트 체크 (직접 컴포넌트만)
+        // 의도: 스턴은 호버 허용, 넉다운만 호버 차단.
+        var stun = obj.GetComponent<StatusEffectInstanceStun>();
         var instance = obj.GetComponent<StatusEffectInstance>();
         var buff = obj.GetComponent<StatusEffectInstanceBuff>();
         var reaction = obj.GetComponent<StatusEffectInstanceReaction>();
         
-        return instance != null || buff != null || reaction != null;
+        return stun != null || instance != null || buff != null || reaction != null;
     }
     
     /// <summary>

@@ -144,7 +144,7 @@ public class CharacterData
     public float GetFinalStatValue(TargetStat statType)
     {
         float passiveBonus = GetPassiveStatBonus(statType);
-        bool traceMora = DebugTraceFlags.PassiveStatTraceMora && ID == "000007";
+        bool traceMora = DebugTraceFlags.PassiveStatTraceMora && ID == "001003";
 
         if (traceMora)
         {
@@ -179,7 +179,7 @@ public class CharacterData
     {
         if (Passives == null || Passives.Count == 0) return 0f;
 
-        bool traceMora = DebugTraceFlags.PassiveStatTraceMora && ID == "000007";
+        bool traceMora = DebugTraceFlags.PassiveStatTraceMora && ID == "001003";
         float total = 0f;
 
         for (int i = 0; i < Passives.Count; i++)

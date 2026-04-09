@@ -21,6 +21,8 @@ public enum PatternType
     Defender,
     Tactician,
     Adelia,
+    OpeningBuff,
+    OpeningHeal,
     Gadian,
     Hunter
 }
@@ -51,8 +53,11 @@ public class CharacterLoader : MonoBehaviour
         {
             XDocument doc = XDocument.Parse(xml.text);
 
-            var parsed = doc.Descendants("Character").Select(x => new CharacterData
+            var parsed = doc.Descendants("Character").Select(x =>
             {
+                XElement stats = x.Element("Stats");
+                return new CharacterData
+                {
                 ID = (string)x.Attribute("ID") ?? "",
                 ParentID = (string)x.Attribute("ParentID") ?? "",
                 Specimen = bool.TryParse((string)x.Attribute("Specimen"), out bool specimen) ? specimen : false,
@@ -60,15 +65,15 @@ public class CharacterLoader : MonoBehaviour
                 Label = (string)x.Element("Label") ?? "",
                 Description = (string)x.Element("Description") ?? "",
 
-                Hp = (int?)x.Element("Stats")?.Element("Hp") ?? 0,
-                MaxHp = (int?)x.Element("Stats")?.Element("Hp") ?? 0,
-                KDP = (int?)x.Element("Stats")?.Element("KDP") ?? 0,
-                MaxKDP = (int?)x.Element("Stats")?.Element("MaxKDP") ?? 0,
-                Atk = (int?)x.Element("Stats")?.Element("Atk") ?? 0,
-                Def = (int?)x.Element("Stats")?.Element("Def") ?? 0,
-                EvasionRate = (float?)x.Element("Stats")?.Element("Evasionrate") ?? 0f,
-                Accuracy = (float?)x.Element("Stats")?.Element("Accuracy") ?? 0f,
-                Speed = (int?)x.Element("Stats")?.Element("Speed") ?? 0,
+                Hp = GetStatInt(stats, "Hp", 0),
+                MaxHp = GetStatInt(stats, "Hp", 0),
+                KDP = GetStatInt(stats, "KDP", 0),
+                MaxKDP = GetStatInt(stats, "MaxKDP", 0),
+                Atk = GetStatInt(stats, "Atk", 0),
+                Def = GetStatInt(stats, "Def", 0),
+                EvasionRate = GetStatFloat(stats, "Evasionrate", 0f),
+                Accuracy = GetStatFloat(stats, "Accuracy", 0f),
+                Speed = GetStatInt(stats, "Speed", 0),
 
                 Skills = x.Element("Skills")?
            .Elements("li")
@@ -87,7 +92,7 @@ public class CharacterLoader : MonoBehaviour
                 Pattern = Enum.TryParse((string)x.Element("Pattern"), true, out PatternType pattern) ? pattern : PatternType.Default,
                 Scale = (float?)x.Element("Scale") ?? 1.0f,
                 maxPassiveCost = (int?)x.Element("MaxPassiveCost") ?? 10
-
+                };
             }).ToList();
             rawList.AddRange(parsed);
             
@@ -157,5 +162,37 @@ public class CharacterLoader : MonoBehaviour
         if (overrideData.maxPassiveCost != 10) baseData.maxPassiveCost = overrideData.maxPassiveCost;
 
         baseData.Rarity = overrideData.Rarity;
+    }
+
+    /// <summary>Stats 하위 태그 이름 대소문자 무시 (예: ATK/Atk, KDP/kdp).</summary>
+    private static int GetStatInt(XElement statsRoot, string localName, int defaultValue)
+    {
+        if (statsRoot == null) return defaultValue;
+        foreach (XElement el in statsRoot.Elements())
+        {
+            if (!string.Equals(el.Name.LocalName, localName, StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (int.TryParse(el.Value.Trim(), out int v))
+                return v;
+            return defaultValue;
+        }
+        return defaultValue;
+    }
+
+    private static float GetStatFloat(XElement statsRoot, string localName, float defaultValue)
+    {
+        if (statsRoot == null) return defaultValue;
+        foreach (XElement el in statsRoot.Elements())
+        {
+            if (!string.Equals(el.Name.LocalName, localName, StringComparison.OrdinalIgnoreCase))
+                continue;
+            string s = el.Value.Trim();
+            if (float.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float v))
+                return v;
+            if (float.TryParse(s, out v))
+                return v;
+            return defaultValue;
+        }
+        return defaultValue;
     }
 }

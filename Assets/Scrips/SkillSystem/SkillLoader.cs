@@ -62,22 +62,30 @@ public class SkillLoader : MonoBehaviour
         {
             Debug.Log($"[SkillLoader] XML 파일 처리 중: {xml.name}");
             XDocument doc = XDocument.Parse(xml.text);
-            var parsed = doc.Descendants("Skill").Select(x => new SkillData
+            var parsed = doc.Descendants("Skill").Select(x =>
             {
+                var parsedType = ParseSkillTypeFromElement(x);
+                return new SkillData
+                {
                 ID = (string)x.Attribute("ID") ?? "",
                 ParentID = (string)x.Attribute("ParentID") ?? "",
                 Specimen = bool.TryParse((string)x.Attribute("Specimen"), out bool specimen) ? specimen : false,
                 Name = (string)x.Element("Name") ?? "",
                 Icon = (string)x.Element("Icon") ?? "",
-                Type = Enum.TryParse(x.Element("Type")?.Value, out SkillType result) ? result : SkillType.Damage,
+                Type = parsedType.type,
+                HasExplicitType = parsedType.hasExplicitType,
+                UseSkillId = ((string)x.Element("UseSkill") ?? "").Trim(),
                 Description = (string)x.Element("Description") ?? "",
                 DamageMin = (int?)x.Element("DamageMin") ?? 0,
                 DamageMax = (int?)x.Element("DamageMax") ?? 0,
-                Cooldown = (int)((float?)x.Element("Cooldown") ?? 0f),
+                Cooldown = ParseCooldownValue(x),
                 Range = (float?)x.Element("Range") ?? 0f,
-                SkillTarget = (string)x.Element("SkillTarget") ?? "",
+                SkillTarget = NormalizeSkillTarget((string)x.Element("SkillTarget") ?? ""),
                 Motion = (string)x.Element("Motion") ?? "",
+                GhostSpritePath = (string)x.Element("GhostSpritePath") ?? "",
+                GhostProxyScale = ParseGhostProxyScale(x),
                 AttackPoint = (string)x.Element("AttackPoint") ?? "",
+                AttackType = ParseAttackTypeFromElement(x),
                 AttackEffect = (string)x.Element("AttackEffect") ?? "",
                 ManaCost = (int?)x.Element("ManaCost") ?? 0,
                 StaminaCost = (int?)x.Element("StaminaCost") ?? 0,
@@ -97,16 +105,19 @@ public class SkillLoader : MonoBehaviour
 
                         int value = (int?)li.Element("Value") ?? 0;
                         int duration = (int?)li.Element("Duration") ?? 0;
+                        float chance = Mathf.Clamp01((float?)li.Element("Chance") ?? 1.0f);
 
                         return new SkillEffectInfo
                         {
                             EffectID = effectId.Trim(),
                             Value = value,
-                            Duration = duration
+                            Duration = duration,
+                            Chance = chance
                         };
                     })
                     .Where(e => e != null)
                     .ToList() ?? new List<SkillEffectInfo>()
+                };
             }).ToList();
             Debug.Log($"[SkillLoader] {xml.name}에서 파싱된 스킬 수: {parsed.Count}");
             rawList.AddRange(parsed);
@@ -122,22 +133,30 @@ public class SkillLoader : MonoBehaviour
             {
                 Debug.Log($"[SkillLoader] 추가 XML 파일 처리 중: {xml.name}");
                 XDocument doc = XDocument.Parse(xml.text);
-                var parsed = doc.Descendants("Skill").Select(x => new SkillData
+                var parsed = doc.Descendants("Skill").Select(x =>
                 {
+                    var parsedType = ParseSkillTypeFromElement(x);
+                    return new SkillData
+                    {
                     ID = (string)x.Attribute("ID") ?? "",
                     ParentID = (string)x.Attribute("ParentID") ?? "",
                     Specimen = bool.TryParse((string)x.Attribute("Specimen"), out bool specimen) ? specimen : false,
                     Name = (string)x.Element("Name") ?? "",
                     Icon = (string)x.Element("Icon") ?? "",
-                    Type = Enum.TryParse(x.Element("Type")?.Value, out SkillType result) ? result : SkillType.Damage,
+                    Type = parsedType.type,
+                    HasExplicitType = parsedType.hasExplicitType,
+                    UseSkillId = ((string)x.Element("UseSkill") ?? "").Trim(),
                     Description = (string)x.Element("Description") ?? "",
                     DamageMin = (int?)x.Element("DamageMin") ?? 0,
                     DamageMax = (int?)x.Element("DamageMax") ?? 0,
-                    Cooldown = (int)((float?)x.Element("Cooldown") ?? 0f),
+                    Cooldown = ParseCooldownValue(x),
                     Range = (float?)x.Element("Range") ?? 0f,
-                    SkillTarget = (string)x.Element("SkillTarget") ?? "",
+                    SkillTarget = NormalizeSkillTarget((string)x.Element("SkillTarget") ?? ""),
                     Motion = (string)x.Element("Motion") ?? "",
+                    GhostSpritePath = (string)x.Element("GhostSpritePath") ?? "",
+                    GhostProxyScale = ParseGhostProxyScale(x),
                     AttackPoint = (string)x.Element("AttackPoint") ?? "",
+                    AttackType = ParseAttackTypeFromElement(x),
                     AttackEffect = (string)x.Element("AttackEffect") ?? "",
                     ManaCost = (int?)x.Element("ManaCost") ?? 0,
                     StaminaCost = (int?)x.Element("StaminaCost") ?? 0,
@@ -157,16 +176,19 @@ public class SkillLoader : MonoBehaviour
 
                             int value = (int?)li.Element("Value") ?? 0;
                             int duration = (int?)li.Element("Duration") ?? 0;
+                            float chance = Mathf.Clamp01((float?)li.Element("Chance") ?? 1.0f);
 
                             return new SkillEffectInfo
                             {
                                 EffectID = effectId.Trim(),
                                 Value = value,
-                                Duration = duration
+                                Duration = duration,
+                                Chance = chance
                             };
                         })
                         .Where(e => e != null)
                         .ToList() ?? new List<SkillEffectInfo>()
+                    };
                 }).ToList();
                 Debug.Log($"[SkillLoader] {xml.name}에서 파싱된 스킬 수: {parsed.Count}");
                 rawList.AddRange(parsed);
@@ -226,6 +248,8 @@ public class SkillLoader : MonoBehaviour
                 final = data.Clone();
             }
 
+            final.AttackType = NormalizeAttackType(final.AttackType);
+
             if (!SkillData.skillDict.ContainsKey(final.ID))
             {
                 SkillData.skillDict.Add(final.ID, final);
@@ -237,9 +261,102 @@ public class SkillLoader : MonoBehaviour
         }
     }
 
+    /// <summary>&lt;AttackType&gt; 태그 없음 → null(부모 스킬 상속). 태그만 있고 비어 있으면 none.</summary>
+    private static string ParseAttackTypeFromElement(XElement skillEl)
+    {
+        var el = skillEl.Element("AttackType");
+        if (el == null) return null;
+        if (string.IsNullOrWhiteSpace(el.Value)) return "none";
+        return el.Value.Trim();
+    }
+
+    /// <summary>최종 스킬 등록 시 null·공백이면 none.</summary>
+    private static string NormalizeAttackType(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return "none";
+        return raw.Trim();
+    }
+
+    /// <summary>Type 태그 존재 여부를 함께 반환한다. (태그 없으면 부모 Type 상속 가능)</summary>
+    private static (SkillType type, bool hasExplicitType) ParseSkillTypeFromElement(XElement skillElement)
+    {
+        var typeElement = skillElement.Element("Type");
+        if (typeElement == null || string.IsNullOrWhiteSpace(typeElement.Value))
+            return (SkillType.Damage, false);
+
+        if (Enum.TryParse(typeElement.Value.Trim(), true, out SkillType parsed))
+            return (parsed, true);
+
+        return (SkillType.Damage, true);
+    }
+
+    /// <summary>Cooldown/CoolTime 둘 다 지원해 쿨타임을 읽는다.</summary>
+    private static int ParseCooldownValue(XElement skillElement)
+    {
+        return (int)((float?)skillElement.Element("Cooldown") ?? (float?)skillElement.Element("CoolTime") ?? 0f);
+    }
+
+    /// <summary>SkillTarget을 표준 문자열로 정규화한다. (기존 XML 호환)</summary>
+    private static string NormalizeSkillTarget(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return "";
+
+        switch (raw.Trim().ToLowerInvariant())
+        {
+            case "me":
+            case "self":
+                return "Me";
+            case "ally":
+                return "Ally";
+            case "enemy":
+                return "Enemy";
+            case "allallies":
+                return "AllAllies";
+            case "allenemies":
+                return "AllEnemies";
+            case "allunits":
+            case "all":
+                return "AllUnits";
+            case "adjacent":
+                return "Adjacent";
+            case "selfandadjacent":
+                return "SelfAndAdjacent";
+            case "adjacentarea":
+                return "AdjacentArea";
+            case "selfandadjacentarea":
+                return "SelfAndAdjacentArea";
+            case "randomenemy":
+                return "RandomEnemy";
+            case "randomally":
+                return "RandomAlly";
+            case "randomtarget":
+                return "RandomTarget";
+            case "lowesthpally":
+                return "LowestHpAlly";
+            case "highesthpenemy":
+                return "HighestHpEnemy";
+            case "weakestenemy":
+                return "WeakestEnemy";
+            case "strongestally":
+                return "StrongestAlly";
+            default:
+                return raw.Trim();
+        }
+    }
+
     /// <summary>
     /// XML에서 HealMin과 HealMax를 읽어서 범위 힐량을 설정합니다.
     /// </summary>
+    private static float ParseGhostProxyScale(XElement skillElement)
+    {
+        var el = skillElement.Element("GhostProxyScale") ?? skillElement.Element("ghostProxyScale");
+        if (el == null || string.IsNullOrWhiteSpace(el.Value)) return -1f;
+        string s = el.Value.Trim();
+        if (float.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float v))
+            return v;
+        return -1f;
+    }
+
     private (int healMin, int healMax) GetHealRange(System.Xml.Linq.XElement skillElement)
     {
         int healMin = (int?)skillElement.Element("HealMin") ?? 0;
@@ -265,12 +382,17 @@ public class SkillLoader : MonoBehaviour
         if (!string.IsNullOrEmpty(overrideData.Icon)) baseData.Icon = overrideData.Icon;
         if (overrideData.DamageMin != 0) baseData.DamageMin = overrideData.DamageMin;
         if (overrideData.DamageMax != 0) baseData.DamageMax = overrideData.DamageMax;
-        if (!string.IsNullOrEmpty(overrideData.SkillTarget)) baseData.SkillTarget = overrideData.SkillTarget;
+        if (!string.IsNullOrEmpty(overrideData.SkillTarget)) baseData.SkillTarget = NormalizeSkillTarget(overrideData.SkillTarget);
         if (!string.IsNullOrEmpty(overrideData.Motion)) baseData.Motion = overrideData.Motion;
+        if (!string.IsNullOrEmpty(overrideData.GhostSpritePath)) baseData.GhostSpritePath = overrideData.GhostSpritePath;
+        if (overrideData.GhostProxyScale > 0f) baseData.GhostProxyScale = overrideData.GhostProxyScale;
         if (!string.IsNullOrEmpty(overrideData.AttackPoint)) baseData.AttackPoint = overrideData.AttackPoint;
+        if (overrideData.AttackType != null)
+            baseData.AttackType = overrideData.AttackType;
         if (!string.IsNullOrEmpty(overrideData.AttackEffect)) baseData.AttackEffect = overrideData.AttackEffect;
         if (!string.IsNullOrEmpty(overrideData.Group)) baseData.Group = overrideData.Group;
         if (!string.IsNullOrEmpty(overrideData.Description)) baseData.Description = overrideData.Description;
+        if (!string.IsNullOrEmpty(overrideData.UseSkillId)) baseData.UseSkillId = overrideData.UseSkillId;
         if (overrideData.Cooldown != 0) baseData.Cooldown = overrideData.Cooldown;
         if (overrideData.Range != 0) baseData.Range = overrideData.Range;
         if (overrideData.ManaCost != 0) baseData.ManaCost = overrideData.ManaCost;
@@ -281,7 +403,8 @@ public class SkillLoader : MonoBehaviour
         if (overrideData.HealMax != 0) baseData.HealMax = overrideData.HealMax;
         if (overrideData.KnockdownMultiplier != 1.0f) baseData.KnockdownMultiplier = overrideData.KnockdownMultiplier;
         // CurrentCooldown은 게임 내에서만 관리되므로 파싱하지 않음
-        baseData.Type = overrideData.Type;
+        if (overrideData.HasExplicitType)
+            baseData.Type = overrideData.Type;
         
         // skillEffects 덮어쓰기 로직 (자식에 있으면 덮어쓰기, 없으면 부모 것 유지)
         if (overrideData.skillEffects != null && overrideData.skillEffects.Count > 0)

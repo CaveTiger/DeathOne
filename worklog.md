@@ -2755,3 +2755,389 @@
 ### 후속 정리 예정
 - 추적용 `PassiveTrace` / `[Spec]` 상세 로그는 안정화 확인 후 축소 또는 토글화
 - `PassiveManager` 역할(레지스트리/중간 캐시) 정리 여부 추후 결정
+
+---
+
+## 전투·패시브·UI·사운드·영체 연출 일괄 정비
+### 작업 일자
+- 2026-04-01 (수)
+
+### 패시브·상태이상
+- `BasePassive.xml` 등: `StartCount` 복구 및 `TurnIntervalGrantStatus`와 코드 연동(`PassiveData`, `PassiveLoader`, `PassiveEffectTurnIntervalGrantStatus`, `CharacterStats.TryTickOwnerTurnPassiveUseAndShouldFire`).
+- `StatusEffectImmunity` 타입 및 XML `ImmuneStatusEffectIDs` 파싱·적용(`CharacterStats.AddStatusEffectPrefab` 진입 시 차단).
+- 지속피해(ContinuousDamage) **3안**: 동일 EffectID 재적용 시 피해량만 절반(내림) 합산, 지속 턴은 갱신하지 않음 — 주석으로 정책 명시(`CharacterStats`, `StatusEffectInstance.MergeHalfIncomingDamage`, `StatusEffectController.GetStatusEffectInstance`).
+- `PassiveSystemExtensionGuide`에 `startUseCount`·면역 패시브 설명 보강.
+
+### 스킬·버프 연출·타겟
+- `SkillManager`: Buff 분기에서 `ApplyStatusEffects` 이중 적용 제거, `GetBuffTargets`로 실제 수혜자에만 버프/모션/연출 적용. 버프 시 **시전자만** 전투 위치 이동.
+- 주인공 영체(GhostProxy): `GhostSpritePath`·`flipX` 방향, 이후 **고정 거리 스폰 + Lerp 이동 제거**, `CharacterMotionController.GetExpectedSkillMotionDuration`으로 모션 길이만큼 유지 후 페이드.
+- `SkillData` / `SkillLoader` / `BossSkills.xml`: **`GhostProxyScale`** XML 파싱·Clone·Override·`PlayGhostProxyEffect`에 `localScale` 반영(미지정·0 이하 시 1).
+
+### 데스 아이콘·슬롯 연동
+- `SlotHandler`: `OnDeathEvent` 구독 → 전용 캔버스에 데스 아이콘 스폰. 스프라이트 바운드 기준 높이 비율(`deathIconHeightNormalized`)·앵커·피벗 중앙 고정. 유효 프리팹 검사(Image/SpriteRenderer/TMP/Text).
+- `BattleEffectManager`: 데스 아이콘 **레거시 Instantiate 경로 제거**(슬롯 경로 단일화 방향).
+
+### 턴·UI·입력
+- `TurnManager`: 상태이상 정산 후 `Hp <= 0`이면 즉시 사망 처리(죽은 유닛 행동 방지). 월드맵 복귀 전 `ScreenState` 정리. 사망 연출 대기·턴 타이밍 로그 등 조정 이력 반영.
+- `BattleUIManager` / `StatusEffectSlot`: 상태이상 팝업·연출 대기 시간 단축 및 상한(`maxStatusPopupWaitSeconds`, `maxBlockingStatusEffectAnimations` 등).
+- `TurnTransitionSkipManager`: 사망 구간 스킵 불가 유지.
+- `GameManager`: `SampleScene` 로드 시 월드맵 스크린 상태 복구(전투 복귀 후 클릭 불가 완화). `SoundManager` 일시정지 연동.
+- `WorldMapStageSelection`: 진입 조건(`conditionStageId`)·잠금 표시, `SetUIOpen(false)`로 복귀 시 플래그 리셋.
+
+### 사운드·유저 설정
+- `SoundManager`(BGM/SE/Voice, 볼륨·mute, `SetPaused`).
+- `UserSettingsManager` + `user_settings.json` — `GameManager.Start`에서 사운드에 적용.
+
+### 기타 데이터·문서
+- `Assets/Docs/CharacterXmlChecklist.md` — 캐릭터 XML 체크리스트(Resources/Data/Characters 밖에 두어 XML 파싱 충돌 방지).
+- `GameProgressManager`: 테스트용 스킬 해금(영체 등 확인용) 등 기존 작업 맥락 유지.
+
+### 참고
+- 승리/패배 핵심 로직(`CheckBattleEnd`, `EndBattle`, `ProcessBattleReward` 등)은 커서룰상 직접 수정하지 않는 방향으로 유지.
+
+---
+## 스냅샷 복원 루트 연결 + 패시브/상태이상 회귀 체크
+### 작업 일자
+- 2026-04-03 (금)
+
+### 스냅샷(턴/전투진입/월드맵) 연결
+- `BattleSnapshotManager`
+  - 전투 씬 전환에도 유지되도록 `DontDestroyOnLoad` 적용
+  - `ClearAllSnapshots()`는 `turnSnapshots`만 정리하고 `battleEndSnapshot`은 “다음 전투 진입 복원” 용도로 보존하도록 변경
+- `GameManager`
+  - `SampleScene` 로드 시 `BattleSnapshotManager.Instance.ClearAllSnapshots()` 호출(월드맵 복귀 시 턴 히스토리 정리)
+- `BattleManager.StartBattle()`
+  - `SpawnAllUnits()` 직후 `TryRestoreBattleEndSnapshot(allCharacters)`를 1회 수행하고, 성공 시 `ClearBattleEndSnapshot()`로 재복원 방지
+- `TurnManager`
+  - `TestBattle` 씬에서 `F8` 입력 시 `TryGetTurnSnapshot(turnsBack)` + `TryRestoreTurnSnapshot`을 실제 호출
+  - `snapshot.turnOrderIds` 기반으로 `turnQueue`/`TurnChanse`를 재구성 후 `StartTurn(targetCharacter)`로 복귀
+  - 복원 중에는 `StartTurn`의 스냅샷 재캡처를 막기 위해 `isRestoringSnapshot` 가드 추가
+
+### 패시브/상태이상 회귀(최근 변경분) 점검 포인트
+- 면역(`StatusEffectImmunity`)
+  - `CharacterStats.AddStatusEffectPrefab()` 진입 시 `IsImmuneToStatusEffect(effectId)`면 프리팹 생성/중첩 로직 전체를 차단
+- 턴간격 누적/첫 발동(StartCount)
+  - `PassiveEffectTurnIntervalGrantStatus`는 `TryTickOwnerTurnPassiveUseAndShouldFire(passiveId, useCount, startUseCount)`로
+    - 최초 tick에서 `startUseCount`를 시드(acc 초기값)로 사용
+    - 누적이 임계(useCountThreshold) 이상이면 발동 후 누적을 0으로 리셋
+- 지속피해(ContinuousDamage) 3안
+  - 동일 `EffectID`가 재적용될 때
+    - 새 인스턴 생성 없이 `StatusEffectInstance.MergeHalfIncomingDamage()`로 “들어온 값의 절반(내림)”만 기존 value에 합산
+    - 지속 턴(duration/remainingTurns)은 갱신하지 않음(기존 remainingTurns 유지)
+- 로그 축소 기준(불필요 추적 로그)
+  - `CharacterStats.AddStatusEffectPrefab()`에서 `PassiveStatusEffectFlow == false`일 때
+    - 면역 차단/지속피해 중첩(3안)/중복 무시에 대한 else 로그를 제거(Trace 플래그가 꺼져 있으면 로그가 쌓이지 않게)
+
+### 확인 시나리오(수동 테스트 체크리스트)
+- 면역
+  - `StatusEffectImmunity` 패시브가 면역 목록에 포함된 상태이상 ID를 스킬로 거는 상황에서, 해당 상태이상이 UI/인스턴스에 생성되지 않는지 확인
+- StartCount
+  - `TurnIntervalGrantStatus`가 `UseCount=2`일 때 `StartCount=1`로 지정된 경우,
+    - 소유자의 첫 턴에서 1(시드) + 1(tick) → threshold 도달로 “첫 발동”이 되는지 확인
+  - StartCount=0/빈 값(=0 시드)일 때 “발동 타이밍이 1턴 늦지” 않는지 확인
+- ContinuousDamage 3안
+  - 동일 출혈/중독/화상 EffectID를 연속으로 적용했을 때,
+    - 기존 인스턴은 유지되고(value만 증가)
+    - 증가량이 `incomingValue/2`(내림)인지,
+    - 지속 턴이 늘어나지(remainingTurns 갱신 X) 않는지 확인
+
+### 오늘 완료 기준(DoD)
+- 스냅샷 복원 경로 3종(턴 복원/전투 진입 시 battleEnd 복원/월드맵 복귀 시 정리)이 실제로 호출되도록 코드 연결 완료
+- 패시브/상태이상 최근 변경분(면역, StartCount, 지속피해 3안)에 대한 확인 항목(수동 체크리스트) 정리 완료
+
+### 방향성 확정(우선순위 전환)
+- 스냅샷 기반 시간 되돌리기 기능은 **기반 구현 단계로 일단 고정**하고, 본격 플레이어 능력/해금 연동은 후순위로 미룸.
+- 당장 다음 작업 우선순위는 **유닛 능력 구현(패시브/스킬/상태이상 연계 확장)**으로 전환.
+- 구조 검진 결과 핵심 오동작(롤백 시 행동 주체 판정)을 수정했고, `currentActorId` 기반 복원으로 정렬.
+- `BattleSnapshotManager`는 `GameManager`와 함께 존재하는 구조를 유지하며, 별도 `DontDestroyOnLoad` 적용은 보류/비적용 상태로 정리.
+
+---
+
+## 세션 로그: 스킬/상태이상·스턴 설계·데이터 연동 (2026-04-04)
+
+### 흐름 요약
+1. **UseSkill(상호작용/명령 스킬)**  
+   - XML `<UseSkill>` → 데이터 반영을 위해 `SkillData.UseSkillId` 추가, `SkillLoader` 파싱 및 `Clone`/`OverrideSkill` 연동.  
+   - 실제 “명령 시 보유자 전원 즉시 발동·턴 미소모” 런타임 분기는 **미구현**(다음 작업 후보).
+
+2. **스킬 효과 확률**  
+   - `SkillEffectInfo.Chance`(0~1, 기본 1), XML `<Chance>` 파싱, `SkillManager`에서 상태이상/버프 적용 루프에 확률 판정 연결.
+
+3. **스턴·행동불가 설계**  
+   - 패시브는 **행동 가능 여부와 무관**하게 턴 시작에 동작하는 것으로 합의.  
+   - 턴 흐름: 상태이상 정산 → `InvokePassivesOnOwnerTurnStart` → 그 다음 **행동불가면 커맨드 단계 생략**.
+
+4. **턴 강제 종료(스턴 감지)**  
+   - `TurnManager`: 위 순서 이후 `StatusEffectController.HasStatusEffectType(Stun)`이면 `EndTurn()` 호출(슬롯 코루틴 경로 + 슬롯 없는 백업 `StartTurn` 경로 둘 다).  
+   - `StatusEffectController`: 활성 프리팹에서 `EffectData` 타입 조회용 `HasStatusEffectType` 추가(리플렉션 보조 포함).
+
+5. **상태이상 프리팹 생성**  
+   - 기존에는 컨트롤러에 박은 기본 프리팹만 사용.  
+   - `StatusEffectData.effectPrefab`이 있으면 **우선 사용**, 없으면 기존 폴백(`ResolveEffectPrefab`).
+
+6. **ScriptableObject 생성 혼선**  
+   - 베이스 `StatusEffectData`는 Create 메뉴에 있으나 찾기 어려울 수 있음 → **`StatusEffectCustomData`** 추가: `Create → Scriptable Objects/StatusEffect/Custom (범용)`, `OnEnable` 덮어쓰기 없음.  
+   - `StatusEffectNoDamageBuffData` 등은 `OnEnable`로 ID/타입 고정 → 스턴용으로 부적합함을 정리.
+
+7. **모션 ScriptableObject**  
+   - `MotionDataObject`는 `CharacterMotionController`에서 `Resources.Load("MotionData/{캐릭터ID}_Motions")`로 로드되는 경로가 있음.  
+   - 레포에 `Resources/MotionData` 에셋이 없으면 **고급 모션은 안 타고** 기본 모션으로 폴백.
+
+8. **상태이상 ID 규칙**  
+   - 코드 강제는 없음. 문서·데이터 관례 정리.  
+   - **스턴·행동불가(제어) 계열은 `023` 시작(`023001`~)으로 확정** → `scriptmap.md` 상태이상 목록에 반영(021005·022001·024001 보갈 포함).
+
+### 내일(다음 세션) 후보
+- 스턴용 아이콘·`Effect Prefab` 제작 및 SO 배치.  
+- **`CharacterStats.AddStatusEffectPrefab`의 `Stun` 분기**에서 프리팹 생성·초기화 연결(없으면 스턴이 리스트에 안 올라가 턴 스킵도 동작 안 함).  
+- 필요 시 `UseSkill` 런타임 적용.
+
+### 후속(기록만 · 미수정)
+- **빈 스킬 슬롯 호버**: 장착되지 않은 슬롯에 마우스를 올리면 부적절한 툴팁이 뜨는 경우가 있음(예: 스킬/상태이상 설명이 빈 슬롯에 매핑되어 “Stun”, “효과 설명 없음” 등 표시). → 빈 인덱스는 호버·패널 갱신을 스킵하거나 전용 빈 슬롯 UI로 분기할 것.
+
+---
+
+## 2026-04-04 — 기절(스턴) 토큰·턴 연동·UI·모션·스탯 API 정리
+
+### 데이터
+- `EnemyMobSkills.xml` / `PlayerSkills.xml`: 기절 `023001`은 **토큰형**(XML에서 `Value`/`Duration` 생략 가능, `Chance`만 의미).
+- 테스트 스킬 `015055`(테스트 기절) 유지.
+
+### 런타임 — 기절 코어
+- `StatusEffectInstanceStun.cs`: 토큰 전용 인스턴스(지속턴 도트 루프 비참여).
+- `StatusEffectController`: `AddStunEffect`, `ConsumeOneStunEffect`, `HasStatusEffectType`에 스턴 분기.
+- `CharacterStats.AddStatusEffectPrefab` → `Stun` 시 위 경로로 적용.
+- `TurnManager`: 행동불가 시 토큰 소모 후 `EndTurn`(슬롯 코루틴·백업 `StartTurn` 모두).
+
+### 스탯 중심 턴 판정(리팩터)
+- `CharacterStats`: `IsCommandPhaseBlockedByStatus()`, `ConsumeStunTokenAfterForcedTurnSkip()` — 턴 스킵 판정·소모는 **컨트롤러 직접 호출 대신 이 API**만 사용.
+- `TurnManager`: `ShouldForceSkipTurnByStatus` 제거, 위 메서드로 통일.
+
+### UI
+- `VirtualMouse` / `VirtualMouseStEfPanel`: 스턴 호버 시 **수치 대신 설명 모드**(`useDescriptionInsteadOfNumbers`), SO `description` 없을 때 폴백 문구. 선택 필드 `descriptionBodyText`.
+- `VirtualMouse`: `StatusEffectInstanceStun` 추출·호버 분기, `GetComponentInParent` 정리.
+
+### 테스트 해금
+- `GameProgressManager.SetupTestInventory()` (`isTestMode`): `UnlockSkill("015055")` 추가.
+
+### 모션(기절 해제 타이밍 정합)
+- **스턴 유지 중**: 스킬 종료 `ResetMotion`으로 **스탠드**(피격 고정 제거).
+- **토큰 소모 순간**: `ApplyPostStunReleaseHitHold()` — Hit 스프라이트 + 흰색 유지.
+- **다음 본인 턴 시작**(`StartTurn` 직후): `ApplyPostStunTurnStartMotionRecover()` — 플래그 있으면 `ResetMotion`(스탠드). 재기절이면 복구 보류.
+- `DeathAction`에서 `pendingStandRecoverAfterStunConsume` 클리어.
+
+### 프로그레스 / 설계 메모(대화 정리)
+- KDP: `TakeDamage` 누적은 있으나 `MaxKDP` 미설정 XML 다수·`TriggerKnockdown()` 비어 있음 → **스턴 연동 미완**.
+- 향후: `CharacterStats` 단일 `Recompute`·KDP→행동불가, `StatusEffectSlot` 기절 레이아웃/정산 연출, 스냅샷에 상태이상, 빈 슬롯 호버·**기본 스킬 깔기** 등은 후속.
+- 연출 아이디어: 캐릭터 가운데 **제어계 전용 아이콘**(기절 등) 보조 표시는 선택.
+
+### 확인
+- 에디터에서 `023001` SO 또는 `stunEffectPrefab`·`StatusEffectInstanceStun` 프리팹 연결 필수.
+
+---
+
+## 2026-04-05 — 가상마우스 스킬 패널·캔버스 가시성·적 AI 생존 검사
+
+### VirtualMouse / 스킬 인포 패널
+- **`VirtualMouseUIPanel.SetVisible`**: `isVisible == visible`만 보고 조기 return 하면, 자식이 `SetActive`만 썼을 때 **실제 비활성인데 true로 간주**해 패널이 다시 안 켜지는 문제 → `gameObject.activeSelf == visible`까지 같이 검사.
+- **`VirtualMouseSkillPanel`**: 패널 켜기/끄기를 `SetVisible(true/false)`로 통일(초기화·리셋·호버 진입·종료).
+- **`ShowPanel` / `HidePanel`**: 동일한 `isVisible`·`activeSelf` 불일치 방지.
+- **배경 색**: `Color * float`가 알파까지 깎던 문제 이후, **런타임에서 배경 Image 덮어쓰기 제거** — 배경은 씬/프리팹 인스펙터만 사용.
+- **검진 메모**: 빈 슬롯 호버에도 툴팁이 뜨는 이유 — `SkillSlot.GetSkillData()`는 **`currentSkillID` + `skillDict`** 기준이라 `currentSkillBlock`이 None이어도 ID만 있으면 표시됨(`Initialize`/`SetSkill` 등).
+
+### 스킬 패널이 안 보이던 원인(씬·런타임)
+- **`SampleScene` `VirtualMouse` 루트 `RectTransform.localScale` (0,0,0)** → 자식 전체가 사실상 안 그려짐 → **(1,1,1)로 수정**.
+- **`VirtualMouseCanvas`**: `HealVirtualMouseVisibility()` — 루트·**자손 중 localScale 정확히 (0,0,0)** 인 RectTransform을 (1,1,1)로 복구, 루트 `CanvasGroup.alpha` 1.
+- **`EnsureVisibleAfterWorldMapLoad()`**: `SampleScene` 로드 시 `GameManager.HandleSceneLoaded`에서 `DismissAllHoverUi` 뒤 호출 — DDOL이라 `Start`가 다시 안 돌 때도 초기화 루틴 재실행.
+- **스냅샷**: `BattleSnapshotManager`는 유닛 수치만 다루며 **UI/VirtualMouse와 무관** — 월드맵 복귀 시 문제 원인으로는 비해당(주석으로 명시).
+
+### 전투 — 적 AI
+- **`CharacterStats.IsCombatCapable()`**: `gameObject` 유효 + `IsActive` + `!IsDead` + `Hp > 0`.
+- **`TurnManager.ProcessStatusEffectsWithAnimation`**: 적 턴에서 `EnemyActionRoutine` 시작 **직전** `IsCombatCapable()` 및 `EnemyAIController` 존재 확인, 실패 시 `AdvanceTurn`.
+- **`EnemyAIController.EnemyActionRoutine`**: 진입 시·**0.8초 대기 후**·**스킬 사용 직전** 재검사; 생존 불가 시 `EndTurn()` 후 중단 — **죽어가는(빈사) 구간에서 턴이 넘어가기 전 공격** 방지.
+
+### 확인(테스트 중)
+- 월드맵 복귀 후 스킬 호버·패널 표시, 전투 중 적 턴 빈사/사망 경계.
+
+---
+
+## 2026-04-06 — KDP/넉다운·가상마우스·광역 버프·OpeningBuff AI·반사(리액션) 설계
+
+### KDP 런타임 → `CharacterStats`
+- **`KnockdownBuildup`** (`CharacterStats` 공개 필드, 인스펙터 표시): 전투 누적. 한도만 `data.MaxKDP`(XML).
+- **`TakeDamage`**: `data.KDP` 대신 `KnockdownBuildup` 증가·한도 시 `TriggerKnockdown()` 후 0 리셋.
+- **`SetData`**: `KnockdownBuildup = 0`, 공유 `CharacterData` 오염 방지용 `data.KDP = 0` 유지.
+- **`BattleSnapshotManager`**: 스냅샷 `kdp` ↔ `KnockdownBuildup`(적만).
+
+### KDP 턴 감쇠
+- **`DecayKnockdownBuildupAtTurnStart()`**: 적·`MaxKDP>0`·누적>0일 때 **자기 턴 시작(`StartTurn`) 직후** `KnockdownBuildup /= 2`(내림). 로그 `[KDP]`.
+
+### AttackType / 넉다운 배율
+- **`TakeDamage`**: `AttackType`이 **none·null·공백**이면 KDP에 **`KnockdownMultiplier` 무관 1배** (`IsKnockdownAttackTypeNone`).
+- **`SkillLoader`**: `ParseAttackTypeFromElement` — **태그 없음 → null**(부모 상속), **빈 태그 → `none`**. 최종 `skillDict` 등록 전 `NormalizeAttackType`(null/공백 → `none`).
+- **`OverrideSkill`**: `AttackType != null`일 때만 덮어쓰기(자식에서 태그 생략 시 부모 유지).
+- **`SkillData`**: `AttackType` 주석 갱신(상속·최종 none 규칙).
+
+### 붕괴·빈사·타겟(이전 세션 연속 반영 요약)
+- 붕괴: `CollapseChance`≤50% 시 판정 문턱 절반; 주사위 **난수 2회 max**로 완화.
+- **`Deathcheck(allowAllyCollapseDiceRoll)`**: 아군 붕괴 주사위는 **피해 경로만 true**(`TakeDamage`, 도트 `BattleUIManager`, `StatusEffectSlot`). 턴 정산 등은 false.
+- **`ApplyNearDeathDamagePressureForCollapse`**: 빈사 유지 중 추가 피해 시 `CollapseChance`만 +0.08(배율 상수).
+- **`TurnManager`**: 플레이어 빈사는 정산 직후 턴 강제 종료 제외(`ShouldAbortTurnAfterStatusSettlement`).
+- **`TargetSelector`**: `Hp≤0`도 **`!IsDead`면 선택 가능**(빈사 케어).
+- **`VirtualMouse` / `VirtualMouseWorldObject`**: 넉다운 슬롯 **호버·팝업 제외**.
+
+### 후속(메모)
+- KDP/넉다운 **인게임 UI·게이지**는 여전히 없음(인스펙터·로그 위주).
+- `AttackType` 물리/마법 세분 타입별 `KnockdownMultiplier` 테이블화는 미정.
+
+### 넉다운 즉시 피격 모션·`SkillManager` 정합
+
+#### 의도
+- **넉다운(023002)만** 프리팹이 붙는 순간 “맞고 쓰러짐”이 보이게. **기절**은 예전과 같이 **행동불가 턴 스킵으로 토큰이 빠질 때** `ApplyPostStunReleaseHitHold`가 돌아가는 흐름 유지(부착 직시에는 모션 안 건드림).
+
+#### 구현 요약
+- `StatusEffectController.AddKnockdownEffect` 마지막에 `CharacterStats.ApplyImmediateKnockdownHitFeedback()` → 내부 `ApplyHitHoldPendingStandRecover()` (`pendingStandRecoverAfterStunConsume` + `CharacterMotionController.ApplyPostStunReleaseHitHold`).
+- `SkillManager`: 연출 끝 타겟 `ResetMotion()`이 **위 즉시 피격을 Stand로 지우던 것**이 핵심 원인 → `ResetTargetMotionAfterSkillUnlessKnockdown()` 추가. **넉다운 토큰이 있을 때만** `ApplyPostStunReleaseHitHold`, 아니면 기존 `ResetMotion`. 경로: `PlaySkillEffect`, `PlayRangeSkillEffect`, `PlayAllAttackEffect`의 타겟 처리.
+- `CharacterMotionController.ApplyPostStunReleaseHitHold` 주석: 넉다운 부착 직시(코드 경유) + 기절/넉다운 토큰 소모 직후 용도.
+
+#### 작업 중 실수·되돌림 (본인 정리)
+- **“스턴이랑 적용을 똑같이 하면 문제 없겠지”**라고 판단해, 넉다운 **즉시 피격**과 `SkillManager` 쪽 예외 처리를 **한번 싹 되돌림** → 화면에서는 여전히 **턴이 넘어가며 토큰 소모될 때만** 모션이 바뀌는 것처럼 보였음(즉시 피드백이 사라진 상태).
+- 그때 **“피격 모션이 없어서 안 된다”**고 생각했던 부분도 있었는데, 원인은 **코드만이 아니라** (1) 위 `ResetMotion` 덮어쓰기, (2) 캐릭터별 **`Resources` 쪽 `Hit` 스프라이트 미배치**가 겹칠 수 있음 — 리소스 경로 `UnitSprite/{Sprite}/Hit` 존재 여부는 별도 확인.
+- 이후 **즉시 피격을 다시 켠 뒤**, **기절에도 동일 적용**했다가 디자인상 **넉다운만 빠른 피드백**이 맞다고 해서 `AddStunEffect` 쪽 즉시 호출은 제거하고, API도 **`ApplyImmediateKnockdownHitFeedback`**(넉다운 전용 명칭)으로 정리.
+
+#### 확인 메모
+- KDP로 넉다운이 붙은 직후·스킬 연출이 끝난 뒤에도 피격 자세가 유지되는지, 다음 본인 턴 `ApplyPostStunTurnStartMotionRecover`와 충돌 없는지 플레이로 재확인 권장.
+
+### VirtualMouse — 스킬 슬롯 호버 경로 정리
+- 호버는 **`SkillInstance` / `SkillBlock`** 기준으로만 스킬 정보 패널을 띄우기로 정리. **`SkillSlot`을 통한 간접 감지**는 제거(빈 슬롯이 슬롯만 잡히던 문제·설계 의도 불일치 정리).
+- 제거된 참고 지점: `DetectHoveredObject`의 `SkillSlot` 분기, `DetermineTargetPanel`의 `SkillSlot` 조건, `GetSkillDataFromObject`의 `SkillSlot.GetSkillData()` 조회.
+- **보류 아이디어**: 빈 슬롯에서도 의미 있게 보이게 하려면 추후 **슬롯별 디폴트 스킬 ID fallback** 검토. (복원 시에는 위 지점 + **`skillData == null`이면 패널 미표시** 가드 절충 가능.)
+
+### 광역 버프(`AllAllies` 등) 연출
+- `Buff` 타입이 `PlayAllTargetSkillEffect`에서 공격 광역 분기로 들어가 **피격 모션**이 나오던 문제 → `Buff` 전용 **`PlayAllBuffEffect`** 경로 추가(버프 모션 쪽으로 분기).
+
+### 테스트용 AI 패턴 `OpeningBuff`
+- **`PatternType.OpeningBuff`** (`CharacterLoader` enum), **`BattleManager.AssignAIComponent`**에서 `OpeningBuffEnemyAIController` 부착.
+- **첫 행동 1회**만 스킬 목록에서 `SkillType.Buff`·`IsUsable()`인 스킬을 우선 선택, 없으면 즉시 일반 랜덤과 동일하게 전환. 이후 턴부터는 랜덤.
+- **`ChooseTarget`**: 마지막 선택 스킬이 버프/힐이면 `Me`·`AllAllies`·`Ally`일 때 **자기 자신**으로 고정해 테스트 재현성 확보.
+- **`NamedCharacterCh1.xml`**: 모라(`001003`) `<Pattern>`을 **`OpeningBuff`**로 변경(테스트).
+
+### 반사·피해감소(리액션) 확장
+- **`StatusEffectData`**: `ReactionEffectMode`(무시/고정 반사/받은 피해 % 반사 등), `ReactionDamageReductionMode`(고정·% 감소), `reflectReducedAmountDirect`·`useReducedAmountAsReflectBase` 등 기획 플래그.
+- **`StatusEffectInstanceReaction.OnTakeDamage`**: 피해자 기준으로 감쇠 적용 후 반사량 계산, 공격자에게 `TakeDamage(..., owner, isReflectedDamage: true)`. **`isReflectedDamage`면 재진입 차단**으로 무한 루프 방지.
+- **`CharacterStats.TakeDamage`**: `attacker`·`isReflectedDamage` 인자 추가. 피해무시는 리액션이 `true` 반환 시 조기 종료.
+- **`CharacterStats.AddStatusEffectPrefab`**: 타입이 `Buff`이더라도 **`reactionMode` / `reductionMode`가 설정된 경우**에는 **`StatusEffectInstanceReaction`**으로 붙이도록 분기(반사는 `Buff` 인스턴스만으로는 `OnTakeDamage`가 없음).
+- **`StatusEffectInstanceBuff`**: 일부 스탯이 `float`인데 `int`로 캐스트하던 부분에서 **`InvalidCastException`** → 필드 타입에 맞게 반영하도록 수정.
+- **`maxTriggerCount`**: `0`은 **횟수 무제한**으로 취급. `triggerCount == 0` 일괄 차단 가드는 **`maxTriggerCount > 0`일 때만** 적용하도록 수정.
+
+### 데이터·테스트 해금(당일 작업 맥락)
+- **`EnemyMobSkills.xml`**: `010015`·`010016` 광역 버프 형태로 조정, **`GameProgressManager.SetupTestInventory`**에서 해당 스킬 임시 해금(번호는 세션 중 `011003` 등과 바꿔가며 검증).
+- **`BossSkills.xml`**: `011005` 자가 버프(효과·지속·밸류) 조정 시도.
+- **XML 수동 편집이 안 먹는 것처럼 보일 때**: 플레이 모드 캐시·상속 스킬·중복 ID·**세이브에 남은 해금 스킬** 등이 겹칠 수 있음 — 당일에도 `UnlockSkill`/세이브와 착시가 여러 번 이슈로 올라옴.
+
+### 미해결 / 다음에 볼 것
+- **반사 피해가 실제 전투에서 기대대로 들어가지 않는 현상** 남음(공격 경로에서 `attacker` 미전달·SO 설정·UI 표시 등 추가 확인 필요).
+
+---
+
+## 2026-04-07 — 저장 슬롯 정책 고정·힐 스킬 인포·주인공 보장 복구
+
+### 저장/로드 정책 정리 (재분리 방지)
+- `StageManager`의 스테이지 진행 저장 파일을 **슬롯 기준**으로 고정:
+  - `stage_progress_slot_{slot}.json`
+- `GameProgressManager.SetCurrentSlot()`에서 슬롯 전환 시
+  - `StageManager.LoadStageProgress()`를 즉시 호출하도록 연결.
+- 코드 주석으로 저장 방침 명시:
+  - 진행도는 슬롯 기준으로만 저장/로드
+  - `UserSettings`는 별도 저장소 유지
+  - 단일 공용 `stage_progress.json` 구조로 회귀 금지
+
+### UI 버그 수정 — 힐 스킬 값 미표시
+- 증상: 스킬 인포(`VirtualMouseSkillPanel`)에서 힐 스킬이 `-`로 보이며 값 반영이 안 됨.
+- 원인: 패널 수치 표시가 `DamageMin/Max`만 읽고 있었음.
+- 조치:
+  - 힐 타입(`SkillType.Heal` 또는 `HealMin/Max` 존재)일 때 `HealMin/HealMax`를 우선 표시하도록 수정.
+  - 비힐 스킬은 기존처럼 `DamageMin/DamageMax` 표시 유지.
+
+### 진행 불가 이슈 복구 — 주인공 `000001` 누락
+- 증상: 임시 캐릭터 지급 제거 후 주인공까지 빠져 진행 불가.
+- 조치:
+  - `GameProgressManager`에 `MAIN_CHARACTER_ID = "000001"` 상수 추가.
+  - `EnsureMainCharacterForSlot(slot, saveImmediately)` 추가:
+    - `unlockedCharacters`에 `000001` 강제 보장
+    - `characterInventory`에 `000001` 미존재 시 DB(`CharacterData.characterDict`)에서 복제 추가
+  - 적용 시점:
+    - `LoadGameProgress()` 직후 1차 보정
+    - `Initialize()`에서 2차 보정(데이터 로드 순서 이슈 대비)
+
+### 확인 메모
+- 린트는 신규 오류 없이, 기존 `BlessingManager` 미해결 참조 오류만 유지.
+- 다음 권장 보강:
+  - `RemoveCharacterFromInventory()`에서 `000001` 삭제 차단 가드 추가 검토.
+
+---
+
+## 2026-04-08 — 스킬 슬롯/쿨다운 버그 수정 + 도발·지목 우선순위 설계/구현
+
+### 전투/세팅 버그 수정
+- **스킬 재배치 중복 버그**
+  - 증상: 1번 슬롯 스킬을 3번으로 옮기면 전투 UI에서 동일 스킬이 중복으로 남는 현상.
+  - 원인: 이동 시 이전 슬롯 `currentSkillID` 정리가 누락.
+  - 조치: `SkillSlot.PlaceSkillBlock()`에서 이전 슬롯 참조/ID/UI/`SetPlayerSkill`을 먼저 비움 처리.
+
+- **빈 슬롯 기본기 보장 복구**
+  - 증상: 재배치 후 빈 칸이 전투로 전달되어 검은 원(빈 슬롯) 발생.
+  - 조치:
+    - `BattleSettingManager`에 기본기 배열 상수화(`010001~010004`) 및 `GetDefaultSkillForSlot()` 추가.
+    - 슬롯 제거/이동 시 빈 칸 대신 슬롯별 기본기로 즉시 복구.
+    - `SetPlayerSkill()`에서 빈 문자열 입력 시 기본기로 자동 치환.
+
+- **스킬 쿨다운 1턴 복귀 미동작**
+  - 증상: `Cooldown=1` 스킬 사용 후 다음 자기 턴에도 계속 사용 불가.
+  - 원인: `CurrentCooldown` 증가만 있고 턴 시작 감소 루프 부재.
+  - 조치: `TurnManager.StartTurn()`에서 `TickSkillCooldownOnTurnStart()` 호출 추가(중복 ID는 1회만 감소).
+  - 보강: `SkillInstance.UseSkill()` 검증을 로컬 변수 대신 `skillData.IsUsable()` 기준으로 통일.
+
+### 상태이상/호버 점검
+- 넉다운 호버 차단 점검 결과:
+  - 코드상 넉다운(`StatusEffectInstanceKnockdown`)만 제외 처리.
+  - 단, 데이터 점검에서 `StatusEffect_023002_Knockdown.asset` 내부 `EffectID`가 `029001`로 불일치 상태를 확인(후속 정합 필요).
+
+### 데이터 수정
+- `EnemyMobSkills.xml`
+  - `010006(방어)`에 `021007` 효과 연결.
+  - 효과 형식을 상세형으로 변경:
+    - `EffectID=021007`, `Value=7`, `Duration=1`.
+
+### 도발/지목 시스템 확장 (튜토리얼 데이터 완결 대비)
+- **도발 기본 방향**
+  - 버프 기반 표식으로 처리.
+  - 일반 도발은 랜덤/광역 강제 보호를 하지 않도록 분기.
+  - 확장 도발(완전 보호형)은 체크박스로 켜는 구조 준비.
+
+- **`StatusEffectData` 확장**
+  - 도발/지목 관련 플래그 추가:
+    - `blockOtherAlliesAsTarget`
+    - `tauntAffectsRandomTargeting`
+    - `tauntProtectsAgainstAoE`
+    - `markPriorityTarget`
+    - `markDamageTakenMultiplier`(기본 1.1)
+
+- **AI 타겟 우선순위**
+  - `EnemyAIController` 공통 후보 필터에 우선순위 반영:
+    - `지목(mark) > 도발(taunt) > 기본 후보`
+  - `Default/Adelia/OpeningBuff` 타겟 선택 경로에 공통 필터 적용.
+  - 도발 다중 대상일 때는 각 AI 고유 로직(랜덤/주인공 보호/패턴 우선)으로 최종 선택.
+
+- **지목 피해 배율**
+  - `CharacterStats.TakeDamage()`에 지목 배율 적용 추가.
+  - `StatusEffectController.GetHighestMarkDamageTakenMultiplier()`로 대상의 지목 디버프 배율을 조회해 최종 피해에 반영.
+
+- **Debuff 프리팹 경로 정리**
+  - `StatusEffectType.Debuff`도 일반적으로 `AddBuffEffect` 경로 재사용하도록 연결.
+  - 리액션 설정이 있는 특수 케이스만 `AddReactionEffect`로 분기.
+
+### 결정/합의 메모
+- 유저 조작 타겟팅은 자유 유지(강제 차단 없음).
+- 도발은 장기적으로 확장 가능하되, 현재는 일반형(랜덤/광역 보호 없음) 기준.
+- 지목은 도발 파훼 + 장시간 디버프 컨셉(예: 5턴)으로 운용.

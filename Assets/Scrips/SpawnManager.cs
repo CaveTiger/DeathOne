@@ -26,8 +26,6 @@ public class SpawnManager : MonoBehaviour
 
     public GameObject enemyPrefab;   // 기본 적 프리팹
 
-    [SerializeField] private GameObject statusPopupPrefab;
-
     public string currentBlockID; // 현재 전투 중인 블록 ID
 
     private void Awake()

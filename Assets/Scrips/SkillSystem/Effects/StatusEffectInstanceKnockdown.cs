@@ -1,0 +1,38 @@
+using UnityEngine;
+
+/// <summary>
+/// KDP 넉다운(행동불가) 토큰: 기절과 동일하게 프리팹 1개 = 다음 본인 턴 1회 스킵 시 소모. 타입만 분리해 패시브·면역·UI를 구분 가능.
+/// </summary>
+public class StatusEffectInstanceKnockdown : MonoBehaviour
+{
+    [SerializeField] private StatusEffectData effectData;
+    public StatusEffectData EffectData => effectData;
+
+    public bool isActive = true;
+
+    public void Initialize(StatusEffectData data)
+    {
+        effectData = data;
+
+        var iconRenderer = GetComponent<SpriteRenderer>();
+        if (iconRenderer == null)
+            iconRenderer = GetComponentInChildren<SpriteRenderer>();
+        if (iconRenderer != null && data != null)
+        {
+            Sprite icon = data.GetIcon();
+            if (icon != null)
+                iconRenderer.sprite = icon;
+        }
+
+        Collider2D collider = GetComponent<Collider2D>();
+        if (collider == null)
+        {
+            var box = gameObject.AddComponent<BoxCollider2D>();
+            if (iconRenderer != null && iconRenderer.sprite != null)
+                box.size = iconRenderer.sprite.bounds.size;
+            else
+                box.size = new Vector2(0.5f, 0.5f);
+            box.isTrigger = true;
+        }
+    }
+}

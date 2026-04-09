@@ -1,5 +1,6 @@
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 // RewardManager 사용
 
@@ -53,19 +54,57 @@ public class GameManager : MonoBehaviour
         
         // 2. 기본 데이터 로딩이 끝난 후, 이 데이터를 사용하는 다른 매니저를 초기화합니다.
         GameProgressManager.Instance.Initialize();
+
+        // 유저 공용 설정(사운드 등) 초기 적용
+        if (UserSettingsManager.Instance != null)
+            UserSettingsManager.Instance.ApplySettingsToSoundManager();
+        else
+            Debug.LogWarning("[GameManager] UserSettingsManager.Instance가 없어 유저 설정 적용을 건너뜁니다.");
+    }
+
+    private void OnEnable()
+    {
+        SceneManager.sceneLoaded += HandleSceneLoaded;
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
+    }
+
+    private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name == "SampleScene")
+        {
+            SetCurrentScreenState(ScreenState.WorldMap);
+            
+            // 월드맵 복귀 = 체인 전투 끊김 → 턴 되돌리기 + 전투 종료 이어하기 스냅샷 모두 폐기
+            // 스냅샷은 CharacterStats 수치만 다루며 VirtualMouse/UI와 무관함
+            if (BattleSnapshotManager.Instance != null)
+                BattleSnapshotManager.Instance.ClearAllSnapshots();
+
+            if (VirtualMouse.Instance != null)
+                VirtualMouse.Instance.DismissAllHoverUi();
+
+            // DDOL VirtualMouseCanvas는 씬 재로드 시 Start가 다시 호출되지 않을 수 있음 → 스킬 인포 등 가시성 자가 복구
+            if (VirtualMouseCanvas.Instance != null)
+                VirtualMouseCanvas.Instance.EnsureVisibleAfterWorldMapLoad();
+        }
     }
 
     public void PauseGame()
     {
         Time.timeScale = 0f;
-        // 필요시: AudioListener.pause = true;
+        if (SoundManager.Instance != null)
+            SoundManager.Instance.SetPaused(true);
         Debug.Log("게임 일시정지");
     }
 
     public void ResumeGame()
     {
         Time.timeScale = 1f;
-        // 필요시: AudioListener.pause = false;
+        if (SoundManager.Instance != null)
+            SoundManager.Instance.SetPaused(false);
         Debug.Log("게임 재개");
     }
 

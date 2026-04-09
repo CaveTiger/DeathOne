@@ -7,16 +7,23 @@ using static UnityEngine.GraphicsBuffer;
 
 public abstract class EnemyAIController : MonoBehaviour
 {
+    [Header("AI 실패 복구")]
+    [SerializeField] private bool enableRetryOnSkillStartFailure = true;
+    [SerializeField, Range(1, 5)] private int maxSkillStartRetryCount = 2;
+    [SerializeField] private float retryDelaySeconds = 0.12f;
+    private string currentChosenSkillIdForTargeting;
 
     public IEnumerator EnemyActionRoutine(CharacterStats enemy)
     {
         Debug.Log($"[AI개선] EnemyActionRoutine 시작 - 적: {enemy?.Label}");
         float startTime = Time.realtimeSinceStartup;
         
-        if (enemy == null || enemy.Equals(null) || enemy.IsDead)
+        if (enemy == null || enemy.Equals(null) || !enemy.IsCombatCapable())
         {
-            Debug.Log("[AI개선] EnemyActionRoutine - 적이 null이거나 사망 상태");
-            yield break; // 이미 파괴된 대상이면 행동 중단
+            Debug.Log("[AI개선] EnemyActionRoutine - 적이 null이거나 생존 행동 불가");
+            if (enemy != null && TurnManager.Instance != null)
+                TurnManager.Instance.EndTurn();
+            yield break;
         }
 
         Debug.Log("[AI개선] EnemyActionRoutine - 턴 시작 전 0.8초 대기 시작");
@@ -31,6 +38,14 @@ public abstract class EnemyAIController : MonoBehaviour
         }
         Debug.Log("[AI개선] EnemyActionRoutine - 턴 시작 전 0.8초 대기 완료");
 
+        if (enemy == null || enemy.Equals(null) || !enemy.IsCombatCapable())
+        {
+            Debug.Log("[AI개선] EnemyActionRoutine - 대기 후 생존 행동 불가, 턴 종료");
+            if (TurnManager.Instance != null)
+                TurnManager.Instance.EndTurn();
+            yield break;
+        }
+
         var ai = enemy.GetComponent<EnemyAIController>();
         if (ai == null)
         {
@@ -38,35 +53,72 @@ public abstract class EnemyAIController : MonoBehaviour
             yield break;
         }
 
-        // 1. 스킬 선택
-        Debug.Log("[AI개선] EnemyActionRoutine - 스킬 선택 시작");
-        string skillID = ai.ChooseSkillID();
-        if (string.IsNullOrEmpty(skillID))
+        // 1~3. 스킬 선택/타겟 선택/사용 시도 (실패 시 같은 턴에서 재시도)
+        bool actionStarted = false;
+        int retryLimit = enableRetryOnSkillStartFailure ? Mathf.Max(1, maxSkillStartRetryCount) : 1;
+        for (int attempt = 1; attempt <= retryLimit; attempt++)
         {
-            Debug.LogWarning($"[AI ERROR] {enemy.name} 스킬 선택 실패");
+            // 1) 스킬 선택
+            Debug.Log($"[AI개선] EnemyActionRoutine - 스킬 선택 시작 (시도 {attempt}/{retryLimit})");
+            string skillID = ai.ChooseSkillID();
+            if (string.IsNullOrEmpty(skillID))
+            {
+                Debug.LogWarning($"[AI ERROR] {enemy.name} 스킬 선택 실패 (시도 {attempt}/{retryLimit})");
+                if (attempt < retryLimit)
+                {
+                    if (retryDelaySeconds > 0f) yield return new WaitForSeconds(retryDelaySeconds);
+                    continue;
+                }
+                break;
+            }
+            currentChosenSkillIdForTargeting = skillID;
+
+            // 2) 타겟 선택
+            var targets = TurnManager.Instance.allSlots
+                .Where(s => s.currentCharacter != null && s.currentCharacter.IsPlayer && !s.currentCharacter.IsDead)
+                .Select(s => s.currentCharacter)
+                .ToList();
+
+            CharacterStats target = ai.ChooseTarget(targets);
+            if (target == null)
+            {
+                Debug.LogWarning($"[AI ERROR] {enemy.name} 타겟 선택 실패 (시도 {attempt}/{retryLimit}, skill={skillID})");
+                if (attempt < retryLimit)
+                {
+                    if (retryDelaySeconds > 0f) yield return new WaitForSeconds(retryDelaySeconds);
+                    continue;
+                }
+                break;
+            }
+
+            if (enemy == null || enemy.Equals(null) || !enemy.IsCombatCapable())
+            {
+                Debug.Log("[AI개선] EnemyActionRoutine - 시전 직전 생존 행동 불가, 턴 종료");
+                if (TurnManager.Instance != null)
+                    TurnManager.Instance.EndTurn();
+                yield break;
+            }
+
+            // 3) 스킬 사용
+            Debug.Log($"[AI개선] EnemyActionRoutine - 스킬 사용 시작 (시도 {attempt}/{retryLimit}, skill={skillID}, target={target.Label})");
+            actionStarted = ai.UseSkill(skillID, enemy, target);
+            if (actionStarted)
+                break;
+
+            Debug.LogWarning(
+                $"[AI개선] EnemyActionRoutine - 스킬 시작 실패 (시도 {attempt}/{retryLimit}, skill={skillID}, " +
+                $"reason={SkillManager.LastUseSkillFailureReason}, detail={SkillManager.LastUseSkillFailureDetail})");
+            if (attempt < retryLimit && retryDelaySeconds > 0f)
+                yield return new WaitForSeconds(retryDelaySeconds);
+        }
+
+        if (!actionStarted)
+        {
+            Debug.LogError($"[AI개선] EnemyActionRoutine - 재시도 후에도 스킬 시작 실패, 턴 종료: {enemy?.Label}");
+            if (TurnManager.Instance != null)
+                TurnManager.Instance.EndTurn();
             yield break;
         }
-        Debug.Log($"[AI개선] EnemyActionRoutine - 선택된 스킬: {skillID}");
-
-        // 2. 타겟 리스트 준비 (턴 매니저에서 플레이어들 리스트 넘겨줘야 함)
-        Debug.Log("[AI개선] EnemyActionRoutine - 타겟 선택 시작");
-        var targets = TurnManager.Instance.allSlots
-            .Where(s => s.currentCharacter != null && s.currentCharacter.IsPlayer && !s.currentCharacter.IsDead)
-            .Select(s => s.currentCharacter)
-            .ToList();
-
-        CharacterStats target = ai.ChooseTarget(targets);
-        if (target == null)
-        {
-            Debug.LogWarning($"[AI ERROR] {enemy.name} 타겟 선택 실패");
-            TurnManager.Instance.EndTurn();
-            yield break;
-        }
-        Debug.Log($"[AI개선] EnemyActionRoutine - 선택된 타겟: {target.Label}");
-
-        // 3. 스킬 사용
-        Debug.Log("[AI개선] EnemyActionRoutine - 스킬 사용 시작");
-        ai.UseSkill(skillID, enemy, target);
 
         Debug.Log("[AI개선] EnemyActionRoutine - 행동 후 0.5초 대기 시작");
         // 턴 전환 스킵 시스템 사용
@@ -98,7 +150,114 @@ public abstract class EnemyAIController : MonoBehaviour
     /// </summary>
     public abstract CharacterStats ChooseTarget(List<CharacterStats> players);
 
+    /// <summary>
+    /// 타겟 우선 규칙:
+    /// - 1순위: 지목형 디버프 대상(도발보다 우선)
+    /// - 2순위: 도발 표식 버프 대상
+    /// - 없으면 기존 후보 유지
+    /// </summary>
+    protected List<CharacterStats> ApplyTauntPriorityCandidates(List<CharacterStats> candidates)
+    {
+        if (candidates == null || candidates.Count == 0)
+            return candidates;
 
+        bool isRandomTargetSkill = false;
+        bool isAreaLikeSkill = false;
+        if (!string.IsNullOrEmpty(currentChosenSkillIdForTargeting)
+            && SkillData.skillDict.TryGetValue(currentChosenSkillIdForTargeting, out var chosenSkill)
+            && chosenSkill != null)
+        {
+            switch (chosenSkill.TargetType)
+            {
+                case SkillTargetType.RandomEnemy:
+                case SkillTargetType.RandomAlly:
+                case SkillTargetType.RandomTarget:
+                    isRandomTargetSkill = true;
+                    break;
+            }
+
+            switch (chosenSkill.TargetType)
+            {
+                case SkillTargetType.AllAllies:
+                case SkillTargetType.AllEnemies:
+                case SkillTargetType.AllUnits:
+                case SkillTargetType.Adjacent:
+                case SkillTargetType.SelfAndAdjacent:
+                case SkillTargetType.AdjacentArea:
+                case SkillTargetType.SelfAndAdjacentArea:
+                    isAreaLikeSkill = true;
+                    break;
+            }
+        }
+
+        var markTargets = candidates
+            .Where(c => c != null && !c.IsDead && HasMarkPriorityDebuff(c))
+            .ToList();
+
+        if (markTargets.Count > 0)
+        {
+            Debug.Log($"[AI Mark] 지목 대상 우선 적용: {markTargets.Count}명");
+            return markTargets;
+        }
+
+        var tauntTargets = candidates
+            .Where(c => c != null && !c.IsDead && HasTauntLikeMarker(c))
+            .ToList();
+
+        if (isRandomTargetSkill && tauntTargets.Count > 0)
+        {
+            bool allowTauntOnRandom = tauntTargets.Any(HasTauntRandomOverride);
+            if (!allowTauntOnRandom)
+                return candidates; // 일반 도발은 랜덤 타겟에 영향 없음
+        }
+
+        if (isAreaLikeSkill && tauntTargets.Count > 0)
+        {
+            bool allowTauntOnArea = tauntTargets.Any(HasTauntAoEOverride);
+            if (!allowTauntOnArea)
+                return candidates; // 일반 도발은 광역/범위 타겟에 영향 없음
+        }
+
+        if (tauntTargets.Count > 0)
+        {
+            Debug.Log($"[AI Taunt] 도발 대상 우선 적용: {tauntTargets.Count}명");
+            return tauntTargets;
+        }
+
+        return candidates;
+    }
+
+    private static bool HasTauntLikeMarker(CharacterStats target)
+    {
+        if (target == null) return false;
+        var controller = target.GetComponent<StatusEffectController>();
+        if (controller == null) return false;
+        return controller.HasAllyTargetBlockByBuff();
+    }
+
+    private static bool HasMarkPriorityDebuff(CharacterStats target)
+    {
+        if (target == null) return false;
+        var controller = target.GetComponent<StatusEffectController>();
+        if (controller == null) return false;
+        return controller.HasMarkPriorityDebuff();
+    }
+
+    private static bool HasTauntRandomOverride(CharacterStats target)
+    {
+        if (target == null) return false;
+        var controller = target.GetComponent<StatusEffectController>();
+        if (controller == null) return false;
+        return controller.HasTauntAffectsRandomTargeting();
+    }
+
+    private static bool HasTauntAoEOverride(CharacterStats target)
+    {
+        if (target == null) return false;
+        var controller = target.GetComponent<StatusEffectController>();
+        if (controller == null) return false;
+        return controller.HasTauntProtectsAgainstAoE();
+    }
 
     /// <summary>
     /// 주인공 연속 공격 방지 시스템
@@ -188,7 +347,7 @@ public abstract class EnemyAIController : MonoBehaviour
         PlayerPrefs.SetInt("MainCharacterConsecutiveAttacks", 0);
     }
     
-    public void UseSkill(string skillID, CharacterStats caster, CharacterStats target)
+    public bool UseSkill(string skillID, CharacterStats caster, CharacterStats target)
     {
         Debug.Log($"[AI개선] UseSkill 시작 - 스킬: {skillID}, 시전자: {caster?.Label}, 타겟: {target?.Label}");
         float startTime = Time.realtimeSinceStartup;
@@ -196,25 +355,28 @@ public abstract class EnemyAIController : MonoBehaviour
         if (caster == null || !caster.IsMyTurn)
         {
             Debug.LogWarning("[UseSkill] 지금은 내 턴이 아닙니다. 스킬 발동 중지.");
-            return;
+            return false;
         }
         if (!SkillData.skillDict.TryGetValue(skillID, out var skill))
         {
             Debug.LogWarning($"[AI] 존재하지 않는 스킬 ID: {skillID}");
-            return;
+            return false;
         }
 
         if (target == null)
         {
             Debug.LogWarning("[UseSkill] 타겟이 없습니다. 스킬 발동 중지.");
-            return;
+            return false;
         }
 
         Debug.Log("[AI개선] UseSkill - SkillManager.UseSkill 호출");
-        SkillManager.Instance.UseSkill(skill, caster, target, skill);
+        bool started = SkillManager.Instance.UseSkill(skill, caster, target, skill);
+        if (!started)
+            Debug.LogWarning($"[AI개선] UseSkill - 스킬 시작 실패: {skillID}, type={skill.Type}, targetType={skill.TargetType}, target={target.Label}, caster={caster.Label}, reason={SkillManager.LastUseSkillFailureReason}, detail={SkillManager.LastUseSkillFailureDetail}");
         
         float endTime = Time.realtimeSinceStartup;
         Debug.Log($"[AI개선] UseSkill 완료 - 소요시간: {(endTime - startTime) * 1000:F2}ms");
+        return started;
     }
 
     public void SkipTurn()

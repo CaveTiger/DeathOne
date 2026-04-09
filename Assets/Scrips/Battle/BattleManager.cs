@@ -164,16 +164,19 @@ public class BattleManager : MonoBehaviour
         if (sprite != null)
             sprite.gameObject.tag = "Enemy";
 
+        var unit = obj.GetComponent<CharacterStats>();
+        if (unit != null)
+            unit.IsPlayer = false;
+
         // 패턴에 따라 AI 컴포넌트 할당
         if (obj.GetComponent<EnemyAIController>() == null)
         {
-            var characterStats = obj.GetComponent<CharacterStats>();
-            if (characterStats != null)
+            if (unit != null)
             {
-                characterStats.SetData(data);
+                unit.SetData(data);
                 
                 // 패턴에 따라 다른 AI 컴포넌트 할당
-                AssignAIComponent(obj, characterStats);
+                AssignAIComponent(obj, unit);
             }
             else
             {
@@ -183,11 +186,8 @@ public class BattleManager : MonoBehaviour
             }
         }
 
-        var unit = obj.GetComponent<CharacterStats>();
         if (unit != null)
         {
-            unit.IsPlayer = false;
-            // SetData는 AI 할당 부분에서 이미 호출됨
             obj.transform.localScale = Vector3.one * data.Scale;
             allCharacters.Add(unit);
             // 보상용 enemyID 저장
@@ -265,6 +265,16 @@ public class BattleManager : MonoBehaviour
         SetupStageReward();
         
         SpawnAllUnits();
+
+        // 월드맵을 거치지 않고 연속 전투일 때만 남아 있음: 직전 전투 종료 시 캡처한 HP 등을 한 번 복원
+        if (BattleSnapshotManager.Instance != null)
+        {
+            if (BattleSnapshotManager.Instance.TryRestoreBattleEndSnapshot(allCharacters))
+            {
+                BattleSnapshotManager.Instance.ClearBattleEndSnapshot();
+            }
+        }
+
         CreateAllSkillButtons(allCharacters.Where(c => c.IsPlayer).ToList());
         
         // 축복 효과 적용 (1번 슬롯 주인공에게만)
@@ -379,7 +389,12 @@ public class BattleManager : MonoBehaviour
 
         if (BattleSnapshotManager.Instance != null)
         {
-            BattleSnapshotManager.Instance.CaptureBattleEndSnapshot(allCharacters);
+            // 연속 전투 이어하기: 승리 종료 시에만 종료 스냅샷 저장 → 다음 StartBattle에서 복원.
+            // 패배 시에는 복원하면 0 HP 등이 그대로 이어지므로 battleEnd만 비움(턴 히스토리는 별도).
+            if (isVictory)
+                BattleSnapshotManager.Instance.CaptureBattleEndSnapshot(allCharacters);
+            else
+                BattleSnapshotManager.Instance.ClearBattleEndSnapshot();
         }
 
         SavePartyStatusToStageSetting();
@@ -581,6 +596,14 @@ public class BattleManager : MonoBehaviour
             case PatternType.Adelia:
                 obj.AddComponent<AdeliaEnemyAIController>();
                 Debug.Log($"[BattleManager] {characterStats.Label}에 AdeliaEnemyAIController 할당");
+                break;
+            case PatternType.OpeningBuff:
+                obj.AddComponent<OpeningBuffEnemyAIController>();
+                Debug.Log($"[BattleManager] {characterStats.Label}에 OpeningBuffEnemyAIController 할당");
+                break;
+            case PatternType.OpeningHeal:
+                obj.AddComponent<OpeningHealEnemyAIController>();
+                Debug.Log($"[BattleManager] {characterStats.Label}에 OpeningHealEnemyAIController 할당");
                 break;
             default:
                 obj.AddComponent<DefaultEnemyAIController>();

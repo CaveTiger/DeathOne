@@ -11,7 +11,11 @@
 		</SkillEffect>
 		<SkillTarget>Enemy</SkillTarget>
 		<Motion>Attack</Motion>
+		<!-- 주인공 영체 연출용(코드 연동 전 메모): GhostSpritePath가 비어있지 않으면 영체 연출 사용 -->
+		<GhostSpritePath>UnitSprite/Adelia/Attack</GhostSpritePath>
+		<GhostProxyScale>0.8</GhostProxyScale>
 		<AttackPoint>Body</AttackPoint>
+		<AttackType>Cut</AttackType>
 		<AttackEffect>Cut</AttackEffect>
 		<ActiveCount>None</ActiveCount>
 		<ManaCost>0</ManaCost>
@@ -21,8 +25,8 @@
 	<Skill ID ="011002" ParentID="010000">
 		<Name>버서크 임펙트</Name>
 		<Icon>SkillIcon/010002</Icon>
-		<DamageMin>80</DamageMin> <!--게임오버 테스트용으로 데미지 대폭 상승 (원래값: 25)-->
-		<DamageMax>120</DamageMax> <!--원래값: 40-->
+		<DamageMin>25</DamageMin> 
+		<DamageMax>40</DamageMax> 
 		<SkillEffect>
 			<li>
 				<EffectID>022001</EffectID> <!-- 체력 10% 감소 -->
@@ -33,6 +37,7 @@
 		<SkillTarget>Enemy</SkillTarget>
 		<Motion>Attack</Motion>
 		<AttackPoint>Body</AttackPoint>
+		<AttackType>Cut</AttackType>
 		<AttackEffect>Cut</AttackEffect>
 		<ActiveCount>None</ActiveCount>
 		<ManaCost>0</ManaCost>
@@ -68,6 +73,7 @@
 		<SkillTarget>AllEnemy</SkillTarget>
 		<Motion>DownAttack</Motion>
 		<AttackPoint>Body</AttackPoint>
+		<AttackType>Blunt</AttackType>
 		<AttackEffect>Blunt</AttackEffect>
 		<ActiveCount>None</ActiveCount>
 		<ManaCost>2</ManaCost>

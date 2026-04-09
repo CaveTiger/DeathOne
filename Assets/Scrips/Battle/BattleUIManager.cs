@@ -22,7 +22,9 @@ public class BattleUIManager : MonoBehaviour
     [Header("상태이상 UI 관리")]
     [SerializeField] private Transform stEfUI; // 상태이상 UI 루트 오브젝트 (UI 하위의 StEfUI)
     [SerializeField] private GameObject statusEffectDamagePrefab; // 상태이상 대미지 프리팹 (아이콘 + 대미지 통합)
-    [SerializeField] private float statusEffectPopupDelay = 0.5f; // 상태이상 피해 팝업 간격 (초)
+    [SerializeField] private float statusEffectPopupDelay = 0.06f; // 상태이상 피해 팝업 간격 (초)
+    [SerializeField] private float postStatusPopupSettleDelay = 0.03f; // 모든 팝업 처리 후 추가 안정화 대기
+    [SerializeField] private float maxStatusPopupWaitSeconds = 0.20f; // 턴 진행을 막는 최대 대기 상한
 
     // 상태이상 피해 팝업 큐
     private Queue<StatusEffectPopupData> statusEffectPopupQueue = new Queue<StatusEffectPopupData>();
@@ -33,13 +35,17 @@ public class BattleUIManager : MonoBehaviour
     /// </summary>
     public IEnumerator WaitForStatusEffectPopupsToComplete()
     {
+        float start = Time.realtimeSinceStartup;
         while (isProcessingStatusEffectPopups || statusEffectPopupQueue.Count > 0)
         {
+            if (Time.realtimeSinceStartup - start >= maxStatusPopupWaitSeconds)
+                yield break;
             yield return null;
         }
         
-        // 모든 팝업 애니메이션이 완료될 때까지 추가 대기 (0.75초 = 애니메이션 지속시간)
-        yield return new WaitForSeconds(0.75f);
+        // 턴 템포 저하를 막기 위해 추가 대기는 짧게 유지
+        if (postStatusPopupSettleDelay > 0f)
+            yield return new WaitForSeconds(postStatusPopupSettleDelay);
     }
 
     // 상태이상 피해 팝업 데이터 구조
@@ -98,6 +104,9 @@ public class BattleUIManager : MonoBehaviour
         SetCanvasGroupAlpha(uiAllCanvasGroup, 1f);
         SetCanvasGroupAlpha(battleUICanvasGroup, 0f);
         IsInBattleMode = false; // 전투 모드 비활성화
+
+        if (VirtualMouse.Instance != null)
+            VirtualMouse.Instance.DismissAllHoverUi();
     }
 
     private void SetCanvasGroupAlpha(CanvasGroup cg, float alpha)
@@ -224,16 +233,29 @@ public class BattleUIManager : MonoBehaviour
                 continue;
             }
             
-            // 체력 감소 (팝업 표시와 동시에)
-            popupData.owner.Hp -= popupData.damage;
-            popupData.owner.Hp = Mathf.Max(0, popupData.owner.Hp);
-            Debug.Log($"[StatusEffect] {popupData.owner.Label}: {popupData.effectData?.effectName} 지속 피해 {popupData.damage}, 남은 HP: {popupData.owner.Hp}");
-            
-            // 체력바 업데이트
-            if (popupData.owner.HpUI != null)
+            // 양수는 지속 피해, 음수는 지속 회복으로 해석한다.
+            if (popupData.damage > 0)
             {
-                popupData.owner.HpUI.UpdateHpBar(popupData.owner.Hp, popupData.owner.MaxHp);
+                int hpBeforeDot = popupData.owner.Hp;
+                popupData.owner.Hp -= popupData.damage;
+                popupData.owner.Hp = Mathf.Max(0, popupData.owner.Hp);
+                popupData.owner.ApplyNearDeathDamagePressureForCollapse(hpBeforeDot, popupData.damage);
+                Debug.Log($"[StatusEffect] {popupData.owner.Label}: {popupData.effectData?.effectName} 지속 피해 {popupData.damage}, 남은 HP: {popupData.owner.Hp}");
             }
+            else if (popupData.damage < 0)
+            {
+                int healAmount = Mathf.Abs(popupData.damage);
+                popupData.owner.Heal(healAmount);
+                Debug.Log($"[StatusEffect] {popupData.owner.Label}: {popupData.effectData?.effectName} 지속 회복 {healAmount}, 현재 HP: {popupData.owner.Hp}");
+            }
+            else
+            {
+                Debug.Log($"[StatusEffect] {popupData.owner.Label}: {popupData.effectData?.effectName} 효과값 0 (체력 변동 없음)");
+            }
+            
+            // 체력바 업데이트(Heal 내부에서도 갱신하지만, 피해 경로 통일성을 위해 한 번 더 보장)
+            if (popupData.owner.HpUI != null)
+                popupData.owner.HpUI.UpdateHpBar(popupData.owner.Hp, popupData.owner.MaxHp);
             
             // 실제 팝업 생성
             CreateStatusEffectDamagePopupInternal(popupData.position, popupData.damage, popupData.effectData, popupData.effectValue);
@@ -247,18 +269,18 @@ public class BattleUIManager : MonoBehaviour
             
             lastOwner = popupData.owner;
             
-            // 다음 팝업까지 대기 (0.5초)
+            // 다음 팝업까지 대기 (짧은 간격)
             yield return new WaitForSeconds(statusEffectPopupDelay);
         }
         
-        // 모든 상태이상 피해 처리 완료 후 사망 체크 (팝업 애니메이션 완료 전에 체크)
+        // 모든 상태이상 정산 처리 완료 후 사망 체크 (팝업 애니메이션 완료 전에 체크)
         // 실제 사망 처리는 팝업 애니메이션 완료 후에 이루어짐
         if (lastOwner != null && lastOwner.gameObject != null)
         {
             // 체력이 0 이하인 경우 사망 체크 (하지만 DeathAction은 아직 호출하지 않음)
             if (lastOwner.Hp <= 0 && !lastOwner.IsDead)
             {
-                lastOwner.Deathcheck();
+                lastOwner.Deathcheck(allowAllyCollapseDiceRoll: true);
                 // DeathAction은 팝업 애니메이션 완료 후에 호출됨
             }
         }
@@ -267,7 +289,7 @@ public class BattleUIManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 상태이상 피해 팝업을 실제로 생성합니다 (내부 메서드)
+    /// 상태이상 수치 팝업(지속 피해/지속 회복)을 실제로 생성합니다 (내부 메서드)
     /// </summary>
     private void CreateStatusEffectDamagePopupInternal(Vector3 position, int damage, StatusEffectData effectData, int effectValue)
     {
@@ -345,16 +367,23 @@ public class BattleUIManager : MonoBehaviour
             }
         }
         
-        // 대미지 텍스트 설정
+        // 수치 텍스트 설정(양수: 피해, 음수: 회복)
         Transform damageTransform = popup.transform.Find("Damage");
         if (damageTransform != null)
         {
             TextMeshProUGUI damageText = damageTransform.GetComponent<TextMeshProUGUI>();
             if (damageText != null)
             {
-                damageText.text = damage.ToString();
-                // 상태이상 피해는 일반 피해와 동일하게 빨간색으로 표시
-                damageText.color = Color.red;
+                if (damage < 0)
+                {
+                    damageText.text = $"+{Mathf.Abs(damage)}";
+                    damageText.color = Color.green;
+                }
+                else
+                {
+                    damageText.text = damage.ToString();
+                    damageText.color = Color.red;
+                }
             }
         }
 
@@ -376,9 +405,9 @@ public class BattleUIManager : MonoBehaviour
         Vector2 startPosition = rectTransform.anchoredPosition;
         Vector2 targetPosition = startPosition + new Vector2(0, moveDistance);
         
-        Color originalColor = Color.red;
         TextMeshProUGUI damageText = popup.transform.Find("Damage")?.GetComponent<TextMeshProUGUI>();
         UnityEngine.UI.Image iconImage = popup.transform.Find("Icon")?.GetComponent<UnityEngine.UI.Image>();
+        Color originalColor = damageText != null ? damageText.color : Color.red;
         
         float elapsed = 0f;
         

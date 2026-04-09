@@ -12,6 +12,7 @@
 /// <b>규칙</b><br/>
 /// · <b>스탯 부스트</b>만: 반드시 <c>Type=None</c> + TargetStat/Value(·FloatValue). <see cref="CharacterData.GetFinalStatValue"/>만 사용. 전용 enum/효과 클래스를 두지 않는다.<br/>
 /// · <b>TurnIntervalGrantStatus</b>: 유즈+1 후 <see cref="PassiveData.useCount"/> 이상이면 발동·유즈 0. <c>StartCount</c>=첫 누적 전 시작값. + Duration, statusEffectID 등.<br/>
+/// · <b>StatusEffectImmunity</b>: <c>ImmuneStatusEffectIDs</c>(CSV)에 적힌 EffectID를 <see cref="CharacterStats.AddStatusEffectPrefab"/> 단계에서 차단.<br/>
 /// · <b>그 외 효과</b>: <c>Type=None</c>이 아니면 반드시 (1) <see cref="PassiveEffectLibrary"/>에 매핑된 enum 이름이거나 (2) <c>Type=CustomScript</c> + <c>ScriptClass</c>(리플렉션 가능한 타입 전체 이름).<br/>
 /// · XML <c>&lt;Type&gt;</c>은 <see cref="PassiveType"/> enum 이름과 동일한 영문이어야 한다. 표시용 이름은 <c>&lt;Name&gt;</c>.
 /// </para>

@@ -9,6 +9,7 @@ using System.Reflection;
 public class GameProgressManager : MonoBehaviour
 {
     public static GameProgressManager Instance { get; private set; }
+    private const string MAIN_CHARACTER_ID = "000001";
 
     [Header("디버그 옵션")]
     [SerializeField] private bool isTestMode = false; // true로 설정 시 테스트용 데이터를 로드합니다.
@@ -77,7 +78,26 @@ public class GameProgressManager : MonoBehaviour
 
     private string GetSavePath(int slot)
     {
-        return $"{Application.persistentDataPath}/save_slot_{slot}.json";
+        return Path.Combine(GetSlotDirectoryPath(slot), "game_progress.json");
+    }
+
+    private string GetLegacySavePath(int slot)
+    {
+        return Path.Combine(Application.persistentDataPath, $"save_slot_{slot}.json");
+    }
+
+    private string GetSlotDirectoryPath(int slot)
+    {
+        return Path.Combine(Application.persistentDataPath, $"slot_{slot}");
+    }
+
+    private void EnsureSlotDirectory(int slot)
+    {
+        string slotDirectory = GetSlotDirectoryPath(slot);
+        if (!Directory.Exists(slotDirectory))
+        {
+            Directory.CreateDirectory(slotDirectory);
+        }
     }
 
     private const string GAME_VERSION = "1.0.0";
@@ -94,6 +114,9 @@ public class GameProgressManager : MonoBehaviour
     /// </summary>
     public void Initialize()
     {
+        // 모든 데이터(CharacterData 포함) 로딩 완료 이후 주인공 보장을 최종 적용한다.
+        EnsureMainCharacterForSlot(currentSlot, saveImmediately: true);
+
         if (isTestMode)
         {
             SetupTestInventory();
@@ -105,8 +128,8 @@ public class GameProgressManager : MonoBehaviour
     /// </summary>
     private void SetupTestInventory()
     {
-        // 테스트용 회복 스킬만 해금 (중복 방지)
-        UnlockSkill("015005"); // 테스트 회복
+        // 보상 검증 시에는 임시 스킬 자동 해금을 사용하지 않음.
+        // 필요한 테스트 스킬은 수동으로만 해금한다.
     }
 
 
@@ -127,7 +150,16 @@ public class GameProgressManager : MonoBehaviour
     {
         if (slot >= 0 && slot < MAX_SAVE_SLOTS)
         {
+            // 저장 방침:
+            // - 게임 진행/스테이지 진행은 항상 같은 슬롯 컨텍스트를 공유한다.
+            // - 슬롯 전환 시 StageManager도 즉시 같은 슬롯 데이터를 로드한다.
+            // - 유저 설정(UserSettings)은 슬롯과 분리된 별도 저장소로 유지한다.
             currentSlot = slot;
+            // 슬롯 전환 시 스테이지 진행도도 같은 슬롯 파일을 로드한다.
+            if (StageManager.Instance != null)
+            {
+                StageManager.Instance.LoadStageProgress();
+            }
         }
     }
 
@@ -297,6 +329,7 @@ public class GameProgressManager : MonoBehaviour
             }
 
             string json = JsonUtility.ToJson(data, true);
+            EnsureSlotDirectory(slot);
             File.WriteAllText(GetSavePath(slot), json);
             Debug.Log($"[GameProgressManager] 게임 진행 데이터 저장 완료: {GetSavePath(slot)}");
         }
@@ -319,6 +352,15 @@ public class GameProgressManager : MonoBehaviour
         try
         {
             string path = GetSavePath(slot);
+            string legacyPath = GetLegacySavePath(slot);
+            bool loadedFromLegacy = false;
+
+            if (!File.Exists(path) && File.Exists(legacyPath))
+            {
+                path = legacyPath;
+                loadedFromLegacy = true;
+            }
+
             if (File.Exists(path))
             {
                 string json = File.ReadAllText(path);
@@ -444,6 +486,14 @@ public class GameProgressManager : MonoBehaviour
                 }
 
                 Debug.Log($"[GameProgressManager] 게임 진행 데이터 로드 완료: {path}");
+
+                // 구 경로 파일을 읽은 경우 새 슬롯 폴더 경로로 1회 마이그레이션 저장
+                if (loadedFromLegacy)
+                {
+                    EnsureSlotDirectory(slot);
+                    File.WriteAllText(GetSavePath(slot), json);
+                    Debug.Log($"[GameProgressManager] 구 경로 세이브를 슬롯 폴더 경로로 마이그레이션 완료: {GetSavePath(slot)}");
+                }
             }
             else
             {
@@ -456,6 +506,14 @@ public class GameProgressManager : MonoBehaviour
                 };
                 Debug.Log($"[GameProgressManager] 새로운 게임 진행 데이터 생성 (슬롯 {slot})");
             }
+
+            // 로드 직후 1차 보정: 주인공 해금 상태는 즉시 보장한다.
+            // (인벤토리 주입은 CharacterData가 아직 없으면 Initialize()에서 2차 보정)
+            bool changed = EnsureMainCharacterForSlot(slot, saveImmediately: false);
+            if (changed)
+            {
+                SaveGameProgress(slot);
+            }
         }
         catch (Exception e)
         {
@@ -464,9 +522,63 @@ public class GameProgressManager : MonoBehaviour
         }
     }
 
+    private bool EnsureMainCharacterForSlot(int slot, bool saveImmediately)
+    {
+        if (slot < 0 || slot >= MAX_SAVE_SLOTS)
+            return false;
+
+        if (saveSlots[slot] == null)
+            saveSlots[slot] = new GameProgressData();
+
+        var data = saveSlots[slot];
+        bool changed = false;
+
+        if (data.unlockedCharacters == null)
+        {
+            data.unlockedCharacters = new List<string>();
+            changed = true;
+        }
+
+        if (data.characterInventory == null)
+        {
+            data.characterInventory = new List<CharacterData>();
+            changed = true;
+        }
+
+        if (!data.unlockedCharacters.Contains(MAIN_CHARACTER_ID))
+        {
+            data.unlockedCharacters.Add(MAIN_CHARACTER_ID);
+            changed = true;
+        }
+
+        bool hasMainCharacterInInventory = data.characterInventory.Exists(c => c != null && c.ID == MAIN_CHARACTER_ID);
+        if (!hasMainCharacterInInventory)
+        {
+            if (CharacterData.characterDict != null &&
+                CharacterData.characterDict.TryGetValue(MAIN_CHARACTER_ID, out var baseCharacter))
+            {
+                CharacterData mainCharacter = baseCharacter.Clone();
+                mainCharacter.IsUnlocked = true;
+                data.characterInventory.Add(mainCharacter);
+                changed = true;
+            }
+            else
+            {
+                Debug.LogWarning($"[GameProgressManager] 주인공 데이터({MAIN_CHARACTER_ID})를 아직 찾지 못해 인벤토리 보정은 보류합니다.");
+            }
+        }
+
+        if (changed && saveImmediately)
+        {
+            SaveGameProgress(slot);
+        }
+
+        return changed;
+    }
+
     public bool HasSaveData(int slot)
     {
-        return File.Exists(GetSavePath(slot));
+        return File.Exists(GetSavePath(slot)) || File.Exists(GetLegacySavePath(slot));
     }
 
     public string GetSaveSlotInfo(int slot)

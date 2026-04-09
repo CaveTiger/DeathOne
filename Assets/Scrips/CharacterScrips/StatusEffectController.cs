@@ -8,6 +8,8 @@ public class StatusEffectController : MonoBehaviour
     [SerializeField] private GameObject reactionEffectPrefab;
     [SerializeField] private GameObject buffEffectPrefab;
     [SerializeField] private GameObject deBuffEffectPrefab;
+    [SerializeField] private GameObject stunEffectPrefab;
+    [SerializeField] private GameObject knockdownEffectPrefab;
 
     [Header("상태이상 UI 생성 위치")]
     [SerializeField] private Transform statusEffectArea; // Inspector에서 StatusEffectSlot 연결
@@ -29,14 +31,23 @@ public class StatusEffectController : MonoBehaviour
         return null;
     }
 
+    /// <summary>SO에 Effect Prefab이 있으면 우선 사용, 없으면 컨트롤러 기본 프리팹.</summary>
+    private static GameObject ResolveEffectPrefab(StatusEffectData data, GameObject fallback)
+    {
+        if (data != null && data.effectPrefab != null)
+            return data.effectPrefab;
+        return fallback;
+    }
+
     public void AddCDamageEffect(StatusEffectData data, int duration, int value)
     {
-        if (cDamageEffectPrefab == null || statusEffectArea == null)
+        GameObject prefab = ResolveEffectPrefab(data, cDamageEffectPrefab);
+        if (prefab == null || statusEffectArea == null)
         {
             Debug.LogWarning("[StatusEffectController] 프리팹 또는 생성 위치가 할당되지 않았습니다.");
             return;
         }
-        GameObject effectObj = Instantiate(cDamageEffectPrefab, statusEffectArea);
+        GameObject effectObj = Instantiate(prefab, statusEffectArea);
         // 프리팹의 원본 크기 그대로 사용 (스케일 변경 없음)
         effectObj.name = data.effectName;
         activeEffectPrefabs.Add(effectObj);
@@ -58,12 +69,13 @@ public class StatusEffectController : MonoBehaviour
     {
         if (DebugTraceFlags.PassiveStatusEffectFlow)
             Debug.Log($"[StatusFxTrace] AddBuffEffect id={data?.EffectID} buffPrefab={(buffEffectPrefab != null)} area={(statusEffectArea != null)}");
-        if (buffEffectPrefab == null || statusEffectArea == null)
+        GameObject prefab = ResolveEffectPrefab(data, buffEffectPrefab);
+        if (prefab == null || statusEffectArea == null)
         {
             Debug.LogWarning("[StatusEffectController] 버프 프리팹 또는 생성 위치가 할당되지 않았습니다.");
             return;
         }
-        GameObject effectObj = Instantiate(buffEffectPrefab, statusEffectArea);
+        GameObject effectObj = Instantiate(prefab, statusEffectArea);
         // 프리팹의 원본 크기 그대로 사용 (스케일 변경 없음)
         effectObj.name = data.effectName;
         activeEffectPrefabs.Add(effectObj);
@@ -80,14 +92,101 @@ public class StatusEffectController : MonoBehaviour
         }
     }
 
+    /// <summary>기절 토큰: XML의 Value/Duration은 무시하고 항상 동일하게 붙인다.</summary>
+    public void AddStunEffect(StatusEffectData data)
+    {
+        GameObject prefab = ResolveEffectPrefab(data, stunEffectPrefab);
+        if (prefab == null || statusEffectArea == null)
+        {
+            Debug.LogWarning("[StatusEffectController] 기절 프리팹 또는 생성 위치가 할당되지 않았습니다.");
+            return;
+        }
+        GameObject effectObj = Instantiate(prefab, statusEffectArea);
+        effectObj.name = data != null ? data.effectName : "Stun";
+        activeEffectPrefabs.Add(effectObj);
+        var stun = effectObj.GetComponent<StatusEffectInstanceStun>();
+        if (stun != null)
+            stun.Initialize(data);
+        else
+            Debug.LogWarning("[StatusEffectController] 기절 프리팹에 StatusEffectInstanceStun이 없습니다.");
+    }
+
+    /// <summary>KDP 넉다운 토큰(023002 등). 기절과 동일하게 붙이되 타입만 분리. 부착 직시 피격 자세로 즉시 피드백.</summary>
+    public void AddKnockdownEffect(StatusEffectData data)
+    {
+        if (data != null && HasStatusEffect(data.EffectID))
+            return;
+
+        GameObject prefab = ResolveEffectPrefab(data, knockdownEffectPrefab);
+        if (prefab == null || statusEffectArea == null)
+        {
+            Debug.LogWarning("[StatusEffectController] 넉다운 프리팹 또는 생성 위치가 할당되지 않았습니다.");
+            return;
+        }
+        GameObject effectObj = Instantiate(prefab, statusEffectArea);
+        effectObj.name = data != null ? data.effectName : "Knockdown";
+        activeEffectPrefabs.Add(effectObj);
+        var kd = effectObj.GetComponent<StatusEffectInstanceKnockdown>();
+        if (kd != null)
+            kd.Initialize(data);
+        else
+            Debug.LogWarning("[StatusEffectController] 넉다운 프리팹에 StatusEffectInstanceKnockdown이 없습니다.");
+
+        var stats = GetComponent<CharacterStats>();
+        stats?.ApplyImmediateKnockdownHitFeedback();
+    }
+
+    /// <summary>행동불가로 턴이 스킵될 때 기절 토큰 1개를 제거한다.</summary>
+    public void ConsumeOneStunEffect()
+    {
+        for (int i = activeEffectPrefabs.Count - 1; i >= 0; i--)
+        {
+            GameObject go = activeEffectPrefabs[i];
+            if (go == null)
+            {
+                activeEffectPrefabs.RemoveAt(i);
+                continue;
+            }
+            var stun = go.GetComponent<StatusEffectInstanceStun>();
+            if (stun == null || !stun.isActive || stun.EffectData == null || stun.EffectData.effectType != StatusEffectType.Stun)
+                continue;
+            stun.isActive = false;
+            activeEffectPrefabs.RemoveAt(i);
+            Destroy(go);
+            return;
+        }
+    }
+
+    /// <summary>행동불가로 턴이 스킵될 때 넉다운 토큰 1개를 제거한다.</summary>
+    public void ConsumeOneKnockdownEffect()
+    {
+        for (int i = activeEffectPrefabs.Count - 1; i >= 0; i--)
+        {
+            GameObject go = activeEffectPrefabs[i];
+            if (go == null)
+            {
+                activeEffectPrefabs.RemoveAt(i);
+                continue;
+            }
+            var kd = go.GetComponent<StatusEffectInstanceKnockdown>();
+            if (kd == null || !kd.isActive || kd.EffectData == null || kd.EffectData.effectType != StatusEffectType.Knockdown)
+                continue;
+            kd.isActive = false;
+            activeEffectPrefabs.RemoveAt(i);
+            Destroy(go);
+            return;
+        }
+    }
+
     public void AddReactionEffect(StatusEffectData data, int duration, int value)
     {
-        if (reactionEffectPrefab == null || statusEffectArea == null)
+        GameObject prefab = ResolveEffectPrefab(data, reactionEffectPrefab);
+        if (prefab == null || statusEffectArea == null)
         {
             Debug.LogWarning("[StatusEffectController] 반응 프리팹 또는 생성 위치가 할당되지 않았습니다.");
             return;
         }
-        GameObject effectObj = Instantiate(reactionEffectPrefab, statusEffectArea);
+        GameObject effectObj = Instantiate(prefab, statusEffectArea);
         // 프리팹의 원본 크기 그대로 사용 (스케일 변경 없음)
         effectObj.name = data.effectName;
         activeEffectPrefabs.Add(effectObj);
@@ -98,7 +197,7 @@ public class StatusEffectController : MonoBehaviour
         if (reaction != null)
         {
             reaction.Initialize(data, duration, value, GetComponent<CharacterStats>());
-            Debug.Log($"[StatusEffectController] StatusEffectInstanceReaction 초기화 완료 - TriggerCount: {reaction.triggerCount}");
+            Debug.Log($"[StatusEffectController] StatusEffectInstanceReaction 초기화 완료 - maxTriggerCount: {data.maxTriggerCount}");
         }
         else
         {
@@ -170,19 +269,151 @@ public class StatusEffectController : MonoBehaviour
                 return true;
             }
 
-            var buffInstance = effect.GetComponent<StatusEffectInstanceBuff>();
-            if (buffInstance != null && buffInstance.EffectData != null && buffInstance.EffectData.EffectID == effectId)
-            {
-                return true;
-            }
-
-            var reactionInstance = effect.GetComponent<StatusEffectInstanceReaction>();
-            if (reactionInstance != null && reactionInstance.EffectData != null && reactionInstance.EffectData.EffectID == effectId)
+            var effectData = TryGetEffectDataByReflection(effect);
+            if (effectData != null && effectData.EffectID == effectId)
             {
                 return true;
             }
         }
         return false;
+    }
+
+    /// <summary>
+    /// 현재 적용된 상태이상 중 특정 타입이 존재하는지 확인합니다.
+    /// </summary>
+    public bool HasStatusEffectType(StatusEffectType type)
+    {
+        foreach (var effect in activeEffectPrefabs)
+        {
+            if (effect == null) continue;
+
+            var instance = effect.GetComponent<StatusEffectInstance>();
+            if (instance != null && instance.EffectData != null && instance.EffectData.effectType == type)
+                return true;
+
+            var stun = effect.GetComponent<StatusEffectInstanceStun>();
+            if (stun != null && stun.isActive && stun.EffectData != null && stun.EffectData.effectType == type)
+                return true;
+
+            var knockdown = effect.GetComponent<StatusEffectInstanceKnockdown>();
+            if (knockdown != null && knockdown.isActive && knockdown.EffectData != null && knockdown.EffectData.effectType == type)
+                return true;
+
+            var effectData = TryGetEffectDataByReflection(effect);
+            if (effectData != null && effectData.effectType == type)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// 도발형 버프 플래그(blockOtherAlliesAsTarget)가 활성화된 상태인지 확인합니다.
+    /// </summary>
+    public bool HasAllyTargetBlockByBuff()
+    {
+        foreach (var effect in activeEffectPrefabs)
+        {
+            if (effect == null) continue;
+
+            var effectData = TryGetEffectDataByReflection(effect);
+            if (effectData == null) continue;
+            if (effectData.effectType != StatusEffectType.Buff) continue;
+            if (effectData.blockOtherAlliesAsTarget)
+                return true;
+        }
+
+        return false;
+    }
+
+    public bool HasTauntAffectsRandomTargeting()
+    {
+        foreach (var effect in activeEffectPrefabs)
+        {
+            if (effect == null) continue;
+            var effectData = TryGetEffectDataByReflection(effect);
+            if (effectData == null) continue;
+            if (effectData.effectType != StatusEffectType.Buff) continue;
+            if (!effectData.blockOtherAlliesAsTarget) continue;
+            if (effectData.tauntAffectsRandomTargeting)
+                return true;
+        }
+        return false;
+    }
+
+    public bool HasTauntProtectsAgainstAoE()
+    {
+        foreach (var effect in activeEffectPrefabs)
+        {
+            if (effect == null) continue;
+            var effectData = TryGetEffectDataByReflection(effect);
+            if (effectData == null) continue;
+            if (effectData.effectType != StatusEffectType.Buff) continue;
+            if (!effectData.blockOtherAlliesAsTarget) continue;
+            if (effectData.tauntProtectsAgainstAoE)
+                return true;
+        }
+        return false;
+    }
+
+    public bool HasMarkPriorityDebuff()
+    {
+        foreach (var effect in activeEffectPrefabs)
+        {
+            if (effect == null) continue;
+            var effectData = TryGetEffectDataByReflection(effect);
+            if (effectData == null) continue;
+            if (effectData.effectType != StatusEffectType.Debuff) continue;
+            if (effectData.markPriorityTarget)
+                return true;
+        }
+        return false;
+    }
+
+    public float GetHighestMarkDamageTakenMultiplier()
+    {
+        float best = 1f;
+        foreach (var effect in activeEffectPrefabs)
+        {
+            if (effect == null) continue;
+            var effectData = TryGetEffectDataByReflection(effect);
+            if (effectData == null) continue;
+            if (effectData.effectType != StatusEffectType.Debuff) continue;
+            if (!effectData.markPriorityTarget) continue;
+
+            float mul = Mathf.Max(1f, effectData.markDamageTakenMultiplier);
+            if (mul > best)
+                best = mul;
+        }
+        return best;
+    }
+
+    private StatusEffectData TryGetEffectDataByReflection(GameObject effectObject)
+    {
+        if (effectObject == null) return null;
+
+        var monos = effectObject.GetComponents<MonoBehaviour>();
+        foreach (var mono in monos)
+        {
+            if (mono == null) continue;
+
+            var type = mono.GetType();
+            var prop = type.GetProperty("EffectData");
+            if (prop != null && typeof(StatusEffectData).IsAssignableFrom(prop.PropertyType))
+            {
+                var value = prop.GetValue(mono, null) as StatusEffectData;
+                if (value != null) return value;
+            }
+
+            var field = type.GetField("effectData");
+            if (field != null && typeof(StatusEffectData).IsAssignableFrom(field.FieldType))
+            {
+                var value = field.GetValue(mono) as StatusEffectData;
+                if (value != null) return value;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

@@ -35,6 +35,8 @@ public class StatusEffectSlot : MonoBehaviour
 	[SerializeField] private GameObject statusEffectSprite;
 	[SerializeField] private SpriteRenderer iconRenderer;
 	[SerializeField] private TextMesh damageText;
+	[SerializeField] private float settleEffectInterval = 0.02f; // 상태이상 연출 간 간격 (턴 템포 보호)
+	[SerializeField] private int maxBlockingStatusEffectAnimations = 1; // 턴 지연 방지를 위해 블로킹 연출 개수 제한
 
 	// 자식 변동 시 자동으로 재정렬 (중첩 방지)
 	private void OnTransformChildrenChanged()
@@ -89,6 +91,7 @@ public class StatusEffectSlot : MonoBehaviour
 			var child = transform.GetChild(i);
 			if (child == null) continue;
 			if (child.GetComponent<StatusEffectInstance>() != null ||
+				child.GetComponent("StatusEffectInstanceStun") != null ||
 				child.GetComponent<StatusEffectInstanceBuff>() != null ||
 				child.GetComponent<StatusEffectInstanceReaction>() != null)
 			{
@@ -408,6 +411,7 @@ public class StatusEffectSlot : MonoBehaviour
 		var statusEffects = controller?.GetActiveEffectPrefabs();
 		if (statusEffects != null)
 		{
+			int shown = 0;
 			foreach (var effect in statusEffects)
 			{
 				if (effect != null)
@@ -418,9 +422,14 @@ public class StatusEffectSlot : MonoBehaviour
 						Debug.LogWarning($"[StatusEffectSlot] SettleStatusEffectsWithAnimation: 연출 중 StatusEffectSlot이 비활성화되어 종료합니다.");
 						yield break;
 					}
+
+					if (shown >= Mathf.Max(0, maxBlockingStatusEffectAnimations))
+						break;
 					
 					yield return StartCoroutine(PlayStatusEffectSpriteAnimation(effect));
-					yield return new WaitForSeconds(0.2f); // 0.2초 간격
+					shown++;
+					if (settleEffectInterval > 0f)
+						yield return new WaitForSeconds(settleEffectInterval);
 				}
 			}
 		}
@@ -431,7 +440,7 @@ public class StatusEffectSlot : MonoBehaviour
 		// 6. 모든 상태이상 피해 팝업 애니메이션 완료 후 사망 처리
 		if (character != null && character.gameObject != null && character.Hp <= 0 && !character.IsDead)
 		{
-			character.Deathcheck();
+			character.Deathcheck(allowAllyCollapseDiceRoll: true);
 			character.DeathAction();
 		}
 	}
@@ -561,7 +570,7 @@ public class StatusEffectSlot : MonoBehaviour
 		var startPos = statusEffectSprite.transform.localPosition;
 		var targetPos = startPos + Vector3.up * 2f; // 위로 2유닛 이동
 
-		float duration = 0.8f;
+		float duration = 0.22f;
 		float elapsed = 0f;
 
 		while (elapsed < duration)

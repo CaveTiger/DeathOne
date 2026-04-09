@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Stages>
 	<Block ID="060000"  Specimen="True">
 		<FrontCut>false</FrontCut><!--스테이지 진입시 컷이 나올지-->
@@ -25,7 +25,7 @@
 		<SetEnemy>
 			<li>000004</li>
 			<li>000003</li>
-			<li>000002</li>
+			<li>001001</li>
 		</SetEnemy>
 	</Block>
 
@@ -36,7 +36,7 @@
 		<BackCut>false</BackCut>
 		<Last>true</Last>
 		<SetEnemy>
-			<li>000005</li>
+			<li>001002</li>
 		</SetEnemy>
 	</Block>
 
@@ -47,7 +47,7 @@
 		<BackCut>false</BackCut>
 		<Last>true</Last>
 		<SetEnemy>
-			<li>000007</li>
+			<li>001003</li>
 		</SetEnemy>
 	</Block>
 
@@ -73,7 +73,7 @@
 		<FrontCut>false</FrontCut>
 		<BackCut>false</BackCut>
 		<SetEnemy>
-			<li>000002</li>
+			<li>001001</li>
 			<li>000003</li>
 		</SetEnemy>
 		<NextBlock>
@@ -104,7 +104,7 @@
 		<BackCut>false</BackCut>
 		<Last>true</Last>
 		<SetEnemy>
-			<li>000005</li>
+			<li>001002</li>
 		</SetEnemy>
 		<Position x="2" y="0"/>
 	</Block>

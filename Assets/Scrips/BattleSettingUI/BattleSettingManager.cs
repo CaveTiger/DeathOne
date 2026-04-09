@@ -7,6 +7,7 @@ using UnityEngine.UI;
 public class BattleSettingManager : MonoBehaviour
 {
     public static BattleSettingManager Instance { get; private set; }
+    private static readonly string[] DefaultSkillIDs = { "010001", "010002", "010003", "010004" };
 
     [Header("파티 슬롯 직접 등록")]
     public BattleSettingCharacterSlot slot1;
@@ -106,13 +107,10 @@ public class BattleSettingManager : MonoBehaviour
     /// </summary>
     private void InitializeDefaultSkills()
     {
-        // 기초스킬 배열 (BaseCharacter.xml에서 가져온 기본 스킬들)
-        string[] defaultSkills = { "010001", "010002", "010003", "010004" };
-        
         // playerSkillIDs 배열에 기초스킬 설정
-        for (int i = 0; i < defaultSkills.Length && i < playerSkillIDs.Length; i++)
+        for (int i = 0; i < DefaultSkillIDs.Length && i < playerSkillIDs.Length; i++)
         {
-            playerSkillIDs[i] = defaultSkills[i];
+            playerSkillIDs[i] = DefaultSkillIDs[i];
         }
         
         Debug.Log($"[SlotBased] 초기 기초스킬 설정 완료: {string.Join(",", playerSkillIDs)}");
@@ -150,22 +148,22 @@ public class BattleSettingManager : MonoBehaviour
         if (slot1 != null && slot1.GetCharacterData() != null)
         {
             partyIDs.Add(slot1.GetCharacterData().ID);
-            partyData.Add(slot1.GetCharacterData());
+            partyData.Add(NormalizePartyCharacterForBattle(slot1.GetCharacterData()));
         }
         if (slot2 != null && slot2.GetCharacterData() != null)
         {
             partyIDs.Add(slot2.GetCharacterData().ID);
-            partyData.Add(slot2.GetCharacterData());
+            partyData.Add(NormalizePartyCharacterForBattle(slot2.GetCharacterData()));
         }
         if (slot3 != null && slot3.GetCharacterData() != null)
         {
             partyIDs.Add(slot3.GetCharacterData().ID);
-            partyData.Add(slot3.GetCharacterData());
+            partyData.Add(NormalizePartyCharacterForBattle(slot3.GetCharacterData()));
         }
         if (slot4 != null && slot4.GetCharacterData() != null)
         {
             partyIDs.Add(slot4.GetCharacterData().ID);
-            partyData.Add(slot4.GetCharacterData());
+            partyData.Add(NormalizePartyCharacterForBattle(slot4.GetCharacterData()));
         }
 
         // 주인공이 존재한다면 1번 인덱스로 정렬
@@ -198,6 +196,24 @@ public class BattleSettingManager : MonoBehaviour
         SpawnManager.Instance.partySkillIDs = partySkillIDs;
         
         Debug.Log($"[SlotBased] SpawnManager에 전달: partySkillIDs = {string.Join(",", partySkillIDs)}");
+    }
+
+    /// <summary>
+    /// 전투 전달용 캐릭터 데이터 정규화.
+    /// 세이브/인벤토리 경로에서 누락될 수 있는 XML 원본 스케일을 ID 기준으로 보정한다.
+    /// </summary>
+    private CharacterData NormalizePartyCharacterForBattle(CharacterData source)
+    {
+        if (source == null)
+            return null;
+
+        CharacterData normalized = source.Clone();
+        if (CharacterData.characterDict.TryGetValue(source.ID, out var canonical) && canonical != null)
+        {
+            normalized.Scale = canonical.Scale;
+        }
+
+        return normalized;
     }
 
     /// <summary>
@@ -461,9 +477,6 @@ public class BattleSettingManager : MonoBehaviour
             
             Debug.Log($"[SlotBased] 발견된 SkillSlot 개수: {skillSlots.Count}");
 
-            // 기초스킬 배열 (BaseCharacter.xml에서 가져온 기본 스킬들)
-            string[] defaultSkills = { "010001", "010002", "010003", "010004" };
-
             // 기존 슬롯들을 초기화 (기초스킬로 설정)
             for (int i = 0; i < skillSlots.Count && i < 4; i++)
             {
@@ -476,7 +489,7 @@ public class BattleSettingManager : MonoBehaviour
                         if (initializeMethod != null)
                         {
                             // 기초스킬로 초기화
-                            string skillID = (i < defaultSkills.Length) ? defaultSkills[i] : "";
+                            string skillID = GetDefaultSkillForSlot(i);
                             initializeMethod.Invoke(skillSlot, new object[] { i, skillID });
                             
                             // playerSkillIDs 배열도 업데이트
@@ -522,10 +535,18 @@ public class BattleSettingManager : MonoBehaviour
     {
         if (slotIndex >= 0 && slotIndex < 4)
         {
-            playerSkillIDs[slotIndex] = skillID;
+            string resolvedSkillID = string.IsNullOrEmpty(skillID) ? GetDefaultSkillForSlot(slotIndex) : skillID;
+            playerSkillIDs[slotIndex] = resolvedSkillID;
             Debug.Log($"[SlotBased] 주인공 스킬 슬롯 {slotIndex + 1}에 스킬 {skillID} 설정");
             Debug.Log($"[SlotBased] 현재 playerSkillIDs: {string.Join(",", playerSkillIDs)}");
             UpdateSpawnManagerParty(); // SpawnManager에 즉시 반영
         }
+    }
+
+    public string GetDefaultSkillForSlot(int slotIndex)
+    {
+        if (slotIndex < 0 || slotIndex >= DefaultSkillIDs.Length)
+            return "";
+        return DefaultSkillIDs[slotIndex];
     }
 } 

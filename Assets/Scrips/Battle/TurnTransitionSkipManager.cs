@@ -84,7 +84,8 @@ public class TurnTransitionSkipManager : MonoBehaviour
         switch (skipType)
         {
             case "death":
-                canSkip = skipDeathEffects;
+                // 사망 연출은 반드시 보여줘야 하므로 스킵 불가로 고정
+                canSkip = false;
                 break;
             case "enemyStart":
                 canSkip = skipEnemyTurnStart;

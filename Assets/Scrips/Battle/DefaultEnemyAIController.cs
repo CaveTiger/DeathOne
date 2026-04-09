@@ -44,6 +44,7 @@ public class DefaultEnemyAIController : EnemyAIController
 
         // 살아있는 플레이어만 필터링
         var alivePlayers = players.Where(p => p != null && !p.IsDead).ToList();
+        alivePlayers = ApplyTauntPriorityCandidates(alivePlayers);
         
         if (alivePlayers.Count == 0)
         {

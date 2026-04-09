@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 681411ace817e454a9052487d3197c38, type: 3}
+  m_Name: StatusEffect_021007_Guard
+  m_EditorClassIdentifier: 
+  EffectID: 021007
+  effectName: "\uBC29\uC5B4\uC790\uC138"
+  effectType: 1
+  description: "\uB300\uBBF8\uC9C0 \uAC10\uC18C"
+  icon: {fileID: 21300000, guid: a3bc135e1d9d52e43a2935cbe9d0d887, type: 3}
+  negativeIcon: {fileID: 0}
+  effectColor: {r: 1, g: 0, b: 0, a: 1}
+  effectPrefab: {fileID: 6510473027615198677, guid: a44f1f832a7cce84082ca673649c9bbb, type: 3}
+  duration: 0
+  value: 0
+  iconPath: StatusEffect/Bleed
+  maxTriggerCount: 0
+  statType: 6
+  blockOtherAlliesAsTarget: 0
+  tauntAffectsRandomTargeting: 0
+  tauntProtectsAgainstAoE: 0
+  treatContinuousValueAsHeal: 0
+  reactionMode: 0
+  reactionFixedValue: 0
+  reactionPercent: 0
+  useAppliedValueForReaction: 0
+  reflectReducedAmountDirect: 0
+  useReducedAmountAsReflectBase: 0
+  reductionMode: 1
+  reductionFixedValue: 0
+  reductionPercent: 0
+  useAppliedValueForReduction: 1

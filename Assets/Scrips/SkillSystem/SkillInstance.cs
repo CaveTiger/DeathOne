@@ -93,11 +93,11 @@ public class SkillInstance : MonoBehaviour
         target = TargetSelector.Instance.GetCurrentTarget();
         
         // 스킬 타겟에 따른 추가 검증
-        if (skillData != null && skillData.SkillTarget == "Me")
+        if (skillData != null && skillData.TargetType == SkillTargetType.Me)
         {
             target = caster; // 본인 타겟팅 스킬은 항상 시전자를 타겟으로
         }
-        else if (target == null && skillData != null && skillData.SkillTarget != "Me")
+        else if (target == null && skillData != null && skillData.TargetType != SkillTargetType.Me)
         {
             Debug.LogWarning($"[SkillInstance] 타겟이 선택되지 않았습니다. 스킬: {skillData.Name}");
         }
@@ -110,7 +110,14 @@ public class SkillInstance : MonoBehaviour
             Debug.LogWarning("[UseSkill] 지금은 내 턴이 아닙니다. 스킬 발동 중지.");
             return;
         }
-        if (!isActive || currentCooldown > 0 || skillData == null) return;
+        if (!isActive || skillData == null) return;
+
+        // 스킬 사용 가능 여부는 SkillData의 실제 쿨다운/횟수 상태를 기준으로 판단한다.
+        if (!skillData.IsUsable())
+        {
+            Debug.LogWarning($"[UseSkill] 사용 불가 스킬 시도 차단: {skillData.ID}:{skillData.Name}, cooldown={skillData.CurrentCooldown}");
+            return;
+        }
 
         UpdateTarget();
 
@@ -120,7 +127,9 @@ public class SkillInstance : MonoBehaviour
             return;
         }
 
-        SkillManager.Instance.UseSkill(skillData, caster, target, skillData);
+        bool started = SkillManager.Instance.UseSkill(skillData, caster, target, skillData);
+        if (!started)
+            Debug.LogWarning($"[UseSkill] 스킬 실행 시작 실패: {skillData?.ID}:{skillData?.Name}");
     }
 
     public void SetGroup(string newGroupName) //그룹을 지정하기

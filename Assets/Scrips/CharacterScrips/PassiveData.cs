@@ -13,6 +13,10 @@ public enum PassiveType
     /// XML: UseCount, StartCount, Duration, statusEffectID, statusEffectValue.
     /// </summary>
     TurnIntervalGrantStatus,
+    /// <summary>
+    /// 지정한 상태이상 EffectID를 면역 처리. XML ImmuneStatusEffectIDs(쉼표 구분)를 사용.
+    /// </summary>
+    StatusEffectImmunity,
     CustomScript
 }
 
@@ -61,4 +65,6 @@ public class PassiveData
     public string grantStatusEffectId;
     /// <summary> TurnIntervalGrantStatus: 부여할 상태이상 수치 (XML statusEffectValue).</summary>
     public int grantStatusValue;
+    /// <summary> StatusEffectImmunity: 면역할 상태이상 EffectID 목록(CSV, XML ImmuneStatusEffectIDs/immuneStatusEffectIDs).</summary>
+    public string immuneStatusEffectIds;
 } 

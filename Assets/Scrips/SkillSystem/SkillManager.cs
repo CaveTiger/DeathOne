@@ -5,24 +5,63 @@ using System.Collections;
 public class SkillManager : MonoBehaviour
 {
     public static SkillManager Instance { get; private set; }
+    public static string LastUseSkillFailureReason { get; private set; } = string.Empty;
+    public static string LastUseSkillFailureDetail { get; private set; } = string.Empty;
 
     void Awake() { Instance = this; }
 
     [SerializeField] GameObject CharacterUnit;
+
+    private bool FailUseSkill(string reason, string detail = "")
+    {
+        LastUseSkillFailureReason = reason ?? "Unknown";
+        LastUseSkillFailureDetail = detail ?? string.Empty;
+        if (!string.IsNullOrEmpty(LastUseSkillFailureDetail))
+            Debug.LogWarning($"[SkillStartFail] {LastUseSkillFailureReason} :: {LastUseSkillFailureDetail}");
+        else
+            Debug.LogWarning($"[SkillStartFail] {LastUseSkillFailureReason}");
+        return false;
+    }
+
+    private void ClearUseSkillFailure()
+    {
+        LastUseSkillFailureReason = string.Empty;
+        LastUseSkillFailureDetail = string.Empty;
+    }
+
+    [Header("영체 연출(주인공)")]
+    [SerializeField] private float ghostProxyFixedDistance = 0.4f;
+    [SerializeField] private float ghostProxyBaseScale = 0.6f;
+    [SerializeField] private float ghostProxyMotionFallbackSeconds = 0.45f;
+    [SerializeField] private float ghostProxyFadeSeconds = 0.22f;
 
     /// <summary>
     /// 스킬이 범위 스킬인지 확인합니다
     /// </summary>
     private bool IsRangeSkill(SkillData skill)
     {
-        if (skill == null || string.IsNullOrEmpty(skill.SkillTarget))
+        if (skill == null)
             return false;
-
-        string target = skill.SkillTarget.ToLower();
-        return target.Contains("all") || target.Contains("adjacent") || 
-               target.Contains("random") || target.Contains("lowest") || 
-               target.Contains("highest") || target.Contains("weakest") || 
-               target.Contains("strongest");
+        switch (skill.TargetType)
+        {
+            case SkillTargetType.AllAllies:
+            case SkillTargetType.AllEnemies:
+            case SkillTargetType.AllUnits:
+            case SkillTargetType.Adjacent:
+            case SkillTargetType.SelfAndAdjacent:
+            case SkillTargetType.AdjacentArea:
+            case SkillTargetType.SelfAndAdjacentArea:
+            case SkillTargetType.RandomEnemy:
+            case SkillTargetType.RandomAlly:
+            case SkillTargetType.RandomTarget:
+            case SkillTargetType.LowestHpAlly:
+            case SkillTargetType.HighestHpEnemy:
+            case SkillTargetType.WeakestEnemy:
+            case SkillTargetType.StrongestAlly:
+                return true;
+            default:
+                return false;
+        }
     }
 
     /// <summary>
@@ -30,31 +69,48 @@ public class SkillManager : MonoBehaviour
     /// </summary>
     private bool IsAllTargetSkill(SkillData skill)
     {
-        if (skill == null || string.IsNullOrEmpty(skill.SkillTarget))
+        if (skill == null)
+            return false;
+        return skill.TargetType == SkillTargetType.AllEnemies || skill.TargetType == SkillTargetType.AllAllies;
+    }
+
+    private static bool IsBlockedByTauntLikeBuff(CharacterStats caster, CharacterStats target)
+    {
+        if (caster == null || target == null)
             return false;
 
-        string target = skill.SkillTarget.ToLower();
-        return target == "allenemies" || target == "allallies";
+        var controller = caster.GetComponent<StatusEffectController>();
+        if (controller == null || !controller.HasAllyTargetBlockByBuff())
+            return false;
+
+        // 검증 결과 반영:
+        // 도발 버프가 있어도 아군 대상 지정(버프/치료 포함)은 자유롭게 허용한다.
+        if (target.IsPlayer == caster.IsPlayer)
+            return false;
+
+        // 현재 단계에서는 적 대상 강제 규칙(특정 대상 고정)이 아직 없으므로 차단하지 않는다.
+        return false;
     }
     // public CharacterInfoPlayer playerInfoUI; // 인스펙터에서 PlayerInfo 오브젝트 할당 - 임시 주석처리
 
-    public void UseSkill(SkillData skill, CharacterStats caster, CharacterStats target, SkillData motionData)
+    public bool UseSkill(SkillData skill, CharacterStats caster, CharacterStats target, SkillData motionData)
     {
-        if (!skill.IsUsable()) return;
+        if (skill == null)
+            return FailUseSkill("SkillNull");
+        if (!skill.IsUsable())
+            return FailUseSkill("SkillNotUsable", $"skill={skill.ID}:{skill.Name}, cooldown={skill.CurrentCooldown}");
         skill.CurrentCooldown = skill.Cooldown;
 
         // 전체 타겟 스킬인지 확인 (AllEnemies, AllAllies)
         if (IsAllTargetSkill(skill))
         {
-            UseAllTargetSkill(skill, caster, target, motionData);
-            return;
+            return UseAllTargetSkill(skill, caster, target, motionData);
         }
 
         // 범위 스킬인지 확인
         if (IsRangeSkill(skill))
         {
-            UseRangeSkill(skill, caster, target, motionData);
-            return;
+            return UseRangeSkill(skill, caster, target, motionData);
         }
 
         // 단일 타겟 스킬 검증
@@ -63,58 +119,70 @@ public class SkillManager : MonoBehaviour
             && target != null && target.IsPlayer == caster.IsPlayer)
         {
             Debug.LogWarning("[SkillManager] 공격 스킬은 아군을 타겟팅할 수 없습니다.");
-            return;
+            return FailUseSkill("InvalidTargetForAttack", $"skill={skill.ID}:{skill.Name}, caster={caster?.Label}, target={target?.Label}");
         }
 
         // 버프/힐 스킬: 적 타겟 불가 (단, 'Me'는 본인만)
         if ((skill.Type == SkillType.Buff || skill.Type == SkillType.Heal)
-            && skill.SkillTarget != "Me"
+            && skill.TargetType != SkillTargetType.Me
             && target != null && target.IsPlayer != caster.IsPlayer)
         {
             Debug.LogWarning("[SkillManager] 버프/힐 스킬은 적을 타겟팅할 수 없습니다.");
-            return;
+            return FailUseSkill("InvalidTargetForSupport", $"skill={skill.ID}:{skill.Name}, caster={caster?.Label}, target={target?.Label}");
+        }
+
+        // 도발 기믹(버프 기반): 시전자에게 제약 버프가 있으면 본인 제외 아군 타겟 불가
+        if (IsBlockedByTauntLikeBuff(caster, target))
+        {
+            return FailUseSkill("TauntAllyTargetBlocked", $"skill={skill.ID}:{skill.Name}, caster={caster?.Label}, target={target?.Label}");
         }
 
         // 연출 시작
+        ClearUseSkillFailure();
         StartCoroutine(PlaySkillEffect(skill, caster, target, motionData));
+        return true;
     }
 
     /// <summary>
     /// 범위 스킬을 사용합니다
     /// </summary>
-    private void UseRangeSkill(SkillData skill, CharacterStats caster, CharacterStats target, SkillData motionData)
+    private bool UseRangeSkill(SkillData skill, CharacterStats caster, CharacterStats target, SkillData motionData)
     {
         List<CharacterStats> targets = GetRangeTargets(skill, caster, target);
         
         if (targets.Count == 0)
         {
             Debug.LogWarning("[SkillManager] 범위 스킬의 타겟이 없습니다.");
-            return;
+            return FailUseSkill("NoRangeTargets", $"skill={skill.ID}:{skill.Name}, targetType={skill.TargetType}, center={target?.Label}");
         }
 
         Debug.Log($"[SkillManager] 범위 스킬 사용: {skill.Name}, 타겟 수: {targets.Count}");
         
         // 범위 스킬 연출 시작
+        ClearUseSkillFailure();
         StartCoroutine(PlayRangeSkillEffect(skill, caster, targets, motionData));
+        return true;
     }
 
     /// <summary>
     /// 전체 타겟 스킬을 사용합니다 (AllEnemies, AllAllies)
     /// </summary>
-    private void UseAllTargetSkill(SkillData skill, CharacterStats caster, CharacterStats target, SkillData motionData)
+    private bool UseAllTargetSkill(SkillData skill, CharacterStats caster, CharacterStats target, SkillData motionData)
     {
         List<CharacterStats> targets = GetRangeTargets(skill, caster, target);
         
         if (targets.Count == 0)
         {
             Debug.LogWarning("[SkillManager] 전체 타겟 스킬의 타겟이 없습니다.");
-            return;
+            return FailUseSkill("NoAllTargets", $"skill={skill.ID}:{skill.Name}, targetType={skill.TargetType}, center={target?.Label}");
         }
 
         Debug.Log($"[SkillManager] 전체 타겟 스킬 사용: {skill.Name}, 타겟 수: {targets.Count}");
         
         // 전체 타겟 스킬 연출 시작
+        ClearUseSkillFailure();
         StartCoroutine(PlayAllTargetSkillEffect(skill, caster, targets, motionData));
+        return true;
     }
 
     /// <summary>
@@ -124,18 +192,16 @@ public class SkillManager : MonoBehaviour
     {
         List<CharacterStats> targets = new List<CharacterStats>();
         
-        if (skill == null || string.IsNullOrEmpty(skill.SkillTarget))
+        if (skill == null)
             return targets;
-
-        string targetType = skill.SkillTarget.ToLower();
         
-        switch (targetType)
+        switch (skill.TargetType)
         {
-            case "allenemies":
+            case SkillTargetType.AllEnemies:
                 targets = GetAliveCharacters(!caster.IsPlayer);
                 break;
                 
-            case "allallies":
+            case SkillTargetType.AllAllies:
                 targets = GetAliveCharacters(caster.IsPlayer);
                 Debug.Log($"[SkillManager] AllAllies 타겟팅 - Caster: {caster.Label}, IsPlayer: {caster.IsPlayer}, 타겟 수: {targets.Count}");
                 foreach (var target in targets)
@@ -144,51 +210,51 @@ public class SkillManager : MonoBehaviour
                 }
                 break;
                 
-            case "allunits":
+            case SkillTargetType.AllUnits:
                 targets = GetAliveCharacters();
                 break;
                 
-            case "adjacent":
+            case SkillTargetType.Adjacent:
                 targets = GetAdjacentTargets(caster, centerTarget, false); // 단일형
                 break;
                        
-            case "selfandadjacent":
+            case SkillTargetType.SelfAndAdjacent:
                 targets = GetSelfAndAdjacentTargets(caster, centerTarget, false); // 단일형
                 break;
                 
-            case "adjacentarea":
+            case SkillTargetType.AdjacentArea:
                 targets = GetAdjacentTargets(caster, centerTarget, true); // 광역형
                 break;
                        
-            case "selfandadjacentarea":
+            case SkillTargetType.SelfAndAdjacentArea:
                 targets = GetSelfAndAdjacentTargets(caster, centerTarget, true); // 광역형
                 break;
                 
-            case "randomenemy":
+            case SkillTargetType.RandomEnemy:
                 targets = GetRandomTargets(!caster.IsPlayer, 1);
                 break;
                 
-            case "randomally":
+            case SkillTargetType.RandomAlly:
                 targets = GetRandomTargets(caster.IsPlayer, 1);
                 break;
                 
-            case "randomtarget":
+            case SkillTargetType.RandomTarget:
                 targets = GetRandomTargets(null, 1);
                 break;
                 
-            case "lowesthpally":
+            case SkillTargetType.LowestHpAlly:
                 targets = GetLowestHpTargets(caster.IsPlayer);
                 break;
                 
-            case "highesthpenemy":
+            case SkillTargetType.HighestHpEnemy:
                 targets = GetHighestHpTargets(!caster.IsPlayer);
                 break;
                 
-            case "weakestenemy":
+            case SkillTargetType.WeakestEnemy:
                 targets = GetWeakestEnemyTargets();
                 break;
                 
-            case "strongestally":
+            case SkillTargetType.StrongestAlly:
                 targets = GetStrongestAllyTargets(caster.IsPlayer);
                 break;
         }
@@ -259,7 +325,7 @@ public class SkillManager : MonoBehaviour
             else
             {
                 // 단일형: 랜덤 선택
-                CharacterStats randomTarget = availableTargets[Random.Range(0, 2)];
+                CharacterStats randomTarget = availableTargets[UnityEngine.Random.Range(0, 2)];
                 targets.Add(randomTarget);
             }
         }
@@ -587,6 +653,8 @@ public class SkillManager : MonoBehaviour
         Debug.Log("[스킬연출] PlaySkillEffect - 스킬 모션 재생 시작");
         if (casterMotion != null && !caster.IsDead)
             casterMotion.PlaySkillMotion(skill.Motion);
+        if (ShouldUseGhostProxyEffect(skill, caster))
+            StartCoroutine(PlayGhostProxyEffect(skill, caster, target));
         Debug.Log("[스킬연출] PlaySkillEffect - 스킬 모션 재생 완료");
 
         // 5. 타격 타이밍 계산
@@ -625,7 +693,7 @@ public class SkillManager : MonoBehaviour
             case SkillType.Damage:
             case SkillType.Piercing:
                 int damage = CalculateDamage(skill, caster, target);
-                target.TakeDamage(damage, caster.Accuracy, skill, caster.transform.position);
+                target.TakeDamage(damage, caster.Accuracy, skill, caster.transform.position, caster);
                 ApplyStatusEffects(skill, target);
                 break;
             case SkillType.Buff:
@@ -642,6 +710,8 @@ public class SkillManager : MonoBehaviour
                         foreach (var effect in skill.skillEffects)
                         {
                             if (effect == null || string.IsNullOrEmpty(effect.EffectID))
+                                continue;
+                            if (!ShouldApplyEffectByChance(effect, skill, buffTarget))
                                 continue;
 
                             var effectData = StatusEffectManager.Instance.GetById(effect.EffectID);
@@ -737,7 +807,7 @@ public class SkillManager : MonoBehaviour
         }
         if (targetMotion != null && !target.IsDead)
         {
-            targetMotion.ResetMotion();
+            ResetTargetMotionAfterSkillUnlessKnockdown(target, targetMotion);
             targetMotion.ResetPosition();
         }
         Debug.Log("[스킬연출] PlaySkillEffect - 캐릭터 모션 리셋 및 위치 복귀 완료");
@@ -807,6 +877,88 @@ public class SkillManager : MonoBehaviour
         // 첫 번째 효과의 수치 반환
         var firstEffect = skill.skillEffects[0];
         return firstEffect?.Value ?? 1;
+    }
+
+    private bool ShouldUseGhostProxyEffect(SkillData skill, CharacterStats caster)
+    {
+        if (skill == null || caster == null) return false;
+        if (caster.CharacterId != "000001") return false; // 주인공 전용 연출
+        if (string.IsNullOrWhiteSpace(skill.GhostSpritePath)) return false;
+        // 스킬 타입 제한 없이, 주소가 지정된 스킬이면 프록시 연출 허용
+        return true;
+    }
+
+    /// <summary>
+    /// 주인공 영체: 시전자 기준 고정 거리에만 두고, 타겟 방향만 보정. 이동 보간 없음. 소멸은 공격 모션 길이에 맞춤.
+    /// </summary>
+    private IEnumerator PlayGhostProxyEffect(SkillData skill, CharacterStats caster, CharacterStats target)
+    {
+        string path = skill.GhostSpritePath?.Trim();
+        if (string.IsNullOrEmpty(path)) yield break;
+
+        Sprite ghostSprite = Resources.Load<Sprite>(path);
+        if (ghostSprite == null)
+        {
+            Debug.LogWarning($"[SkillManager] GhostSpritePath 로드 실패: {path} (skill={skill.ID})");
+            yield break;
+        }
+
+        GameObject ghostObj = new GameObject($"GhostProxy_{skill.ID}");
+        SpriteRenderer ghostRenderer = ghostObj.AddComponent<SpriteRenderer>();
+        ghostRenderer.sprite = ghostSprite;
+        ghostRenderer.sortingOrder = 500;
+        ghostRenderer.color = new Color(1f, 1f, 1f, 0.55f);
+
+        // 프록시는 슬롯 기준 기본 크기(0.6)를 사용하고,
+        // XML GhostProxyScale은 추가 배율 보정값으로 곱해서 적용한다.
+        float proxyScaleMultiplier = skill.GhostProxyScale > 0f ? skill.GhostProxyScale : 1f;
+        float finalGhostScale = ghostProxyBaseScale * proxyScaleMultiplier;
+        ghostObj.transform.localScale = Vector3.one * finalGhostScale;
+
+        Vector3 dir;
+        if (target != null)
+        {
+            Vector3 delta = target.transform.position - caster.transform.position;
+            delta.y = 0f;
+            if (delta.sqrMagnitude < 0.0001f)
+                dir = caster.IsPlayer ? Vector3.right : Vector3.left;
+            else
+                dir = delta.normalized;
+        }
+        else
+            dir = caster.IsPlayer ? Vector3.right : Vector3.left;
+
+        ghostObj.transform.position = caster.transform.position + dir * ghostProxyFixedDistance;
+
+        // 기본 스프라이트가 좌측을 바라본다는 전제로, 공격 방향이 오른쪽이면 flipX=true.
+        ghostRenderer.flipX = dir.x > 0f;
+
+        CharacterMotionController motion = GetMotionController(caster);
+        float holdSeconds = motion != null
+            ? motion.GetExpectedSkillMotionDuration(skill.Motion, ghostProxyMotionFallbackSeconds)
+            : ghostProxyMotionFallbackSeconds;
+
+        float hold = 0f;
+        while (hold < holdSeconds)
+        {
+            hold += Time.deltaTime;
+            yield return null;
+        }
+
+        float fadeDuration = Mathf.Max(0.01f, ghostProxyFadeSeconds);
+        float f = 0f;
+        while (f < fadeDuration)
+        {
+            f += Time.deltaTime;
+            float p = Mathf.Clamp01(f / fadeDuration);
+            Color c = ghostRenderer.color;
+            c.a = Mathf.Lerp(0.55f, 0f, p);
+            ghostRenderer.color = c;
+            yield return null;
+        }
+
+        if (ghostObj != null)
+            Destroy(ghostObj);
     }
 
     /// <summary>
@@ -879,7 +1031,7 @@ public class SkillManager : MonoBehaviour
                     case SkillType.Damage:
                     case SkillType.Piercing:
                         int damage = CalculateDamage(skill, caster, target);
-                        target.TakeDamage(damage, caster.Accuracy, skill, caster.transform.position);
+                        target.TakeDamage(damage, caster.Accuracy, skill, caster.transform.position, caster);
                         ApplyStatusEffects(skill, target);
                         break;
                     case SkillType.Buff:
@@ -928,7 +1080,7 @@ public class SkillManager : MonoBehaviour
                     var targetMotion = GetMotionController(target);
                     if (targetMotion != null)
                     {
-                        targetMotion.ResetMotion();
+                        ResetTargetMotionAfterSkillUnlessKnockdown(target, targetMotion);
                         targetMotion.ResetPosition();
                         Debug.Log($"[스킬연출] 범위 스킬 타겟 원위치: {target.Label}");
                     }
@@ -977,6 +1129,11 @@ public class SkillManager : MonoBehaviour
         {
             // 전체 회복: 제자리에서 연출
             yield return StartCoroutine(PlayAllHealEffect(skill, caster, targets, motionData));
+        }
+        else if (skill.Type == SkillType.Buff)
+        {
+            // 전체 버프: 피격/데미지 없이 버프 연출
+            yield return StartCoroutine(PlayAllBuffEffect(skill, caster, targets, motionData));
         }
         else
         {
@@ -1031,6 +1188,57 @@ public class SkillManager : MonoBehaviour
     }
 
     /// <summary>
+    /// 전체 버프 스킬 연출을 재생합니다 (피격/데미지 없이 버프만 적용)
+    /// </summary>
+    private IEnumerator PlayAllBuffEffect(SkillData skill, CharacterStats caster, List<CharacterStats> targets, SkillData motionData)
+    {
+        Debug.Log($"[스킬연출] PlayAllBuffEffect 시작 - 전체 버프: {skill?.Name}");
+
+        var casterMotion = GetMotionController(caster);
+
+        // 1. 시전자 버프 모션
+        if (casterMotion != null && !caster.IsDead)
+            casterMotion.PlaySkillMotion(skill.Motion);
+
+        yield return new WaitForSeconds(0.3f);
+
+        // 2. 타겟 버프 모션(아군 전체)
+        foreach (var target in targets)
+        {
+            if (target == null || target.IsDead) continue;
+            var targetMotion = GetMotionController(target);
+            if (targetMotion != null)
+                targetMotion.PlayBuffMotion();
+        }
+
+        // 3. 버프 효과 적용(타겟 선정은 ApplyBuffEffects 내부 SkillTarget 기준)
+        ApplyBuffEffects(skill, caster, caster);
+
+        yield return new WaitForSeconds(0.4f);
+
+        // 4. 모션 복귀
+        if (casterMotion != null && !caster.IsDead)
+            casterMotion.ResetMotion();
+
+        foreach (var target in targets)
+        {
+            if (target == null || target.IsDead) continue;
+            var targetMotion = GetMotionController(target);
+            if (targetMotion != null)
+                ResetTargetMotionAfterSkillUnlessKnockdown(target, targetMotion);
+        }
+
+        yield return new WaitForSeconds(0.3f);
+
+        // 5. UI 복귀 + 턴 종료
+        if (BattleUIManager.Instance != null)
+            BattleUIManager.Instance.ChangeUINormal();
+
+        if (TurnManager.Instance != null)
+            TurnManager.Instance.EndTurn();
+    }
+
+    /// <summary>
     /// 전체 공격 스킬 연출을 재생합니다 (앞으로 나가서 타격)
     /// </summary>
     private IEnumerator PlayAllAttackEffect(SkillData skill, CharacterStats caster, List<CharacterStats> targets, SkillData motionData)
@@ -1064,7 +1272,7 @@ public class SkillManager : MonoBehaviour
                     targetMotion.PlayHitMotion();
                 
                 int damage = CalculateDamage(skill, caster, target);
-                target.TakeDamage(damage, caster.Accuracy, skill, caster.transform.position);
+                target.TakeDamage(damage, caster.Accuracy, skill, caster.transform.position, caster);
                 ApplyStatusEffects(skill, target);
             }
         }
@@ -1086,7 +1294,7 @@ public class SkillManager : MonoBehaviour
                 var targetMotion = GetMotionController(target);
                 if (targetMotion != null)
                 {
-                    targetMotion.ResetMotion();
+                    ResetTargetMotionAfterSkillUnlessKnockdown(target, targetMotion);
                     targetMotion.ResetPosition();
                 }
             }
@@ -1105,6 +1313,20 @@ public class SkillManager : MonoBehaviour
         {
             TurnManager.Instance.EndTurn();
         }
+    }
+
+    /// <summary>
+    /// 넉다운 토큰이 있으면 Stand(<see cref="CharacterMotionController.ResetMotion"/>)로 덮지 않고 피격 유지.
+    /// 기절만 걸린 경우 등은 기존처럼 리셋.
+    /// </summary>
+    private static void ResetTargetMotionAfterSkillUnlessKnockdown(CharacterStats target, CharacterMotionController targetMotion)
+    {
+        if (targetMotion == null || target == null || target.IsDead) return;
+        var fx = target.GetComponent<StatusEffectController>();
+        if (fx != null && fx.HasStatusEffectType(StatusEffectType.Knockdown))
+            targetMotion.ApplyPostStunReleaseHitHold();
+        else
+            targetMotion.ResetMotion();
     }
 
     /// <summary>
@@ -1185,6 +1407,8 @@ public class SkillManager : MonoBehaviour
         {
             if (effect == null || string.IsNullOrEmpty(effect.EffectID))
                 continue;
+            if (!ShouldApplyEffectByChance(effect, skill, target))
+                continue;
 
             if (StatusEffectManager.Instance == null)
             {
@@ -1209,17 +1433,17 @@ public class SkillManager : MonoBehaviour
         List<CharacterStats> targets = new List<CharacterStats>();
         if (skill == null || caster == null) return targets;
 
-        switch (skill.SkillTarget)
+        switch (skill.TargetType)
         {
-            case "Me":
+            case SkillTargetType.Me:
                 targets.Add(caster);
                 break;
-            case "Ally":
+            case SkillTargetType.Ally:
                 // 아군만, 본인 제외
                 if (target != null && target.IsPlayer == caster.IsPlayer && !target.IsDead && target != caster)
                     targets.Add(target);
                 break;
-            case "AllAllies":
+            case SkillTargetType.AllAllies:
                 foreach (var slot in TurnManager.Instance.allSlots)
                 {
                     var character = slot.currentCharacter;
@@ -1277,12 +1501,45 @@ public class SkillManager : MonoBehaviour
             {
                 if (effect == null || string.IsNullOrEmpty(effect.EffectID))
                     continue;
+                if (!ShouldApplyEffectByChance(effect, skill, buffTarget))
+                    continue;
 
                 var effectData = StatusEffectManager.Instance.GetById(effect.EffectID);
                 if (effectData != null)
                     buffTarget.AddStatusEffectPrefab(effectData, effect.Duration, effect.Value);
             }
         }
+    }
+
+    private bool ShouldApplyEffectByChance(SkillEffectInfo effect, SkillData skill, CharacterStats target)
+    {
+        float chance = Mathf.Clamp01(effect.Chance);
+        if (chance <= 0f)
+        {
+            Debug.Log($"[SkillManager] 확률 미적용(0%): skill={skill?.ID}, effect={effect.EffectID}, target={target?.Label}");
+            return false;
+        }
+
+        if (chance >= 1f)
+            return true;
+
+        bool success = UnityEngine.Random.value <= chance;
+        Debug.Log($"[SkillManager] 확률 판정: skill={skill?.ID}, effect={effect.EffectID}, chance={chance:F2}, target={target?.Label}, result={(success ? "Success" : "Fail")}");
+        return success;
+    }
+
+    /// <summary>공격 유형(AttackType)에 따른 피해 배율. 미지정·기타는 1배.</summary>
+    private static float GetAttackTypeDamageMultiplier(SkillData skill)
+    {
+        if (skill == null || string.IsNullOrWhiteSpace(skill.AttackType))
+            return 1f;
+
+        string t = skill.AttackType.Trim();
+        if (string.Equals(t, "Cut", System.StringComparison.OrdinalIgnoreCase))
+            return 0.5f;
+        if (string.Equals(t, "Blunt", System.StringComparison.OrdinalIgnoreCase))
+            return 1.5f;
+        return 1f;
     }
 
     private int CalculateDamage(SkillData skill, CharacterStats caster, CharacterStats target)
@@ -1297,6 +1554,9 @@ public class SkillManager : MonoBehaviour
         multiplier = Mathf.Max(multiplier, 0.1f); 
 
         int finalDamage = Mathf.RoundToInt(baseDamage * multiplier);
+        float typeMul = GetAttackTypeDamageMultiplier(skill);
+        if (typeMul != 1f)
+            finalDamage = Mathf.RoundToInt(finalDamage * typeMul);
 
         return finalDamage;
     }
@@ -1305,8 +1565,8 @@ public class SkillManager : MonoBehaviour
     {
         // 예시: 방어 무시 데미지
         int baseDamage = UnityEngine.Random.Range(skill.DamageMin, skill.DamageMax + 1);
-        int finalDamage = baseDamage; // 방어력 무시
-        target.TakeDamage(finalDamage, caster.Accuracy, skill);
+        int finalDamage = Mathf.RoundToInt(baseDamage * GetAttackTypeDamageMultiplier(skill)); // 방어력 무시 + 공격 유형 배율
+        target.TakeDamage(finalDamage, caster.Accuracy, skill, null, caster);
         ApplyStatusEffects(skill, target);
     }
 

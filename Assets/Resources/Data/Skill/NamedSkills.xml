@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Skills>
+	<!-- 모라 네임드 전용 스킬 -->
+	
+	<Skill ID ="011005" ParentID="010000">
+		<Name>축복 : 빛의 갑주</Name>
+		<Icon>SkillIcon/010004</Icon>
+		<Type>Buff</Type>
+		<DamageMin>0</DamageMin>
+		<DamageMax>0</DamageMax>
+		<SkillEffect>
+			<li>
+				<EffectID>021006</EffectID>
+				<Value>3</Value>
+				<Duration>1</Duration>
+			</li>
+		</SkillEffect>
+		<SkillTarget>Me</SkillTarget>
+		<Motion>Buff</Motion>
+		<GhostSpritePath>UnitSprite/Mora/Buff</GhostSpritePath>
+		<GhostProxyScale>1.2</GhostProxyScale>
+		<AttackPoint>Body</AttackPoint>
+		<AttackType>none</AttackType>
+		<AttackEffect>Buff</AttackEffect>
+		<ActiveCount>None</ActiveCount>
+		<ManaCost>2</ManaCost>
+		<CoolTime>4</CoolTime>
+	</Skill>
+	
+	<Skill ID ="011006" ParentID="010000">
+		<Name>성스런 말슴</Name>
+		<Icon>SkillIcon/010001</Icon>
+		<DamageMin>7</DamageMin>
+		<DamageMax>11</DamageMax>
+		<SkillEffect>
+		</SkillEffect>
+		<SkillTarget>Enemy</SkillTarget>
+		<Motion>Attack</Motion>
+		<!-- 주인공 영체 연출용(코드 연동 전 메모): GhostSpritePath가 비어있지 않으면 영체 연출 사용 -->
+		<GhostSpritePath>UnitSprite/Mora/Attack</GhostSpritePath>
+		<GhostProxyScale>1.2</GhostProxyScale>
+		<AttackPoint>Body</AttackPoint>
+		<AttackType>Blunt</AttackType>
+		<AttackEffect>Blunt</AttackEffect>
+		<ActiveCount>None</ActiveCount>
+		<ManaCost>0</ManaCost>
+		<CoolTime>0</CoolTime>
+	</Skill>
+	
+	<Skill ID ="011007" ParentID="010000">
+		<Name>영혼의 고통</Name>
+		<Icon>SkillIcon/010001</Icon>
+		<DamageMin>8</DamageMin>
+		<DamageMax>12</DamageMax>
+		<SkillEffect>
+		</SkillEffect>
+		<SkillTarget>Enemy</SkillTarget>
+		<Motion>Cast</Motion>
+		<GhostSpritePath>UnitSprite/Mora/Cast</GhostSpritePath><!-- 주인공 영체 연출용(코드 연동 전 메모): GhostSpritePath가 비어있지 않으면 영체 연출 사용 -->
+		<GhostProxyScale>1.2</GhostProxyScale>
+		<AttackPoint>Body</AttackPoint>
+		<AttackType>none</AttackType>
+		<AttackEffect>Blunt</AttackEffect>
+		<ActiveCount>None</ActiveCount>
+		<ManaCost>0</ManaCost>
+		<CoolTime>0</CoolTime>
+	</Skill>
+	
+	<Skill ID ="011008" ParentID="010000">
+		<Name>미약하나마 치료를 해드리지</Name>
+		<Icon>SkillIcon/010001</Icon>
+		<Type>Heal</Type>
+		<HealMin>3</HealMin>
+		<HealMax>5</HealMax>
+		<SkillEffect>
+			<li>
+				<EffectID>020004</EffectID>
+				<Value>2</Value>
+				<Duration>3</Duration>
+			</li>
+		</SkillEffect>
+		<SkillTarget>Ally</SkillTarget>
+		<Motion>Buff</Motion>
+		<GhostSpritePath>UnitSprite/Mora/Buff</GhostSpritePath><!-- 주인공 영체 연출용(코드 연동 전 메모): GhostSpritePath가 비어있지 않으면 영체 연출 사용 -->
+		<GhostProxyScale>1.2</GhostProxyScale>
+		<AttackPoint>Body</AttackPoint>
+		<AttackType>none</AttackType>
+		<AttackEffect>None</AttackEffect>
+		<ActiveCount>None</ActiveCount>
+		<ManaCost>0</ManaCost>
+		<CoolTime>0</CoolTime>
+	</Skill>
+</Skills> 

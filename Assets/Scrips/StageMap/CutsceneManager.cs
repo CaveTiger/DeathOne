@@ -81,7 +81,10 @@ public class CutsceneManager : MonoBehaviour
         // BGM 재생
         if (!string.IsNullOrEmpty(currentCutscene.BGM))
         {
-            // TODO: BGM 재생 로직 구현
+            if (SoundManager.Instance != null)
+                SoundManager.Instance.PlayBGM(currentCutscene.BGM, true);
+            else
+                Debug.LogWarning("[CutsceneManager] SoundManager.Instance가 없어 BGM 재생을 건너뜁니다.");
         }
 
         StartCoroutine(PlayNextScene());
@@ -156,7 +159,10 @@ public class CutsceneManager : MonoBehaviour
         // 음성 재생
         if (!string.IsNullOrEmpty(dialogue.Sound) && dialogue.Sound != "None")
         {
-            // TODO: 음성 재생 로직 구현
+            if (SoundManager.Instance != null)
+                SoundManager.Instance.PlayVoice(dialogue.Sound, true);
+            else
+                Debug.LogWarning("[CutsceneManager] SoundManager.Instance가 없어 대사 사운드 재생을 건너뜁니다.");
         }
 
         // 클릭 대기

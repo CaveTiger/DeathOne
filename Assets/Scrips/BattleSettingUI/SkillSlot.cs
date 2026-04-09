@@ -41,6 +41,25 @@ public class SkillSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
             Debug.LogError("[SlotBased][SkillSlot] skillBlock이 null입니다!");
             return;
         }
+
+        // 다른 슬롯에서 이동해 온 경우, 이전 슬롯의 참조/ID를 먼저 정리한다.
+        SkillSlot previousSlot = skillBlock.GetComponentInParent<SkillSlot>();
+        if (previousSlot != null && previousSlot != this && previousSlot.currentSkillBlock == skillBlock)
+        {
+            previousSlot.currentSkillBlock = null;
+            string previousFallbackSkill = BattleSettingManager.Instance != null
+                ? BattleSettingManager.Instance.GetDefaultSkillForSlot(previousSlot.slotIndex)
+                : "";
+            previousSlot.currentSkillID = previousFallbackSkill;
+            previousSlot.UpdateSlotUI(previousFallbackSkill);
+
+            if (BattleSettingManager.Instance != null)
+            {
+                BattleSettingManager.Instance.SetPlayerSkill(previousSlot.slotIndex, previousFallbackSkill);
+            }
+
+            Debug.Log($"[SlotBased][SkillSlot{previousSlot.slotIndex}] 이동으로 기존 슬롯 기본기 복구: {previousFallbackSkill}");
+        }
         
         // 기존 스킬 블록이 있으면 인벤토리로 반환
         if (currentSkillBlock != null && currentSkillBlock != skillBlock)
@@ -103,15 +122,18 @@ public class SkillSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
             
             var removedSkillID = currentSkillID;
             currentSkillBlock = null;
-            currentSkillID = "";
-            UpdateSlotUI("");
+            string fallbackSkill = BattleSettingManager.Instance != null
+                ? BattleSettingManager.Instance.GetDefaultSkillForSlot(slotIndex)
+                : "";
+            currentSkillID = fallbackSkill;
+            UpdateSlotUI(fallbackSkill);
             
-            Debug.Log($"[SlotBased][SkillSlot{slotIndex}] 스킬 제거: {removedSkillID}");
+            Debug.Log($"[SlotBased][SkillSlot{slotIndex}] 스킬 제거: {removedSkillID}, 기본기 복구: {fallbackSkill}");
             
             // BattleSettingManager에 반영 (단방향 전달)
             if (BattleSettingManager.Instance != null)
             {
-                BattleSettingManager.Instance.SetPlayerSkill(slotIndex, "");
+                BattleSettingManager.Instance.SetPlayerSkill(slotIndex, fallbackSkill);
             }
         }
     }

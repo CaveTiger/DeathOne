@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 681411ace817e454a9052487d3197c38, type: 3}
+  m_Name: StatusEffect_022001_Mark
+  m_EditorClassIdentifier: 
+  EffectID: 022001
+  effectName: "\uC9C0\uBAA9"
+  effectType: 2
+  description: "\uD0C0\uAC9F \uB300\uC0C1\uC744 \uC18C\uC720\uC790\uB85C \uD55C\uC815"
+  icon: {fileID: 8228104731330896905, guid: e714cd40b67bc7947b1cec63763f9338, type: 3}
+  negativeIcon: {fileID: 0}
+  effectColor: {r: 1, g: 0, b: 0, a: 1}
+  effectPrefab: {fileID: 6510473027615198677, guid: a44f1f832a7cce84082ca673649c9bbb, type: 3}
+  duration: 0
+  value: 0
+  iconPath: StatusEffect/Bleed
+  maxTriggerCount: 0
+  statType: 6
+  blockOtherAlliesAsTarget: 0
+  tauntAffectsRandomTargeting: 0
+  tauntProtectsAgainstAoE: 0
+  markPriorityTarget: 1
+  markDamageTakenMultiplier: 1.1
+  treatContinuousValueAsHeal: 0
+  reactionMode: 0
+  reactionFixedValue: 0
+  reactionPercent: 0
+  useAppliedValueForReaction: 0
+  reflectReducedAmountDirect: 0
+  useReducedAmountAsReflectBase: 0
+  reductionMode: 1
+  reductionFixedValue: 0
+  reductionPercent: 0
+  useAppliedValueForReduction: 1

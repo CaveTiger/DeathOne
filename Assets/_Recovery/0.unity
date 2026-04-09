@@ -3120,7 +3120,6 @@ MonoBehaviour:
   allyPartyData: []
   enemyIDs: []
   enemyPrefab: {fileID: 1855962151722591943, guid: a8de4d3ad5df1b140b1967e6780c30be, type: 3}
-  statusPopupPrefab: {fileID: 0}
   currentBlockID: 
 --- !u!114 &1041420861
 MonoBehaviour:

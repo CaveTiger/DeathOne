@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 681411ace817e454a9052487d3197c38, type: 3}
+  m_Name: StatusEffect_020004_Heal
+  m_EditorClassIdentifier: Assembly-CSharp::StatusEffectData
+  EffectID: 020004
+  effectName: Heal
+  effectType: 3
+  description: 
+  icon: {fileID: 21300000, guid: d4a01f7de338cfc4081e0dab0cd81a9f, type: 3}
+  negativeIcon: {fileID: 0}
+  effectColor: {r: 1, g: 0, b: 0, a: 1}
+  effectPrefab: {fileID: 7092126939529423785, guid: 3cd90383bf078144e93e0313c33dd64e, type: 3}
+  duration: 0
+  value: 0
+  iconPath: StatusEffect/Bleed
+  maxTriggerCount: 0
+  statType: 0
+  treatContinuousValueAsHeal: 1
+  reactionMode: 0
+  reactionFixedValue: 0
+  reactionPercent: 0
+  useAppliedValueForReaction: 1
+  reflectReducedAmountDirect: 0
+  useReducedAmountAsReflectBase: 0
+  reductionMode: 0
+  reductionFixedValue: 0
+  reductionPercent: 0
+  useAppliedValueForReduction: 0

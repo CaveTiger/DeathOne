@@ -9,6 +9,6 @@ public static class DebugTraceFlags
     /// <summary> StatusEffectInstanceBuff의 UI/지속턴/아이콘 성공 로그(스탯·UI 잡음) </summary>
     public const bool StatBuffDetailLogs = false;
 
-    /// <summary> Mora(000007) GetFinalStatValue·패시브 스탯 보너스 추적 </summary>
+    /// <summary> Mora(001003) GetFinalStatValue·패시브 스탯 보너스 추적 </summary>
     public const bool PassiveStatTraceMora = false;
 }

@@ -118,26 +118,22 @@ public class VirtualMouseSkillPanel : VirtualMouseUIPanel
         if (statusValueBlockManager != null)
             statusValueBlockManager.ClearAllBlocks();
 
-        // 초기에는 숨김 (호버될 때만 표시)
-        // SetActive로만 제어
-        gameObject.SetActive(false);
-        
+        // 초기에는 숨김 — isVisible과 activeSelf를 부모 SetVisible로 동기화
+        SetVisible(false, false);
+
         Debug.Log("[VirtualMouseSkillPanel] 스킬 패널 초기화 완료");
     }
     
     /// <summary>
-    /// 초기 상태 설정 오버라이드: 스킬 패널은 SetActive로만 제어
+    /// 초기 상태 설정 오버라이드
     /// </summary>
     protected override void SetupInitialState()
     {
-        // 부모 클래스의 SetupInitialState()를 호출하지 않음 (SetVisible 사용 안 함)
-        // SetActive로만 제어
-        gameObject.SetActive(false);
-        // StEfDecAnchor도 함께 숨김
+        SetVisible(false, false);
         HideStEfDecAnchor();
         
         if (enableDebugLog)
-            Debug.Log("[VirtualMouseSkillPanel] 스킬 패널 초기 상태 설정 완료 (SetActive만 사용)");
+            Debug.Log("[VirtualMouseSkillPanel] 스킬 패널 초기 상태 설정 완료");
     }
 
     /// <summary>
@@ -166,9 +162,7 @@ public class VirtualMouseSkillPanel : VirtualMouseUIPanel
             statusEffectDescriptionPanel.ClearAllDescriptions();
         if (statusValueBlockManager != null)
             statusValueBlockManager.ClearAllBlocks();
-        // SetActive로만 제어
-        gameObject.SetActive(false);
-        // StEfDecAnchor도 함께 숨김
+        SetVisible(false, false);
         HideStEfDecAnchor();
     }
     
@@ -249,14 +243,17 @@ public class VirtualMouseSkillPanel : VirtualMouseUIPanel
             skillNameText.text = currentSkillData.Name;
         }
         
-        // 스킬 데미지(민/맥스) 설정
+        // 스킬 수치(민/맥스) 설정
+        // 힐 스킬은 HealMin/HealMax를 우선 노출하고, 그 외에는 DamageMin/DamageMax를 표시한다.
         if (skillDamageMinText != null)
         {
-            skillDamageMinText.text = currentSkillData.DamageMin > 0 ? currentSkillData.DamageMin.ToString() : "-";
+            int minValue = GetPrimaryMinValue(currentSkillData);
+            skillDamageMinText.text = minValue > 0 ? minValue.ToString() : "-";
         }
         if (skillDamageMaxText != null)
         {
-            skillDamageMaxText.text = currentSkillData.DamageMax > 0 ? currentSkillData.DamageMax.ToString() : "-";
+            int maxValue = GetPrimaryMaxValue(currentSkillData);
+            skillDamageMaxText.text = maxValue > 0 ? maxValue.ToString() : "-";
         }
         
         // 스킬 쿨타임 설정
@@ -270,6 +267,22 @@ public class VirtualMouseSkillPanel : VirtualMouseUIPanel
         // 스킬 타입에 따른 색상 설정
         SetSkillTypeColor();
     }
+
+    private static int GetPrimaryMinValue(SkillData skillData)
+    {
+        if (skillData == null) return 0;
+
+        bool isHealSkill = skillData.Type == SkillType.Heal || skillData.HealMin > 0 || skillData.HealMax > 0;
+        return isHealSkill ? skillData.HealMin : skillData.DamageMin;
+    }
+
+    private static int GetPrimaryMaxValue(SkillData skillData)
+    {
+        if (skillData == null) return 0;
+
+        bool isHealSkill = skillData.Type == SkillType.Heal || skillData.HealMin > 0 || skillData.HealMax > 0;
+        return isHealSkill ? skillData.HealMax : skillData.DamageMax;
+    }
     
     /// <summary>
     /// 스킬 타입에 따른 색상 설정
@@ -279,13 +292,9 @@ public class VirtualMouseSkillPanel : VirtualMouseUIPanel
         if (currentSkillData == null) return;
         
         Color skillColor = Color.white;
-        
+
+        // 배경 Image 색·알파는 씬/프리팹에서만 관리 (SetActive로 켜고 끄는 패널에 런타임 덮어쓰기 안 함)
         // 스킬 타입에 따른 색상 결정 (추후 SkillData에 타입 필드 추가 시 확장)
-        // 현재는 기본 색상 사용
-        
-        // 배경 색상 설정
-        SetBackgroundColorInternal(skillColor * 0.1f);
-        
         // 텍스트 색상 설정
         if (skillNameText != null)
         {
@@ -308,8 +317,7 @@ public class VirtualMouseSkillPanel : VirtualMouseUIPanel
     public void ShowSkillPanel(SkillData skillData)
     {
         SetSkillData(skillData);
-        // SetActive로만 제어
-        gameObject.SetActive(true);
+        SetVisible(true, false);
         if (debugSkillPanel)
             Debug.Log("[VMSkillPanel] ShowSkillPanel 호출됨");
     }
@@ -320,8 +328,7 @@ public class VirtualMouseSkillPanel : VirtualMouseUIPanel
     public void OnHoverEnter(SkillData skillData)
     {
         SetSkillData(skillData);
-        // SetActive로만 제어
-        gameObject.SetActive(true);
+        SetVisible(true, false);
     }
     
     /// <summary>
@@ -329,8 +336,7 @@ public class VirtualMouseSkillPanel : VirtualMouseUIPanel
     /// </summary>
     public void HideSkillPanel()
     {
-        // SetActive로만 제어
-        gameObject.SetActive(false);
+        SetVisible(false, false);
         currentSkillData = null;
         if (debugSkillPanel)
             Debug.Log("[VMSkillPanel] HideSkillPanel 호출됨");
@@ -377,9 +383,7 @@ public class VirtualMouseSkillPanel : VirtualMouseUIPanel
         {
             statusValueBlockManager.ClearAllBlocks();
         }
-        // 패널 자체도 숨김 (SetActive로만 제어)
-        gameObject.SetActive(false);
-        // StEfDecAnchor도 함께 숨김
+        SetVisible(false, false);
         HideStEfDecAnchor();
     }
     

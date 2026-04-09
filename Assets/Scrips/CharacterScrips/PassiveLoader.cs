@@ -151,6 +151,7 @@ public class PassiveLoader : MonoBehaviour
         target.grantStatusDuration = source.grantStatusDuration;
         target.grantStatusEffectId = source.grantStatusEffectId;
         target.grantStatusValue = source.grantStatusValue;
+        target.immuneStatusEffectIds = source.immuneStatusEffectIds;
     }
 
     /// <summary>
@@ -268,6 +269,11 @@ public class PassiveLoader : MonoBehaviour
                                 passiveNode.SelectSingleNode("StatusEffectValue");
         if (statusValNode != null && int.TryParse(statusValNode.InnerText, out int statusVal))
             passiveData.grantStatusValue = statusVal;
+
+        XmlNode immuneIdsNode = passiveNode.SelectSingleNode("ImmuneStatusEffectIDs") ??
+                                passiveNode.SelectSingleNode("immuneStatusEffectIDs");
+        if (immuneIdsNode != null)
+            passiveData.immuneStatusEffectIds = immuneIdsNode.InnerText?.Trim();
     }
 
     /// <summary>
@@ -299,6 +305,13 @@ public class PassiveLoader : MonoBehaviour
                     {
                         Debug.LogWarning(
                             $"[PassiveLoader][검증] {p.passiveID} ({p.passiveName}): CustomScript — ScriptClass가 비어 있거나 none입니다.");
+                    }
+                    break;
+                case PassiveType.StatusEffectImmunity:
+                    if (string.IsNullOrWhiteSpace(p.immuneStatusEffectIds))
+                    {
+                        Debug.LogWarning(
+                            $"[PassiveLoader][검증] {p.passiveID} ({p.passiveName}): StatusEffectImmunity — ImmuneStatusEffectIDs가 비어 있습니다.");
                     }
                     break;
             }
@@ -374,7 +387,7 @@ public class PassiveLoader : MonoBehaviour
                 $"TargetStat={p.targetStat}, Value={p.value}, FloatValue={p.floatValue}, " +
                 $"GrantsMana={p.grantsMana}, MaxMana={p.maxMana}, ManaRegenInterval={p.manaRegenInterval}, " +
                 $"Rarity={p.rarity}, Cost={p.cost}, ScriptClass={p.scriptClass}, " +
-                $"UseCount={p.useCount} StartCount={p.startUseCount} GrantStatus={p.grantStatusEffectId} dur={p.grantStatusDuration} val={p.grantStatusValue}");
+                $"UseCount={p.useCount} StartCount={p.startUseCount} GrantStatus={p.grantStatusEffectId} dur={p.grantStatusDuration} val={p.grantStatusValue} ImmuneIDs={p.immuneStatusEffectIds}");
         }
     }
 } 

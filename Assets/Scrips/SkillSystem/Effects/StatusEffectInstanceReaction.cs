@@ -104,24 +104,140 @@ public class StatusEffectInstanceReaction : StatusEffectInstanceBase
         Debug.Log($"[StatusEffectInstanceReaction] {effectData.effectName} UI 업데이트 - 남은 턴: {remainingTurns}");
     }
 
-    public virtual bool OnTakeDamage(ref int damage)
+    public virtual bool OnTakeDamage(ref int damage, CharacterStats attacker, bool isReflectedDamage)
     {
-        // 예시: 피해무시
-        if (effectData != null && effectData.EffectID == "021002" && triggerCount > 0)
+        if (effectData == null || !isActive)
+            return false;
+
+        if (DebugTraceFlags.PassiveStatusEffectFlow)
         {
-            triggerCount--;
-            Debug.Log($"[피해무시] {owner.Label}가 피해를 무시했습니다! 남은 횟수: {triggerCount}");
+            Debug.Log($"[ReflectTrace][Reaction] enter owner={owner?.Label}, effect={effectData.EffectID}, mode={effectData.reactionMode}, dmgIn={damage}, attacker={(attacker != null ? attacker.Label : "null")}, reflectedIn={isReflectedDamage}, trigger={triggerCount}, maxTrigger={effectData.maxTriggerCount}");
+        }
+
+        // 반사로 들어온 피해는 반응 재트리거를 막아 루프를 차단
+        if (isReflectedDamage)
+            return false;
+
+        ReactionEffectMode mode = effectData.reactionMode;
+        // 기존 데이터 호환: reactionMode를 아직 안 쓴 021002는 피해무시로 동작 유지
+        if (mode == ReactionEffectMode.None && effectData.EffectID == "021002")
+            mode = ReactionEffectMode.DamageNullify;
+
+        // maxTriggerCount > 0 일 때만 횟수 제한을 적용한다. (0은 무제한)
+        bool limitedByTriggerCount = effectData.maxTriggerCount > 0;
+        if (limitedByTriggerCount && triggerCount <= 0)
+        {
+            if (DebugTraceFlags.PassiveStatusEffectFlow)
+                Debug.Log($"[ReflectTrace][Reaction] skip trigger 소진: effect={effectData.EffectID}, owner={owner?.Label}");
+            return false;
+        }
+
+        if (mode == ReactionEffectMode.DamageNullify)
+        {
+            if (limitedByTriggerCount)
+                triggerCount--;
+            Debug.Log($"[피해무시] {owner.Label}가 피해를 무시했습니다! 남은 횟수: {(limitedByTriggerCount ? triggerCount : -1)}");
             damage = 0;
-            if (triggerCount <= 0)
+            if (limitedByTriggerCount && triggerCount <= 0)
             {
                 remainingTurns = 0;
-                // 필요하다면 효과 해제 로직 호출
                 Destroy(this.gameObject);
             }
             return true;
         }
-        // 기본은 아무 효과 없음
+
+        int incomingBeforeReduction = damage;
+        int reducedAmount = ApplyDamageReduction(ref damage);
+
+        if (mode == ReactionEffectMode.ReflectFixed || mode == ReactionEffectMode.ReflectPercentOfReceived)
+        {
+            int reflectAmount = CalculateReflectDamage(incomingBeforeReduction, reducedAmount);
+            if (DebugTraceFlags.PassiveStatusEffectFlow)
+                Debug.Log($"[ReflectTrace][Reaction] reflect 계산: owner={owner?.Label}, incoming={incomingBeforeReduction}, reduced={reducedAmount}, dmgAfterReduction={damage}, reflect={reflectAmount}, attacker={(attacker != null ? attacker.Label : "null")}");
+            if (reflectAmount > 0 && attacker != null && !attacker.IsDead)
+            {
+                if (limitedByTriggerCount)
+                    triggerCount--;
+                Debug.Log($"[반사] {owner.Label} -> {attacker.Label} 반사 피해 {reflectAmount} (모드: {mode}, 남은 횟수: {(limitedByTriggerCount ? triggerCount : -1)})");
+                attacker.TakeDamage(reflectAmount, owner != null ? owner.Accuracy : 1f, null, owner != null ? owner.transform.position : (Vector3?)null, owner, true);
+
+                if (limitedByTriggerCount && triggerCount <= 0)
+                {
+                    remainingTurns = 0;
+                    Destroy(this.gameObject);
+                }
+            }
+            else if (DebugTraceFlags.PassiveStatusEffectFlow)
+            {
+                Debug.LogWarning($"[ReflectTrace][Reaction] 반사 미발동: reflect={reflectAmount}, attackerNull={(attacker == null)}, attackerDead={(attacker != null && attacker.IsDead)}");
+            }
+        }
+
         return false;
+    }
+
+    private int CalculateReflectDamage(int incomingDamageBeforeReduction, int reducedAmount)
+    {
+        if (incomingDamageBeforeReduction <= 0 || effectData == null)
+            return 0;
+
+        if (effectData.reflectReducedAmountDirect)
+            return Mathf.Max(0, reducedAmount);
+
+        int reflectBaseDamage = effectData.useReducedAmountAsReflectBase
+            ? Mathf.Max(0, reducedAmount)
+            : Mathf.Max(0, incomingDamageBeforeReduction);
+
+        switch (effectData.reactionMode)
+        {
+            case ReactionEffectMode.ReflectFixed:
+                {
+                    int fixedValue = effectData.useAppliedValueForReaction ? value : effectData.reactionFixedValue;
+                    return Mathf.Max(0, fixedValue);
+                }
+            case ReactionEffectMode.ReflectPercentOfReceived:
+                {
+                    float percent = effectData.useAppliedValueForReaction ? value : effectData.reactionPercent;
+                    if (percent <= 0f) return 0;
+                    return Mathf.Max(0, Mathf.RoundToInt(reflectBaseDamage * (percent / 100f)));
+                }
+            default:
+                return 0;
+        }
+    }
+
+    private int ApplyDamageReduction(ref int damage)
+    {
+        if (effectData == null || damage <= 0)
+            return 0;
+
+        int original = damage;
+        int reduced = 0;
+
+        switch (effectData.reductionMode)
+        {
+            case ReactionDamageReductionMode.Fixed:
+                {
+                    int fixedReduction = effectData.useAppliedValueForReduction ? value : effectData.reductionFixedValue;
+                    reduced = Mathf.Clamp(fixedReduction, 0, original);
+                    break;
+                }
+            case ReactionDamageReductionMode.PercentOfReceived:
+                {
+                    float percent = effectData.useAppliedValueForReduction ? value : effectData.reductionPercent;
+                    if (percent > 0f)
+                        reduced = Mathf.Clamp(Mathf.RoundToInt(original * (percent / 100f)), 0, original);
+                    break;
+                }
+        }
+
+        if (reduced > 0)
+        {
+            damage = Mathf.Max(0, original - reduced);
+            Debug.Log($"[반응감쇠] {owner?.Label}: 피해 감소 {original} -> {damage} (감소량 {reduced})");
+        }
+
+        return reduced;
     }
 
     /// <summary>

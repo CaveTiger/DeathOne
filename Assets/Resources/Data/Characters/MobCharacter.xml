@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Characters>
 	<Character ID="000003">
 		<Label>호송병</Label> <!--캐릭터의 이름-->
@@ -7,6 +7,8 @@
 			<Hp>30</Hp> <!--들어갈때 최대체력 + 현재체력 모두 이걸로 세팅된다.-->
 			<Atk>2</Atk>
 			<Def>2</Def>
+			<KDP>0</KDP>
+			<MaxKDP>30</MaxKDP>
 			<Evasionrate>0.05</Evasionrate>
 			<Accuracy>0.1</Accuracy>
 			<Speed>14</Speed>
@@ -31,9 +33,89 @@
 			<Hp>26</Hp> <!--들어갈때 최대체력 + 현재체력 모두 이걸로 세팅된다.-->
 			<Atk>1</Atk>
 			<Def>3</Def>
+			<KDP>0</KDP>
+			<MaxKDP>26</MaxKDP>
 			<Evasionrate>0.1</Evasionrate>
 			<Accuracy>0.0</Accuracy>
 			<Speed>12</Speed>
+		</Stats>
+		<Skills>
+			<li>010005</li>
+			<li>010006</li>
+			<li>010008</li>
+			<li>010009</li>
+		</Skills>
+		<Passives>
+		</Passives>
+		<Rarity>Normal</Rarity>
+		<Sprite>UnitSprite/MobB</Sprite> <!--스프라이트 주소를 찾아 적어넣기-->
+		<Pattern>Normal</Pattern> <!--행동 패턴 스크립트-->
+	</Character>
+
+	<Character ID="000005">
+		<Label>데인마르 방패병</Label> <!--캐릭터의 이름-->
+		<Description>설명 영혼의 기억에서 확인 가능</Description> <!---->
+		<Stats>
+			<Hp>60</Hp> <!--들어갈때 최대체력 + 현재체력 모두 이걸로 세팅된다.-->
+			<Atk>0</Atk>
+			<Def>5</Def>
+			<KDP>0</KDP>
+			<MaxKDP>60</MaxKDP>
+			<Evasionrate>0.1</Evasionrate>
+			<Accuracy>0.0</Accuracy>
+			<Speed>8</Speed>
+		</Stats>
+		<Skills>
+			<li>010005</li>
+			<li>010006</li>
+			<li>010008</li>
+			<li>010009</li>
+		</Skills>
+		<Passives>
+		</Passives>
+		<Rarity>Normal</Rarity>
+		<Sprite>UnitSprite/MobB</Sprite> <!--스프라이트 주소를 찾아 적어넣기-->
+		<Pattern>Normal</Pattern> <!--행동 패턴 스크립트-->
+	</Character>
+
+	<Character ID="000006">
+		<Label>데인마르 기수</Label> <!--캐릭터의 이름-->
+		<Description>설명 영혼의 기억에서 확인 가능</Description> <!---->
+		<Stats>
+			<Hp>42</Hp> <!--들어갈때 최대체력 + 현재체력 모두 이걸로 세팅된다.-->
+			<Atk>0</Atk>
+			<Def>2</Def>
+			<KDP>0</KDP>
+			<MaxKDP>42</MaxKDP>
+			<Evasionrate>0.2</Evasionrate>
+			<Accuracy>0.0</Accuracy>
+			<Speed>18</Speed>
+		</Stats>
+		<Skills>
+			<li>010005</li>
+			<li>010006</li>
+			<li>010008</li>
+			<li>010009</li>
+		</Skills>
+		<Passives>
+		</Passives>
+		<Rarity>Normal</Rarity>
+		<Sprite>UnitSprite/MobB</Sprite> <!--스프라이트 주소를 찾아 적어넣기-->
+		<Pattern>Normal</Pattern> <!--행동 패턴 스크립트-->
+	</Character>
+
+	<Character ID="000007">
+		<Label>데인마르 궁수</Label> <!--캐릭터의 이름-->
+		<Description>설명 영혼의 기억에서 확인 가능</Description> <!---->
+		<Stats>
+			<Hp>45</Hp> <!--들어갈때 최대체력 + 현재체력 모두 이걸로 세팅된다.-->
+			<Atk>2</Atk>
+			<Def>1</Def>
+			<KDP>0</KDP>
+			<MaxKDP>45</MaxKDP>
+			<Evasionrate>0.2</Evasionrate>
+			<Accuracy>0.2</Accuracy>
+			<Speed>24</Speed>
 		</Stats>
 		<Skills>
 			<li>010005</li>

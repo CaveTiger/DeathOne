@@ -69,15 +69,8 @@ public class VirtualMouseCanvas : MonoBehaviour
         // Canvas 기본 설정
         virtualMouseCanvas.renderMode = renderMode;
         virtualMouseCanvas.sortingOrder = sortOrder;
-        
-        // CanvasGroup 알파값을 1로 설정 (Inspector에서 0으로 설정되어 있을 수 있음)
-        CanvasGroup canvasGroup = GetComponent<CanvasGroup>();
-        if (canvasGroup != null)
-        {
-            canvasGroup.alpha = 1f;
-            canvasGroup.interactable = true;
-            canvasGroup.blocksRaycasts = true;
-        }
+
+        HealVirtualMouseVisibility();
         
         // CanvasScaler 설정
         if (canvasScaler == null)
@@ -109,6 +102,50 @@ public class VirtualMouseCanvas : MonoBehaviour
         if (cursorImage == null)
         {
             cursorImage = virtualMouseTransform?.GetComponent<Image>();
+        }
+    }
+
+    /// <summary>
+    /// 월드맵(SampleScene) 복귀 등 씬 로드 후 호출. DontDestroyOnLoad라 Start가 다시 안 돌 수 있어
+    /// <see cref="InitializeVirtualMouseCanvas"/> 전체를 한 번 더 돌려 스케일·CanvasGroup·Scaler 등을 맞춤. (스냅샷과 무관)
+    /// </summary>
+    public void EnsureVisibleAfterWorldMapLoad()
+    {
+        if (!gameObject.activeSelf)
+            gameObject.SetActive(true);
+        InitializeVirtualMouseCanvas();
+    }
+
+    /// <summary>
+    /// 루트 또는 자손 RectTransform 이 (0,0,0) 스케일이면 UI 전체가 안 보임. CanvasGroup 알파도 1로.
+    /// </summary>
+    private void HealVirtualMouseVisibility()
+    {
+        var canvasRt = GetComponent<RectTransform>();
+        if (canvasRt != null && canvasRt.localScale.sqrMagnitude < 1e-6f)
+        {
+            canvasRt.localScale = Vector3.one;
+            Debug.LogWarning("[VirtualMouseCanvas] 루트 localScale이 0에 가까워 (1,1,1)로 복구했습니다.");
+        }
+
+        foreach (var rt in GetComponentsInChildren<RectTransform>(true))
+        {
+            Vector3 ls = rt.localScale;
+            if (ls.x == 0f && ls.y == 0f && ls.z == 0f)
+            {
+                rt.localScale = Vector3.one;
+                Debug.LogWarning($"[VirtualMouseCanvas] 자손 RectTransform scale (0,0,0) 복구: {rt.name}");
+            }
+        }
+
+        CanvasGroup canvasGroup = GetComponent<CanvasGroup>();
+        if (canvasGroup != null)
+        {
+            if (canvasGroup.alpha < 0.99f)
+                Debug.LogWarning("[VirtualMouseCanvas] CanvasGroup alpha가 1이 아니어서 1로 복구했습니다.");
+            canvasGroup.alpha = 1f;
+            canvasGroup.interactable = true;
+            canvasGroup.blocksRaycasts = true;
         }
     }
     

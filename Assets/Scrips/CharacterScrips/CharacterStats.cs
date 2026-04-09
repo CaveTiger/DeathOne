@@ -13,9 +13,30 @@ public class CharacterStats : MonoBehaviour
     public string[] Skills = new string[4];
     public bool IsDead = false; //캐릭터의 죽음
     public bool IsActive = true; //false가 되면 스킬로 인한 행동불가판정
+
+    /// <summary>
+    /// 스킬 시전·적 AI 행동 등 전투 행동이 허용되는지. 사망·빈사(Hp≤0)·비활성은 false.
+    /// </summary>
+    public bool IsCombatCapable()
+    {
+        return gameObject != null && IsActive && !IsDead && Hp > 0;
+    }
     public bool IsMyTurn = false; //턴 당사자
     public bool IsPlayer = true; //플레이어블
     public bool TurnChanse = false; //턴이 올때 기회
+    /// <summary>기절 소모 직후 피격 자세를 쓴 뒤, 다음 본인 턴 시작 시 스탠드로 돌릴지.</summary>
+    private bool pendingStandRecoverAfterStunConsume;
+
+    /// <summary>KDP 넉다운 상태이상 SO ID (<see cref="StatusEffectType.Knockdown"/>).</summary>
+    public const string KnockdownEffectId = "023002";
+
+    [Header("넉다운(KDP)")]
+    [Tooltip("전투 런타임 누적. 한도는 data.MaxKDP(XML). 적(!IsPlayer)만 TakeDamage에서 증가. 자기 턴 시작 시 절반(내림) 감쇠.")]
+    public int KnockdownBuildup;
+
+    /// <summary>이미 빈사(Hp≤0)인 아군(주인공 제외)이 피해를 입을 때마다 누적 붕괴율에 가산. 붕괴 주사위는 피해 경로 <see cref="Deathcheck"/>에서만 굴린다.</summary>
+    private const float CollapsePressurePerDamageWhileNearDeath = 0.08f;
+
     public PatternType Pattern;
     public RarityList Rarity;
     
@@ -60,7 +81,7 @@ public class CharacterStats : MonoBehaviour
     public void SetData(CharacterData data)
     {
         this.data = data;
-        bool traceMora = data != null && data.ID == "000007" && DebugTraceFlags.PassiveStatTraceMora;
+        bool traceMora = data != null && data.ID == "001003" && DebugTraceFlags.PassiveStatTraceMora;
         if (spriteRenderer == null)
             spriteRenderer = GetComponentInChildren<SpriteRenderer>();
 
@@ -111,11 +132,40 @@ public class CharacterStats : MonoBehaviour
         {
             Debug.Log($"[PassiveTrace][SetData-After] ID={data.ID} RuntimeStats Hp/MaxHp/Atk/Def={Hp}/{MaxHp}/{Atk}/{Def} ActivePassives={string.Join(",", activePassiveIDs)}");
         }
+
+        // 넉다운 누적은 스탯 필드에서 관리. 입장 시 초기화(한도 MaxKDP는 data/XML 유지).
+        KnockdownBuildup = 0;
+        if (data != null)
+            data.KDP = 0; // 템플릿/공유 CharacterData에 남는 누적 방지
         
         // Debug.Log($"[SetData 완료] ID: {data.ID}, HP: {Hp}, Atk: {Atk}, Sprite: {data.Sprite}");
     }
-    public void TakeDamage(int dmg, float attackerAccuracy, SkillData skillData = null, Vector3? attackerPosition = null)
+    public void TakeDamage(
+        int dmg,
+        float attackerAccuracy,
+        SkillData skillData = null,
+        Vector3? attackerPosition = null,
+        CharacterStats attacker = null,
+        bool isReflectedDamage = false)
     {
+        // 일부 구형/우회 경로에서 attacker가 누락되는 경우를 대비한 보조 복구.
+        // 반사 피해는 재귀/오검출 방지를 위해 복구 대상에서 제외한다.
+        CharacterStats resolvedAttacker = attacker;
+        if (!isReflectedDamage && resolvedAttacker == null && TurnManager.Instance != null)
+        {
+            var current = TurnManager.Instance.currentCaster;
+            if (current != null && current != this && !current.IsDead)
+            {
+                resolvedAttacker = current;
+                if (DebugTraceFlags.PassiveStatusEffectFlow)
+                    Debug.Log($"[ReflectTrace][TakeDamage] attacker null 복구: target={Label}, resolved={resolvedAttacker.Label}, turnCaster={current.Label}");
+            }
+        }
+        else if (DebugTraceFlags.PassiveStatusEffectFlow && !isReflectedDamage && resolvedAttacker == null)
+        {
+            Debug.LogWarning($"[ReflectTrace][TakeDamage] attacker 미확보: target={Label}, skill={skillData?.ID ?? "null"}, reflected={isReflectedDamage}");
+        }
+
         float CriticalRate = 0.05f;
         // 1. 크리티컬 확률 계산
         if ((Evasion - attackerAccuracy) < 0)
@@ -150,10 +200,14 @@ public class CharacterStats : MonoBehaviour
                 if (effect == null) continue;
                 
                 var instance = effect.GetComponent<StatusEffectInstanceReaction>();
-                if (instance != null && instance.OnTakeDamage(ref dmg))
+                if (DebugTraceFlags.PassiveStatusEffectFlow && instance != null)
+                {
+                    Debug.Log($"[ReflectTrace][TakeDamage] reaction 체크: target={Label}, effectObj={effect.name}, dmg={dmg}, attacker={(resolvedAttacker != null ? resolvedAttacker.Label : "null")}, reflected={isReflectedDamage}");
+                }
+                if (instance != null && instance.OnTakeDamage(ref dmg, resolvedAttacker, isReflectedDamage))
                 {
                     // 피해가 무시되었으면 블록 효과 표시
-                    Vector3 blockAttackerPos = attackerPosition ?? transform.position + Vector3.right * 2f;
+                    Vector3 blockAttackerPos = attackerPosition ?? (resolvedAttacker != null ? resolvedAttacker.transform.position : transform.position + Vector3.right * 2f);
                     if (BattleEffectManager.Instance != null)
                     {
                         BattleEffectManager.Instance.PlayBlockEffect(this, blockAttackerPos);
@@ -165,6 +219,16 @@ public class CharacterStats : MonoBehaviour
         
         Debug.Log($"[CharacterStats] {Label}: 피해무시 효과 없음. 최종 피해: {dmg}");
 
+        // 지목형 디버프: 피격 배율 증가 (기본 1.1배, SO에서 조절 가능)
+        if (controller != null)
+        {
+            float markMul = controller.GetHighestMarkDamageTakenMultiplier();
+            if (markMul > 1f)
+            {
+                dmg = Mathf.Max(0, Mathf.RoundToInt(dmg * markMul));
+            }
+        }
+
         // 3. 실제 체력 감소
         int oldHp = Hp;
         Hp -= dmg;
@@ -174,19 +238,22 @@ public class CharacterStats : MonoBehaviour
 
         // === 전투 연출 시스템 연동 ===
         // 이벤트 발생
-        Vector3 attackerPos = attackerPosition ?? transform.position + Vector3.right * 2f;
+        Vector3 attackerPos = attackerPosition ?? (resolvedAttacker != null ? resolvedAttacker.transform.position : transform.position + Vector3.right * 2f);
         OnTakeDamageEvent?.Invoke(this, dmg, isCritical, attackerPos);
 
-        // === KDP(넉다운 포인트) 처리 ===
+        // === KDP(넉다운 포인트) — 적 전용. 누적은 KnockdownBuildup, 한도는 data.MaxKDP.
         if (!IsPlayer && data != null && data.MaxKDP > 0 && skillData != null)
         {
             float multiplier = skillData.KnockdownMultiplier;
+            if (IsKnockdownAttackTypeNone(skillData))
+                multiplier = 1f;
             if (multiplier > 0f)
             {
-                data.KDP += Mathf.RoundToInt(dmg * multiplier);
-                if (data.KDP >= data.MaxKDP)
+                int add = Mathf.RoundToInt(dmg * multiplier);
+                KnockdownBuildup += add;
+                if (KnockdownBuildup >= data.MaxKDP)
                 {
-                    data.KDP = 0;
+                    KnockdownBuildup = 0;
                     TriggerKnockdown();
                 }
             }
@@ -197,9 +264,11 @@ public class CharacterStats : MonoBehaviour
         // 체력이 0 이하가 되면 Deathcheck 호출
         if (Hp <= 0)
         {
-            Debug.Log($"[붕괴추적] TakeDamage - 체력 0 이하 감지, Deathcheck() 호출 (직접 공격)");
+            Debug.Log($"[붕괴추적] TakeDamage - 체력 0 이하 감지, Deathcheck(붕괴주사위) 호출 (직접 공격)");
         }
-        Deathcheck();
+
+        ApplyNearDeathDamagePressureForCollapse(oldHp, dmg);
+        Deathcheck(allowAllyCollapseDiceRoll: true);
         DeathAction();
     }
 
@@ -293,21 +362,42 @@ public class CharacterStats : MonoBehaviour
         }
     }
 
-    public void Deathcheck()
+    /// <summary>
+    /// 이미 Hp≤0(빈사)인 상태에서 피해를 입었을 때 붕괴 <b>누적%</b>만 올린다. 즉사 주사위는 <see cref="Deathcheck"/> 피해 경로에서만 굴린다.
+    /// </summary>
+    public void ApplyNearDeathDamagePressureForCollapse(int hpBeforeDamage, int damageDealt)
+    {
+        if (damageDealt <= 0) return;
+        bool isAllyForCollapse = IsPlayer && !string.IsNullOrEmpty(CharacterId) && CharacterId != "000001";
+        if (!isAllyForCollapse || IsDead) return;
+        if (hpBeforeDamage > 0) return;
+
+        float oc = CollapseChance;
+        CollapseChance = Mathf.Min(1f, CollapseChance + CollapsePressurePerDamageWhileNearDeath);
+        Debug.Log($"[붕괴추적] {Label}: 빈사 중 추가 피해 — CollapseChance {oc:F3} → {CollapseChance:F3} (+{(CollapsePressurePerDamageWhileNearDeath * 100):F0}%p)");
+    }
+
+    /// <param name="allowAllyCollapseDiceRoll">true일 때만 아군(주인공 제외)에 대해 붕괴 즉사 주사위(<see cref="TryCollapse"/>)를 굴린다. 턴 정산 등 비피해 경로는 false.</param>
+    public void Deathcheck(bool allowAllyCollapseDiceRoll = false)
     {
         if (Hp <= 0 && !IsDead)
         {
-            Debug.Log($"[붕괴추적] Deathcheck 시작 - {Label} (ID: {CharacterId}, Hp: {Hp}, IsDead: {IsDead}, IsPlayer: {IsPlayer})");
+            Debug.Log($"[붕괴추적] Deathcheck 시작 - {Label} (ID: {CharacterId}, Hp: {Hp}, IsDead: {IsDead}, IsPlayer: {IsPlayer}, 붕괴주사위: {allowAllyCollapseDiceRoll})");
             
-            // 아군(주인공 제외)의 경우 붕괴 체크 먼저 수행
+            // 아군(주인공 제외)의 경우 붕괴 주사위는 피해 경로에서만 수행
             bool isAllyNotMainCharacter = IsPlayer && !string.IsNullOrEmpty(CharacterId) && CharacterId != "000001";
             
             if (isAllyNotMainCharacter)
             {
+                if (!allowAllyCollapseDiceRoll)
+                {
+                    Debug.Log($"[붕괴추적] 아군 빈사 — 붕괴 주사위 생략(비피해 Deathcheck), 빈사 유지 (CollapseChance: {CollapseChance:F2})");
+                    return;
+                }
+
                 Debug.Log($"[붕괴추적] 아군(주인공 제외) 감지 - TryCollapse() 호출");
                 Debug.Log($"[붕괴추적] 현재 CollapseChance: {CollapseChance:F2} ({(CollapseChance * 100):F1}%)");
                 
-                // 붕괴 체크 수행
                 TryCollapse();
                 
                 // 붕괴에 실패하여 빈사 상태로 유지되는 경우
@@ -316,19 +406,14 @@ public class CharacterStats : MonoBehaviour
                     Debug.Log($"[붕괴추적] 붕괴 실패 - 빈사 상태로 유지 (CollapseChance: {CollapseChance:F2})");
                     Debug.Log($"[붕괴추적] OnCollapseCrisisEvent 발생 - 구독자 수: {(OnCollapseCrisisEvent?.GetInvocationList().Length ?? 0)}");
                     
-                    // 붕괴 위기 이벤트 발생 (응급 조치 축복 등에서 구독)
                     OnCollapseCrisisEvent?.Invoke(this);
-                    
-                    // 체력이 0이고 아직 죽지 않았으므로 방치 상태로 표시
                     SetNeglected();
                     
                     Debug.Log($"[붕괴추적] 빈사 상태 유지 완료 - 사망 처리하지 않음");
-                    return; // 사망 처리하지 않고 빈사 상태로 유지
+                    return;
                 }
-                else
-                {
-                    Debug.Log($"[붕괴추적] 붕괴 성공 - 사망 처리 진행");
-                }
+                
+                Debug.Log($"[붕괴추적] 붕괴 성공 - 사망 처리 진행");
             }
             else
             {
@@ -389,8 +474,10 @@ public class CharacterStats : MonoBehaviour
     }
     public void DeathAction()
     {
+        // 비사망 피해 직후에도 호출됨(TakeDamage 끝). 사망 시에만 플래그·연출 정리.
         if (IsDead)
         {
+            pendingStandRecoverAfterStunConsume = false;
             // 모든 상태이상 프리팹 파괴
             foreach (var effect in activeEffectPrefabs)
             {
@@ -402,6 +489,64 @@ public class CharacterStats : MonoBehaviour
             // BattleEffectManager에서 연출이 끝난 후 오브젝트를 파괴하도록 함
             // Destroy(gameObject); // 이 부분을 제거하여 연출이 끝날 때까지 대기
         }
+    }
+
+    /// <summary>
+    /// 커맨드(스킬 선택·시전) 단계를 건너뛸지. 턴 스킵 여부는 <see cref="TurnManager"/>가 이 API만 본다.
+    /// 기절(023001) 또는 넉다운(023002) 상태이상 토큰.
+    /// </summary>
+    public bool IsCommandPhaseBlockedByStatus()
+    {
+        var controller = GetComponent<StatusEffectController>();
+        if (controller == null) return false;
+        return controller.HasStatusEffectType(StatusEffectType.Stun)
+            || controller.HasStatusEffectType(StatusEffectType.Knockdown);
+    }
+
+    /// <summary>
+    /// 행동불가로 턴을 강제 종료할 때: 기절 토큰이 있으면 1개 소모, 없으면 넉다운 토큰 소모.
+    /// <see cref="TurnManager"/> 전용 진입점.
+    /// </summary>
+    public void ConsumeStunTokenAfterForcedTurnSkip()
+    {
+        var controller = GetComponent<StatusEffectController>();
+        if (controller != null && controller.HasStatusEffectType(StatusEffectType.Stun))
+        {
+            controller.ConsumeOneStunEffect();
+            ApplyHitHoldPendingStandRecover();
+            return;
+        }
+
+        if (controller != null && controller.HasStatusEffectType(StatusEffectType.Knockdown))
+        {
+            controller.ConsumeOneKnockdownEffect();
+            ApplyHitHoldPendingStandRecover();
+        }
+    }
+
+    /// <summary>넉다운 프리팹 부착 직시 피격 자세(토큰 소모 직후와 동일). 기절은 부착 시 호출하지 않음. 다음 본인 턴에 행동불가 없으면 스탠드 복구.</summary>
+    public void ApplyImmediateKnockdownHitFeedback()
+    {
+        ApplyHitHoldPendingStandRecover();
+    }
+
+    private void ApplyHitHoldPendingStandRecover()
+    {
+        pendingStandRecoverAfterStunConsume = true;
+        var motion = GetComponent<CharacterMotionController>();
+        if (motion == null) motion = GetComponentInChildren<CharacterMotionController>(true);
+        motion?.ApplyPostStunReleaseHitHold();
+    }
+
+    /// <summary>다음 번 본인 턴이 시작될 때(스턴 해제 후 쌓아 둔 피격 자세를) 스탠드로 복구한다.</summary>
+    public void ApplyPostStunTurnStartMotionRecover()
+    {
+        if (!pendingStandRecoverAfterStunConsume) return;
+        if (IsCommandPhaseBlockedByStatus()) return;
+        pendingStandRecoverAfterStunConsume = false;
+        var motion = GetComponent<CharacterMotionController>();
+        if (motion == null) motion = GetComponentInChildren<CharacterMotionController>(true);
+        motion?.ResetMotion();
     }
 
     /// <summary>
@@ -418,6 +563,14 @@ public class CharacterStats : MonoBehaviour
             return;
         }
 
+        // StatusEffectImmunity 패시브: 지정 EffectID(CSV)에 포함되면 상태이상 적용 자체를 막는다.
+        if (IsImmuneToStatusEffect(effectData.EffectID))
+        {
+            if (DebugTraceFlags.PassiveStatusEffectFlow)
+                Debug.Log($"[StatusFxTrace] AddStatusEffectPrefab BLOCK immune {Label} id={effectData.EffectID}");
+            return;
+        }
+
         if (DebugTraceFlags.PassiveStatusEffectFlow)
             Debug.Log($"[StatusFxTrace] AddStatusEffectPrefab enter {Label} id={effectData.EffectID} type={effectData.effectType} dur={duration} val={value}");
 
@@ -429,7 +582,10 @@ public class CharacterStats : MonoBehaviour
             return;
         }
 
-        // 중복: 지속피해(ContinuousDamage)는 3안 — 재적용 시 들어온 수치의 절반(내림)만 합산, 지속은 유지. 그 외 타입은 기존처럼 무시.
+        // [상태이상 중첩 정책 - 3안]
+        // 1) ContinuousDamage: 동일 EffectID 재적용 시 새 인스턴스 생성 없이 "들어온 값의 절반(내림)"만 기존 value에 합산.
+        // 2) 지속 턴(duration)은 재적용으로 갱신/연장하지 않음(기존 remainingTurns 유지).
+        // 3) Buff/Token 등 ContinuousDamage 외 타입은 동일 EffectID 재적용을 무시.
         if (controller.HasStatusEffect(effectData.EffectID))
         {
             if (effectData.effectType == StatusEffectType.ContinuousDamage)
@@ -441,16 +597,12 @@ public class CharacterStats : MonoBehaviour
                     existing.MergeHalfIncomingDamage(value);
                     if (DebugTraceFlags.PassiveStatusEffectFlow)
                         Debug.Log($"[StatusFxTrace] AddStatusEffectPrefab merge CD {Label} id={effectData.EffectID} incoming={value} +{Mathf.FloorToInt(value / 2f)} → value {before}→{existing.value}");
-                    else
-                        Debug.Log($"[CharacterStats] {Label}: 지속피해 {effectData.effectName} 중첩 합산 (3안) incoming={value} → 총 피해량 {existing.value}");
                 }
                 return;
             }
 
             if (DebugTraceFlags.PassiveStatusEffectFlow)
                 Debug.Log($"[StatusFxTrace] AddStatusEffectPrefab SKIP duplicate {Label} id={effectData.EffectID}");
-            else
-                Debug.Log($"[CharacterStats] {Label}: 상태이상 {effectData.effectName} (ID: {effectData.EffectID})이 이미 적용되어 있습니다. 중복 적용 무시.");
             return;
         }
 
@@ -462,14 +614,35 @@ public class CharacterStats : MonoBehaviour
             case StatusEffectType.Buff:
                 if (DebugTraceFlags.PassiveStatusEffectFlow)
                     Debug.Log($"[StatusFxTrace] AddStatusEffectPrefab branch Buff → controller.AddBuffEffect");
-                controller.AddBuffEffect(effectData, duration, value);
+                // 반사/피해감소 리액션 설정이 있는 버프는 Buff 인스턴스가 아닌 Reaction 인스턴스로 붙여야 OnTakeDamage 훅을 탄다.
+                if (effectData.reactionMode != ReactionEffectMode.None || effectData.reductionMode != ReactionDamageReductionMode.None)
+                {
+                    if (DebugTraceFlags.PassiveStatusEffectFlow)
+                        Debug.Log($"[StatusFxTrace] Buff with reaction config → controller.AddReactionEffect (id={effectData.EffectID})");
+                    controller.AddReactionEffect(effectData, duration, value);
+                }
+                else
+                {
+                    controller.AddBuffEffect(effectData, duration, value);
+                }
                 break;
             case StatusEffectType.Debuff:
-                // 디버프용 메서드가 있다면 여기에 추가
-                // controller.AddDeBuffEffect(effectData, duration, value);
+                // 디버프도 버프 인스턴스와 동일한 런타임/프리팹 경로를 재사용한다.
+                // (리액션 훅이 필요한 특수 케이스만 Reaction 인스턴스를 사용)
+                if (effectData.reactionMode != ReactionEffectMode.None || effectData.reductionMode != ReactionDamageReductionMode.None)
+                {
+                    controller.AddReactionEffect(effectData, duration, value);
+                }
+                else
+                {
+                    controller.AddBuffEffect(effectData, duration, value);
+                }
                 break;
             case StatusEffectType.Stun:
-                // 스턴 등 특수효과용 메서드가 있다면 여기에 추가
+                controller.AddStunEffect(effectData);
+                break;
+            case StatusEffectType.Knockdown:
+                controller.AddKnockdownEffect(effectData);
                 break;
             case StatusEffectType.Token:
                 controller.AddReactionEffect(effectData, duration, value);
@@ -481,6 +654,40 @@ public class CharacterStats : MonoBehaviour
                 break;
         }
     }
+
+    private bool IsImmuneToStatusEffect(string effectId)
+    {
+        if (string.IsNullOrWhiteSpace(effectId)) return false;
+        if (activePassiveIDs == null || activePassiveIDs.Count == 0) return false;
+
+        foreach (string passiveId in activePassiveIDs)
+        {
+            PassiveData passive = PassiveLoader.GetByIdStatic(passiveId);
+            if (passive == null || passive.passiveType != PassiveType.StatusEffectImmunity) continue;
+            if (string.IsNullOrWhiteSpace(passive.immuneStatusEffectIds)) continue;
+
+            string[] immuneIds = passive.immuneStatusEffectIds.Split(',');
+            foreach (string raw in immuneIds)
+            {
+                if (string.Equals(raw?.Trim(), effectId, StringComparison.Ordinal))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// 붕괴 즉사 주사위에 쓰는 확률. 누적 <see cref="CollapseChance"/>가 50% 이하일 때만 절반으로 완화한다.
+    /// UI·저장되는 CollapseChance 값은 바꾸지 않는다.
+    /// </summary>
+    private float GetCollapseCheckChance()
+    {
+        if (CollapseChance <= 0.5f)
+            return CollapseChance * 0.5f;
+        return CollapseChance;
+    }
+
     public void TryCollapse()
     {
         Debug.Log($"[붕괴추적] TryCollapse 시작 - {Label} (ID: {CharacterId})");
@@ -503,13 +710,17 @@ public class CharacterStats : MonoBehaviour
             return; // 체력이 0 이하일 때만
         }
 
-        float rand = UnityEngine.Random.value; // 0~1
-        Debug.Log($"[붕괴추적] 붕괴 확률 체크 - 랜덤값: {rand:F3}, CollapseChance: {CollapseChance:F3} ({(CollapseChance * 100):F1}%)");
+        float checkChance = GetCollapseCheckChance();
+        // 균일 1회보다 분포가 높은 쪽으로 치우쳐, 동일 문턱에서 즉사 확률이 대략 p²에 가깝게 내려감(억까 완화).
+        float r1 = UnityEngine.Random.value;
+        float r2 = UnityEngine.Random.value;
+        float rand = Mathf.Max(r1, r2);
+        Debug.Log($"[붕괴추적] 붕괴 확률 체크 - 난수2회 max({r1:F3},{r2:F3})={rand:F3}, 판정기준: {checkChance:F3} (누적·표시 {(CollapseChance * 100):F1}%)");
         
-        if (rand < CollapseChance)
+        if (rand < checkChance)
         {
             // 즉시 붕괴(사망 처리)
-            Debug.Log($"[붕괴추적] 붕괴 성공! (랜덤값 {rand:F3} < 확률 {CollapseChance:F3})");
+            Debug.Log($"[붕괴추적] 붕괴 성공! (판정값 {rand:F3} < 판정기준 {checkChance:F3})");
             IsDead = true;
             Debug.Log($"[붕괴추적] IsDead = true 설정");
             // 사망 처리 로직 호출
@@ -521,7 +732,7 @@ public class CharacterStats : MonoBehaviour
             CollapseChance += 0.2f; // 20% 증가
             CollapseChance = Mathf.Min(CollapseChance, 1f); // 최대 100%
             
-            Debug.Log($"[붕괴추적] 붕괴 실패 - 빈사 상태로 버팀 (랜덤값 {rand:F3} >= 확률 {oldChance:F3})");
+            Debug.Log($"[붕괴추적] 붕괴 실패 - 빈사 상태로 버팀 (판정값 {rand:F3} >= 판정기준 {checkChance:F3}, 당시누적 {oldChance:F3})");
             Debug.Log($"[붕괴추적] CollapseChance 증가: {oldChance:F3} → {CollapseChance:F3} ({(CollapseChance * 100):F1}%) [직접 공격]");
             // 빈사 상태 유지
         }
@@ -575,10 +786,57 @@ public class CharacterStats : MonoBehaviour
         }
     }
 
-    // 넉다운(스턴) 처리용 메서드(임시)
+    /// <summary>스킬 <see cref="SkillData.AttackType"/>이 none(또는 미지정·공백)이면 KDP 배율을 1로 고정.</summary>
+    private static bool IsKnockdownAttackTypeNone(SkillData skill)
+    {
+        if (skill == null) return false;
+        if (string.IsNullOrWhiteSpace(skill.AttackType)) return true;
+        return skill.AttackType.Trim().Equals("none", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 자기 턴 시작 시 넉다운 누적을 절반으로 감쇠(내림). 적 전용, <see cref="CharacterData.MaxKDP"/>가 0보다 클 때만.
+    /// </summary>
+    public void DecayKnockdownBuildupAtTurnStart()
+    {
+        if (IsPlayer) return;
+        if (data == null || data.MaxKDP <= 0) return;
+        if (KnockdownBuildup <= 0) return;
+
+        int before = KnockdownBuildup;
+        KnockdownBuildup = before / 2;
+        Debug.Log($"[KDP] {Label}: 턴 시작 감쇠 {before} → {KnockdownBuildup} (/2 내림)");
+    }
+
+    /// <summary>
+    /// KDP 한도 도달 시: 넉다운 전용 상태이상(<see cref="KnockdownEffectId"/>)을 1회분 부착한다.
+    /// </summary>
     private void TriggerKnockdown()
     {
-        // TODO: 스턴/행동불가, 연출 등 실제 처리 추가
+        if (data == null || IsDead || Hp <= 0) return;
+
+        if (StatusEffectManager.Instance == null)
+        {
+            Debug.LogWarning("[CharacterStats] TriggerKnockdown: StatusEffectManager 없음");
+            return;
+        }
+
+        StatusEffectData kdData = StatusEffectManager.Instance.GetById(KnockdownEffectId);
+        if (kdData == null)
+        {
+            Debug.LogWarning($"[CharacterStats] TriggerKnockdown: SO '{KnockdownEffectId}' 없음");
+            return;
+        }
+
+        var statusController = GetComponent<StatusEffectController>();
+        if (statusController == null)
+        {
+            Debug.LogWarning($"[CharacterStats] TriggerKnockdown: StatusEffectController 없음 ({Label})");
+            return;
+        }
+
+        statusController.AddKnockdownEffect(kdData);
+        Debug.Log($"[CharacterStats] TriggerKnockdown: {Label} → {KnockdownEffectId} 부착");
     }
 
     /// <summary>
@@ -669,6 +927,11 @@ public class CharacterStats : MonoBehaviour
             else if (passiveData.passiveType == PassiveType.None)
             {
                 // 스탯부스트형(Type=None)은 CharacterData.GetFinalStatValue에서 상시 반영한다.
+                applied = true;
+            }
+            else if (passiveData.passiveType == PassiveType.StatusEffectImmunity)
+            {
+                // 상태이상 면역은 AddStatusEffectPrefab 진입 시점에서 데이터 기반으로 판정한다.
                 applied = true;
             }
 

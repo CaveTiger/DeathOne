@@ -62,6 +62,7 @@ public class StatusValueBlockManager : MonoBehaviour
     private void CreateValueBlock(StatusEffectData effectData, int effectValue, int duration)
     {
         if (statusValueBlockPrefab == null || containerTransform == null) return;
+        int displayValue = GetDisplayEffectValue(effectData, effectValue);
         
         GameObject blockObj = Instantiate(statusValueBlockPrefab, containerTransform);
         blockObj.name = $"StatusValue_{effectData.EffectID}";
@@ -83,7 +84,7 @@ public class StatusValueBlockManager : MonoBehaviour
             if (effectData.effectType == StatusEffectType.Buff || effectData.effectType == StatusEffectType.Debuff)
             {
                 // 동적 아이콘 시도 (음수값일 때 negativeIcon 사용)
-                sprite = effectData.GetDynamicIcon(effectValue);
+                sprite = effectData.GetDynamicIcon(displayValue);
                 
                 // 동적 아이콘이 없으면 기본 아이콘 시도
                 if (sprite == null)
@@ -116,8 +117,20 @@ public class StatusValueBlockManager : MonoBehaviour
         if (valueText != null)
         {
             // 형식: "값/지속시간" (예: "3/2", "5/5")
-            valueText.text = $"{effectValue}/{duration}";
+            valueText.text = $"{displayValue}/{duration}";
         }
+    }
+
+    private static int GetDisplayEffectValue(StatusEffectData effectData, int effectValue)
+    {
+        if (effectData != null
+            && effectData.effectType == StatusEffectType.ContinuousDamage
+            && effectData.treatContinuousValueAsHeal)
+        {
+            return Mathf.Abs(effectValue);
+        }
+
+        return effectValue;
     }
     
     /// <summary>

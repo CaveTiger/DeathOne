@@ -52,7 +52,6 @@ MonoBehaviour:
   owner: {fileID: 0}
   triggerCount: 0
   isActive: 1
-  popupHandler: {fileID: 0}
   iconRenderer: {fileID: 0}
 --- !u!212 &426376700189562872
 SpriteRenderer:

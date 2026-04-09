@@ -22,7 +22,7 @@ public class BattleEffectManager : MonoBehaviour
     [SerializeField] private float knockbackDistance = 0.3f; // 밀림 거리
     [SerializeField] private float knockbackDuration = 0.3f; // 밀림 지속시간
     [SerializeField] private float damagePopupDuration = 1.5f; // 데미지 팝업 지속시간
-    [SerializeField] private float deathEffectDuration = 2.0f; // 데스 이펙트 지속시간
+    [SerializeField] private float deathEffectDuration = 2.8f; // 데스 이펙트 지속시간(데스 호흡 길게)
 
     [Header("색상 설정")]
     [SerializeField] private Color normalDamageColor = Color.red; // 일반 데미지 색상 (빨간색)
@@ -849,28 +849,17 @@ public class BattleEffectManager : MonoBehaviour
         }
 
         // 2. 데스 아이콘 생성
-        if (deathIconPrefab != null && target != null && target.gameObject != null)
+        // 카메라가 아직 줌인 상태면 잠깐 기다렸다가(최대 대기 제한) 아이콘을 표시해
+        // "줌인 화면 위에 데스 아이콘이 겹쳐 보이는" 어색함을 줄인다.
+        float waitElapsed = 0f;
+        const float maxDeathIconWait = 1.2f;
+        while (Camera.main != null && Camera.main.orthographicSize < 4.9f && waitElapsed < maxDeathIconWait)
         {
-            Canvas canvas = GetWorldUICanvas();
-            if (canvas != null)
-            {
-                Vector3 screenPosition = Camera.main.WorldToScreenPoint(target.transform.position);
-                RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                    canvas.GetComponent<RectTransform>(),
-                    screenPosition,
-                    canvas.worldCamera,
-                    out Vector2 localPoint
-                );
-                
-                GameObject deathIcon = Instantiate(deathIconPrefab, canvas.transform);
-                RectTransform rectTransform = deathIcon.GetComponent<RectTransform>();
-                if (rectTransform != null)
-                {
-                    rectTransform.anchoredPosition = localPoint;
-                }
-                Destroy(deathIcon, deathEffectDuration);
-            }
+            waitElapsed += Time.deltaTime;
+            yield return null;
         }
+
+        // 데스 아이콘 생성은 SlotHandler(Character -> Slot -> UI) 경로로만 처리한다.
 
         // 3. 체력바와 상태이상 슬롯 즉시 숨기기
         if (target != null && target.gameObject != null)
@@ -902,8 +891,8 @@ public class BattleEffectManager : MonoBehaviour
             }
         }
 
-        // 4. 잠시 대기 후 캐릭터 페이드 아웃 시작 (0.3초)
-        yield return new WaitForSeconds(0.3f);
+        // 4. 잠시 대기 후 캐릭터 페이드 아웃 시작 (데스 아이콘 인지 시간 확보)
+        yield return new WaitForSeconds(0.55f);
 
         // 5. 캐릭터 페이드 아웃 효과
         if (target != null && target.gameObject != null)
