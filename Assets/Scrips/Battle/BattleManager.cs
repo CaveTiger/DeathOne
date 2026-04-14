@@ -65,7 +65,7 @@ public class BattleManager : MonoBehaviour
             
             if (targetSlot != null)
             {
-                string[] skillIDs = (i == 0) ? spawn.partySkillIDs : null;
+                string[] skillIDs = (i == 0) ? spawn.GetPartySkillIDs() : null;
                 GameObject obj = Instantiate(SpawnManager.Instance.characterPrefab, targetSlot.position, Quaternion.identity);
                 obj.name = $"Unit_{spawn.allyPartyData[i].ID}";
                 obj.transform.SetParent(targetSlot);

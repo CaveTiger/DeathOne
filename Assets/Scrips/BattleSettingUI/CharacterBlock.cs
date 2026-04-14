@@ -79,7 +79,12 @@ public class CharacterBlock : MonoBehaviour, IBeginDragHandler, IDragHandler, IE
         // 스프라이트 로드
         if (!string.IsNullOrEmpty(data.Sprite))
         {
-            characterImage.sprite = Resources.Load<Sprite>(data.Sprite);
+            // 캐릭터 폴더 경로 기준으로 Stand를 우선 사용한다.
+            string standPath = $"{data.Sprite}/Stand";
+            Sprite loaded = Resources.Load<Sprite>(standPath);
+            if (loaded == null)
+                loaded = Resources.Load<Sprite>(data.Sprite); // 구형 단일 경로 데이터 호환
+            characterImage.sprite = loaded;
         }
 
         // 해금 여부에 따라 UI/상호작용 처리

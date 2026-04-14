@@ -20,7 +20,7 @@
 		<SkillTarget>All</SkillTarget>
 		<Motion>Stand</Motion>
 		<AttackPoint>Body</AttackPoint>
-		<AttackType>None</AttackType>
+		<AttackType>None</AttackType> <!-- Cut, Blunt-->
 		<AttackEffect>None</AttackEffect>
 		<ActiveCount>None</ActiveCount>
 		<ManaCost>0</ManaCost>
@@ -33,8 +33,8 @@
 	<Skill ID ="010001" ParentID="010000">
 		<Name>단검베기</Name>
 		<Icon>SkillIcon/010001</Icon>
-		<DamageMin>9</DamageMin>
-		<DamageMax>16</DamageMax>
+		<DamageMin>11</DamageMin>
+		<DamageMax>18</DamageMax>
 		<SkillEffect></SkillEffect>
 		<SkillTarget>Enemy</SkillTarget>
 		<Motion>Attack</Motion>
@@ -46,22 +46,12 @@
 	<Skill ID ="010002" ParentID="010000">
 		<Name>발목 노리기</Name>
 		<Icon>SkillIcon/010002</Icon>
-		<DamageMin>4</DamageMin>
+		<DamageMin>6</DamageMin>
 		<DamageMax>9</DamageMax>
 		<SkillEffect>
 			<li>
 				<EffectID>020001</EffectID>
-				<Value>4</Value>
-				<Duration>2</Duration>
-			</li>
-			<li>
-				<EffectID>020002</EffectID>
-				<Value>3</Value>
-				<Duration>4</Duration>
-			</li>
-			<li>
-				<EffectID>020003</EffectID>
-				<Value>6</Value>
+				<Value>8</Value>
 				<Duration>2</Duration>
 			</li>
 		</SkillEffect>
@@ -80,7 +70,7 @@
 			<li>
 				<EffectID>021001</EffectID>
 				<Value>2</Value>
-				<Duration>2</Duration>
+				<Duration>3</Duration>
 			</li>
 			<li>
 				<EffectID>024001</EffectID>
@@ -89,55 +79,23 @@
 		</SkillEffect>
 		<SkillTarget>Me</SkillTarget>
 		<Motion>Buff</Motion>
+		<CoolTime>4</CoolTime>
 	</Skill>
 	
 	<Skill ID ="010004" ParentID="010000">
-		<Name>주변 살피기</Name>
+		<Name>기회 포착</Name>
 		<Icon>SkillIcon/010004</Icon>
 		<Type>Buff</Type>
 		<SkillEffect>
-			<li>021004</li>
+			<li>
+				<EffectID>021002</EffectID>
+				<Value>5</Value>
+				<Duration>2</Duration>
+				<Chance>1.0</Chance>
+			</li>
 		</SkillEffect>
 		<SkillTarget>Me</SkillTarget>
 		<Motion>Buff</Motion>
-	</Skill>
-	
-	<!-- 테스트용 회복 스킬 -->
-	<Skill ID ="015005" ParentID="010000">
-		<Name>테스트 회복</Name>
-		<Icon>SkillIcon/010005</Icon>
-		<Type>Heal</Type>
-		<HealMin>10</HealMin>
-		<HealMax>20</HealMax>
-		<SkillEffect></SkillEffect>
-		<SkillTarget>Ally</SkillTarget>
-		<Motion>Buff</Motion>
-		<AttackPoint>Body</AttackPoint>
-		<AttackEffect>None</AttackEffect>
-		<Cooldown>0</Cooldown>
-		<ManaCost>0</ManaCost>
-	</Skill>
-
-	<Skill ID ="015055" ParentID="010000">
-		<Name>테스트 기절</Name>
-		<Icon>SkillIcon/010010</Icon>
-		<DamageMin>1</DamageMin>
-		<DamageMax>1</DamageMax>
-		<SkillEffect>
-			<!-- 기절 023001: Value/Duration 없음(토큰형). Chance만 적용 확률 -->
-			<li>
-				<EffectID>023001</EffectID>
-				<Chance>1</Chance>
-			</li>
-		</SkillEffect>
-		<SkillTarget>Enemy</SkillTarget>
-		<Motion>Attack</Motion>
-		<AttackPoint>Body</AttackPoint>
-		<AttackType>Cut</AttackType>
-		<AttackEffect>Cut</AttackEffect>
-		<ActiveCount>None</ActiveCount>
-		<ManaCost>0</ManaCost>
-		<CoolTime>1</CoolTime>
-		<priority>0</priority>
+		<CoolTime>4</CoolTime>
 	</Skill>
 </Skills>

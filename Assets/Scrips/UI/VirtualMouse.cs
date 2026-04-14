@@ -9,6 +9,7 @@ using System.Collections.Generic;
 /// </summary>
 public class VirtualMouse : MonoBehaviour
 {
+    private static bool loggedMissingCursorTexture;
     public static VirtualMouse Instance { get; private set; }
     
     [Header("Virtual Mouse UI 설정")]
@@ -304,7 +305,12 @@ public class VirtualMouse : MonoBehaviour
             {
                 cursorImage.enabled = false;
             }
-            Debug.LogWarning("[VirtualMouse] 커서 텍스처가 설정되지 않았습니다. 시스템 기본 커서를 사용합니다.");
+            // 인스펙터에 기본 커서 미할당 시 호버 해제마다 스팸되므로 1회만 안내
+            if (!loggedMissingCursorTexture)
+            {
+                loggedMissingCursorTexture = true;
+                Debug.Log("[VirtualMouse] 커서 텍스처가 설정되지 않았습니다. 시스템 기본 커서를 사용합니다. (인스펙터 defaultCursor 등 할당 가능)");
+            }
             return;
         }
         
@@ -910,6 +916,64 @@ public class VirtualMouse : MonoBehaviour
         
         return null;
     }
+
+    /// <summary>
+    /// 한 오브젝트에 Buff+Reaction이 같이 붙어 있을 때 한쪽만 <see cref="StatusEffectInstanceBase.InitializeBasic"/>가 호출되므로,
+    /// <see cref="StatusEffectData"/>가 실제로 채워진 컴포넌트를 우선해 팝업 소스로 쓴다.
+    /// </summary>
+    private static bool TryResolveStatusEffectPopupSource(
+        StatusEffectInstanceBuff buff,
+        StatusEffectInstanceReaction reaction,
+        StatusEffectInstanceStun stun,
+        StatusEffectInstance legacy,
+        out StatusEffectData effectData,
+        out int value,
+        out int turns,
+        out string resolvedKind)
+    {
+        effectData = null;
+        value = 0;
+        turns = 0;
+        resolvedKind = null;
+
+        if (buff != null && buff.EffectData != null)
+        {
+            effectData = buff.EffectData;
+            value = buff.value;
+            turns = buff.remainingTurns;
+            resolvedKind = nameof(StatusEffectInstanceBuff);
+            return true;
+        }
+
+        if (reaction != null && reaction.EffectData != null)
+        {
+            effectData = reaction.EffectData;
+            value = reaction.value;
+            turns = reaction.remainingTurns;
+            resolvedKind = nameof(StatusEffectInstanceReaction);
+            return true;
+        }
+
+        if (stun != null && stun.EffectData != null)
+        {
+            effectData = stun.EffectData;
+            value = 0;
+            turns = 0;
+            resolvedKind = nameof(StatusEffectInstanceStun);
+            return true;
+        }
+
+        if (legacy != null && legacy.EffectData != null)
+        {
+            effectData = legacy.EffectData;
+            value = legacy.value;
+            turns = legacy.remainingTurns;
+            resolvedKind = nameof(StatusEffectInstance);
+            return true;
+        }
+
+        return false;
+    }
     
     private void ShowStatusEffectPopup(GameObject statusObj)
     {
@@ -948,141 +1012,43 @@ public class VirtualMouse : MonoBehaviour
         StatusEffectInstance statusInstance = statusObj.GetComponentInParent<StatusEffectInstance>();
         StatusEffectInstanceBuff statusBuff = statusObj.GetComponentInParent<StatusEffectInstanceBuff>();
         StatusEffectInstanceReaction statusReaction = statusObj.GetComponentInParent<StatusEffectInstanceReaction>();
-        
-        StatusEffectData effectData = null;
-        int value = 0;
-        int turns = 0;
-        
-        if (statusStun != null)
+
+        // Buff+Reaction이 한 프리팹에 같이 있을 때 초기화는 한쪽만 타므로, EffectData가 실제로 있는 컴포넌트를 우선한다.
+        if (!TryResolveStatusEffectPopupSource(
+                statusBuff, statusReaction, statusStun, statusInstance,
+                out StatusEffectData effectData, out int value, out int turns, out string resolvedKind))
         {
-            effectData = statusStun.EffectData;
-            value = 0;
-            turns = 0;
-            if (debugHoverDetect)
-                Debug.Log($"[VirtualMouse] StatusEffectInstanceStun 발견: effectData={(effectData != null ? effectData.effectName : "null")}");
-        }
-        else if (statusInstance != null)
-        {
-            effectData = statusInstance.EffectData;
-            value = statusInstance.value;
-            turns = statusInstance.remainingTurns;
-            
-            if (debugHoverDetect)
-            {
-                Debug.Log($"[VirtualMouse] StatusEffectInstance 발견: effectData={(effectData != null ? effectData.effectName : "null")}, value={value}, turns={turns}");
-            }
-        }
-        else if (statusBuff != null)
-        {
-            effectData = statusBuff.EffectData;
-            value = statusBuff.value;
-            turns = statusBuff.remainingTurns;
-            
-            if (debugHoverDetect)
-            {
-                Debug.Log($"[VirtualMouse] StatusEffectInstanceBuff 발견: effectData={(effectData != null ? effectData.effectName : "null")}, value={value}, turns={turns}");
-            }
-        }
-        else if (statusReaction != null)
-        {
-            effectData = statusReaction.EffectData;
-            value = statusReaction.value;
-            turns = statusReaction.remainingTurns;
-            
-            if (debugHoverDetect)
-            {
-                Debug.Log($"[VirtualMouse] StatusEffectInstanceReaction 발견: effectData={(effectData != null ? effectData.effectName : "null")}, value={value}, turns={turns}");
-            }
-        }
-        else
-        {
-            if (debugHoverDetect)
-            {
-                Debug.LogWarning($"[VirtualMouse] 상태이상 컴포넌트를 찾을 수 없습니다: {statusObj.name}");
-            }
+            Debug.LogWarning(
+                $"[VirtualMouse] 상태이상 팝업 실패(EffectData 없음): {statusObj.name} " +
+                $"(Buff={(statusBuff != null)}, Reaction={(statusReaction != null)}, Stun={(statusStun != null)}, Instance={(statusInstance != null)})");
             return;
         }
-        
-        // VirtualMouseStEfPanel 직접 사용
-        if (effectData != null)
+
+        if (debugHoverDetect)
         {
-            // statusStEfPanel이 null이면 찾기
+            Debug.Log($"[VirtualMouse] 상태이상 팝업 소스: {resolvedKind}, effectData={(effectData != null ? effectData.effectName : "null")}, value={value}, turns={turns}");
+        }
+        
+        // VirtualMouseStEfPanel 직접 사용 (effectData는 TryResolve 성공 시 non-null)
+        if (statusStEfPanel == null)
+        {
+            if (debugHoverDetect)
+                Debug.Log("[VirtualMouse] statusStEfPanel이 null, 찾는 중...");
+            statusStEfPanel = FindFirstObjectByType<VirtualMouseStEfPanel>(FindObjectsInactive.Include);
             if (statusStEfPanel == null)
             {
-                if (debugHoverDetect)
-                    Debug.Log("[VirtualMouse] statusStEfPanel이 null, 찾는 중...");
-                // 비활성화된 오브젝트도 찾기
-                statusStEfPanel = FindFirstObjectByType<VirtualMouseStEfPanel>(FindObjectsInactive.Include);
-                if (statusStEfPanel == null)
-                {
-                    Debug.LogWarning("[VirtualMouse] VirtualMouseStEfPanel을 찾을 수 없어 상태이상 팝업을 표시하지 않습니다.");
-                    return;
-                }
-                if (debugHoverDetect)
-                {
-                    Debug.Log($"[VirtualMouse] statusStEfPanel 찾음: {statusStEfPanel.name}, 활성화: {statusStEfPanel.gameObject.activeSelf}");
-                }
-                // 비활성화되어 있으면 활성화 (부모까지 포함)
-                if (!statusStEfPanel.gameObject.activeInHierarchy)
-                {
-                    if (debugHoverDetect)
-                    {
-                        Debug.Log($"[VirtualMouse] statusStEfPanel 활성화: {statusStEfPanel.name}, activeSelf={statusStEfPanel.gameObject.activeSelf}, activeInHierarchy={statusStEfPanel.gameObject.activeInHierarchy}");
-                    }
-                    // 부모 오브젝트도 활성화
-                    Transform parent = statusStEfPanel.transform.parent;
-                    while (parent != null && !parent.gameObject.activeSelf)
-                    {
-                        parent.gameObject.SetActive(true);
-                        parent = parent.parent;
-                    }
-                    statusStEfPanel.gameObject.SetActive(true);
-                }
+                Debug.LogWarning("[VirtualMouse] VirtualMouseStEfPanel을 찾을 수 없어 상태이상 팝업을 표시하지 않습니다.");
+                return;
             }
-            
-            // 아이콘 결정 (버프/디버프는 동적 아이콘 우선)
-            Sprite icon = null;
-            if (effectData.effectType == StatusEffectType.Buff || effectData.effectType == StatusEffectType.Debuff)
-            {
-                icon = effectData.GetDynamicIcon(value);
-                if (icon == null)
-                {
-                    icon = effectData.GetIcon();
-                }
-            }
-            else
-            {
-                icon = effectData.icon;
-                if (icon == null)
-                {
-                    icon = effectData.GetIcon();
-                }
-            }
-            
-            string description;
-            bool stunDescriptionPanel = effectData.effectType == StatusEffectType.Stun;
-            if (stunDescriptionPanel)
-            {
-                description = string.IsNullOrWhiteSpace(effectData.description)
-                    ? "한 턴간 쉽니다."
-                    : effectData.description.Trim();
-            }
-            else
-            {
-                description = string.IsNullOrEmpty(effectData.description) ? effectData.effectName : effectData.description;
-            }
-            
             if (debugHoverDetect)
             {
-                Debug.Log($"[VirtualMouse] VirtualMouseStEfPanel로 팝업 표시: icon={(icon != null ? icon.name : "null")}, desc={description}, value={value}, turns={turns}, stunDescMode={stunDescriptionPanel}");
+                Debug.Log($"[VirtualMouse] statusStEfPanel 찾음: {statusStEfPanel.name}, 활성화: {statusStEfPanel.gameObject.activeSelf}");
             }
-            
-            // 오브젝트가 활성화되어 있는지 다시 확인
             if (!statusStEfPanel.gameObject.activeInHierarchy)
             {
                 if (debugHoverDetect)
                 {
-                    Debug.LogWarning($"[VirtualMouse] statusStEfPanel이 여전히 비활성화 상태입니다. 강제 활성화 시도");
+                    Debug.Log($"[VirtualMouse] statusStEfPanel 활성화: {statusStEfPanel.name}, activeSelf={statusStEfPanel.gameObject.activeSelf}, activeInHierarchy={statusStEfPanel.gameObject.activeInHierarchy}");
                 }
                 Transform parent = statusStEfPanel.transform.parent;
                 while (parent != null && !parent.gameObject.activeSelf)
@@ -1092,14 +1058,57 @@ public class VirtualMouse : MonoBehaviour
                 }
                 statusStEfPanel.gameObject.SetActive(true);
             }
-            
-            statusStEfPanel.ShowStatusPopup(icon, description, value, turns, stunDescriptionPanel);
-            statusHoverActive = true;
+        }
+
+        Sprite icon = null;
+        if (effectData.effectType == StatusEffectType.Buff || effectData.effectType == StatusEffectType.Debuff)
+        {
+            icon = effectData.GetDynamicIcon(value);
+            if (icon == null)
+                icon = effectData.GetIcon();
         }
         else
         {
-            Debug.LogWarning($"[VirtualMouse] 상태이상 팝업 데이터 추출 실패: {statusObj.name}");
+            icon = effectData.icon;
+            if (icon == null)
+                icon = effectData.GetIcon();
         }
+
+        string description;
+        bool stunDescriptionPanel = effectData.effectType == StatusEffectType.Stun;
+        if (stunDescriptionPanel)
+        {
+            description = string.IsNullOrWhiteSpace(effectData.description)
+                ? "한 턴간 쉽니다."
+                : effectData.description.Trim();
+        }
+        else
+        {
+            description = string.IsNullOrEmpty(effectData.description) ? effectData.effectName : effectData.description;
+        }
+
+        if (debugHoverDetect)
+        {
+            Debug.Log($"[VirtualMouse] VirtualMouseStEfPanel로 팝업 표시: icon={(icon != null ? icon.name : "null")}, desc={description}, value={value}, turns={turns}, stunDescMode={stunDescriptionPanel}");
+        }
+
+        if (!statusStEfPanel.gameObject.activeInHierarchy)
+        {
+            if (debugHoverDetect)
+            {
+                Debug.LogWarning($"[VirtualMouse] statusStEfPanel이 여전히 비활성화 상태입니다. 강제 활성화 시도");
+            }
+            Transform parent = statusStEfPanel.transform.parent;
+            while (parent != null && !parent.gameObject.activeSelf)
+            {
+                parent.gameObject.SetActive(true);
+                parent = parent.parent;
+            }
+            statusStEfPanel.gameObject.SetActive(true);
+        }
+
+        statusStEfPanel.ShowStatusPopup(icon, description, value, turns, stunDescriptionPanel);
+        statusHoverActive = true;
     }
     
     // === 상태이상 타입별 데이터 추출 메서드 ===

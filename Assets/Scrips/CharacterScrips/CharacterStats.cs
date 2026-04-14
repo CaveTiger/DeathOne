@@ -4,6 +4,13 @@ using System.Linq;
 using UnityEngine;
 using System.Collections.Generic;
 
+[System.Serializable]
+public class SkillCooldownTurnSnapshot
+{
+    public string skillId;
+    public int remaining;
+}
+
 public class CharacterStats : MonoBehaviour
 {
     public string Label;
@@ -11,6 +18,12 @@ public class CharacterStats : MonoBehaviour
     public float Evasion, Accuracy, CollapseChance; //CollapseChance의 경우 캐릭터 데이터엔 존재하지 않음 한 스테이지 기준에서 관리함
     public int Speed;
     public string[] Skills = new string[4];
+
+    /// <summary>전투 중 이 유닛만의 스킬 쿨다운(남은 턴). <see cref="SkillData.skillDict"/> 템플릿과 분리한다.</summary>
+    private readonly Dictionary<string, int> runtimeSkillCooldownRemaining = new Dictionary<string, int>();
+    /// <summary><see cref="SkillData.UseCountYes"/> 스킬의 남은 사용 횟수(유닛별).</summary>
+    private readonly Dictionary<string, int> runtimeSkillUsesRemaining = new Dictionary<string, int>();
+
     public bool IsDead = false; //캐릭터의 죽음
     public bool IsActive = true; //false가 되면 스킬로 인한 행동불가판정
 
@@ -21,6 +34,83 @@ public class CharacterStats : MonoBehaviour
     {
         return gameObject != null && IsActive && !IsDead && Hp > 0;
     }
+
+    public void ClearRuntimeSkillBattleState()
+    {
+        runtimeSkillCooldownRemaining.Clear();
+        runtimeSkillUsesRemaining.Clear();
+    }
+
+    public int GetSkillCooldownRemaining(string skillId)
+    {
+        if (string.IsNullOrEmpty(skillId)) return 0;
+        return runtimeSkillCooldownRemaining.TryGetValue(skillId, out int v) ? v : 0;
+    }
+
+    private int GetSkillUsesRemaining(SkillData skill)
+    {
+        if (skill == null || !skill.UseCountYes) return int.MaxValue;
+        if (!runtimeSkillUsesRemaining.TryGetValue(skill.ID, out int cur))
+        {
+            cur = Mathf.Max(0, skill.UseCount);
+            runtimeSkillUsesRemaining[skill.ID] = cur;
+        }
+        return cur;
+    }
+
+    /// <summary>이 유닛 기준으로 스킬 사용 가능 여부(쿨다운·사용 횟수). 공유 <see cref="SkillData.IsUsable"/> 대신 사용한다.</summary>
+    public bool IsSkillUsable(SkillData skill)
+    {
+        if (skill == null) return false;
+        if (GetSkillCooldownRemaining(skill.ID) > 0) return false;
+        if (skill.UseCountYes && GetSkillUsesRemaining(skill) <= 0) return false;
+        return true;
+    }
+
+    /// <summary>스킬 시전이 확정된 뒤 쿨다운·잔여 사용 횟수를 반영한다.</summary>
+    public void RegisterSkillCastRuntime(SkillData skill)
+    {
+        if (skill == null) return;
+        if (skill.Cooldown > 0)
+            runtimeSkillCooldownRemaining[skill.ID] = skill.Cooldown;
+        if (skill.UseCountYes)
+        {
+            int cur = GetSkillUsesRemaining(skill);
+            runtimeSkillUsesRemaining[skill.ID] = Mathf.Max(0, cur - 1);
+        }
+    }
+
+    public void DecrementSkillCooldownTurn(string skillId)
+    {
+        if (string.IsNullOrEmpty(skillId)) return;
+        if (!runtimeSkillCooldownRemaining.TryGetValue(skillId, out int v) || v <= 0) return;
+        int n = Mathf.Max(0, v - 1);
+        if (n <= 0) runtimeSkillCooldownRemaining.Remove(skillId);
+        else runtimeSkillCooldownRemaining[skillId] = n;
+    }
+
+    public List<SkillCooldownTurnSnapshot> ExportSkillCooldownsForSnapshot()
+    {
+        var list = new List<SkillCooldownTurnSnapshot>();
+        foreach (var kv in runtimeSkillCooldownRemaining)
+        {
+            if (kv.Value > 0)
+                list.Add(new SkillCooldownTurnSnapshot { skillId = kv.Key, remaining = kv.Value });
+        }
+        return list;
+    }
+
+    public void ImportSkillCooldownsFromTurnSnapshot(List<SkillCooldownTurnSnapshot> list)
+    {
+        runtimeSkillCooldownRemaining.Clear();
+        if (list == null) return;
+        foreach (var e in list)
+        {
+            if (e == null || string.IsNullOrEmpty(e.skillId) || e.remaining <= 0) continue;
+            runtimeSkillCooldownRemaining[e.skillId] = e.remaining;
+        }
+    }
+
     public bool IsMyTurn = false; //턴 당사자
     public bool IsPlayer = true; //플레이어블
     public bool TurnChanse = false; //턴이 올때 기회
@@ -124,7 +214,9 @@ public class CharacterStats : MonoBehaviour
         Debug.Log($"[CharacterStats] SetData - {Label} (ID: {CharacterId}): Pattern = {Pattern} (CharacterData.Pattern = {data.Pattern})");
         if (data.Skills.Count >= 4)
             Skills = data.Skills.Take(4).ToArray();
-        
+
+        ClearRuntimeSkillBattleState();
+
         // 패시브 효과 적용
         ApplyPassives(data.Passives);
 
@@ -137,6 +229,15 @@ public class CharacterStats : MonoBehaviour
         KnockdownBuildup = 0;
         if (data != null)
             data.KDP = 0; // 템플릿/공유 CharacterData에 남는 누적 방지
+
+        // 생성 직후 HP UI가 플레이스홀더 텍스트를 유지하지 않도록 즉시 동기화.
+        if (HpUI != null)
+        {
+            if (HpUI.target == null)
+                HpUI.target = transform;
+            HpUI.UpdateHpBarPosition();
+            HpUI.UpdateHpBar(Hp, MaxHp);
+        }
         
         // Debug.Log($"[SetData 완료] ID: {data.ID}, HP: {Hp}, Atk: {Atk}, Sprite: {data.Sprite}");
     }

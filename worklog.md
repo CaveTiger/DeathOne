@@ -3141,3 +3141,94 @@
 - 유저 조작 타겟팅은 자유 유지(강제 차단 없음).
 - 도발은 장기적으로 확장 가능하되, 현재는 일반형(랜덤/광역 보호 없음) 기준.
 - 지목은 도발 파훼 + 장시간 디버프 컨셉(예: 5턴)으로 운용.
+
+---
+
+## 2026-04-09 — 스킬 쿨다운 주체 분리·스킬버튼 UI 개편·상태이상 팝업 안정화
+
+### 쿨다운 공유 버그 수정 (적/아군 동시 쿨 문제)
+- 증상: 적이 같은 스킬 ID를 사용하면 플레이어 슬롯도 쿨타임으로 잠기는 현상.
+- 원인: `SkillData.skillDict`의 공유 템플릿 `CurrentCooldown`을 전투 런타임 상태로 사용.
+- 조치:
+  - `CharacterStats`에 유닛별 런타임 상태 추가:
+    - `runtimeSkillCooldownRemaining` (스킬 ID별 남은 턴)
+    - `runtimeSkillUsesRemaining` (횟수 제한 스킬 남은 사용 횟수)
+  - `IsSkillUsable`, `RegisterSkillCastRuntime`, `DecrementSkillCooldownTurn` 추가.
+  - `SetData()` 시 `ClearRuntimeSkillBattleState()`로 전투 시작 초기화.
+  - `SkillManager.UseSkill()`에서 전역 `skill.IsUsable()` 대신 `caster.IsSkillUsable(skill)` 사용.
+  - `TurnManager.TickSkillCooldownOnTurnStart()`도 캐릭터별 딕셔너리를 감소시키도록 변경.
+  - `Default/OpeningBuff/OpeningHeal/Adelia` AI의 스킬 선택 가드도 캐릭터별 `IsSkillUsable` 기준으로 통일.
+
+### 턴 스냅샷에 스킬 쿨다운 복원 연동
+- `BattleSnapshotManager`의 `UnitStateSnapshot`에 `skillCooldowns` 필드 추가.
+- `CharacterStats.ExportSkillCooldownsForSnapshot()` / `ImportSkillCooldownsFromTurnSnapshot()`로 저장·복원 연결.
+- 턴 되돌리기/연속 전투 복원 시 캐릭터별 쿨다운 상태가 함께 재현되도록 보강.
+
+### 스킬 버튼 UI: 쿨타임 텍스처 → TMP 숫자 표시
+- 요구사항 반영:
+  - 쿨타임 중에만 TMP 표시(`SetActive(true)`), 평시 숨김(`SetActive(false)`).
+  - 쿨타임 중 아이콘 어둡게, 평시 원래 밝기.
+- `SkillInstance` 변경:
+  - `cooldownImage` 제거, `skillCooldownTurnsText`(`TextMeshProUGUI`) 추가.
+  - `RefreshCooldownDisplay()` 추가: `caster.GetSkillCooldownRemaining(skillID)` 기준으로 텍스트/아이콘 색 동기화.
+  - `SetCaster`, `SetSkillData`, `Awake`, 스킬 사용 성공 직후에 갱신 호출.
+- `BattleUIManager`:
+  - `RefreshSkillCooldownDisplaysForAllSlots()` 추가.
+  - `UpdateSkillUIForTurn()` 완료 시 모든 슬롯 쿨 표시 재동기화.
+- `SkillButton.prefab`:
+  - `CoolTime` TMP를 `SkillInstance.skillCooldownTurnsText`에 연결.
+  - 기본 비활성(`m_IsActive: 0`) 및 `RaycastTarget` 비활성으로 클릭 간섭 제거.
+
+### 상태이상 프리팹 Missing Script 이슈 정리
+- 증상: `StatusEffectBuff.prefab`에 `Prefab has missing scripts`.
+- 원인: `StatusEffectInstanceReaction` GUID 오타(프리팹 내 GUID와 `.meta` 불일치, 1글자 차이).
+- 조치: 프리팹의 `m_Script.guid`를 `StatusEffectInstanceReaction.cs.meta`와 동일 값으로 수정.
+
+### 상태이상 호버 팝업 실패(`방어자세`) 수정
+- 증상: `[VirtualMouse] 상태이상 팝업 데이터 추출 실패: 방어자세`.
+- 원인: `StatusEffectBuff` 프리팹에 `Buff + Reaction` 컴포넌트 공존 시, 초기화되지 않은 쪽(`EffectData == null`)을 먼저 집어 팝업 생성 실패.
+- 조치:
+  - `VirtualMouse.ShowStatusEffectPopup()`에서 `TryResolveStatusEffectPopupSource(...)` 추가.
+  - `EffectData`가 실제로 채워진 컴포넌트를 우선 선택(Buff → Reaction → Stun → Legacy).
+  - 실패 로그를 명확화: 어떤 컴포넌트가 존재했고 왜 실패했는지 출력.
+
+### 데이터 보정
+- `EnemyMobSkills.xml`
+  - `010006(방어)`에 `<Type>Buff</Type>` 추가.
+- 배경:
+  - `ParentID=010000` 상속으로 Type이 `Damage`로 해석되어 `InvalidTargetForAttack` 경고가 나던 케이스 해소.
+
+### 확인 메모
+- 런타임 상태 주체는 `SkillInstance`가 아니라 `CharacterStats`(유닛 단위)로 확정.
+- 향후 필요 시 `VirtualMouseSkillPanel`의 쿨타임 라벨도 동일 소스(`CharacterStats.GetSkillCooldownRemaining`)로 통일 권장.
+
+## 2026-04-10 (스킬 슬롯 회귀/저장 안정화)
+
+### 증상
+- 스킬 슬롯이 한때 정상 동작하던 상태에서, 저장 기능 보강 이후 2~4번 슬롯 반영이 다시 불안정해짐.
+- 인스펙터 상 `SpawnManager`의 분할 필드 값은 보이는데, 실제 UI/저장/복원 타이밍에서 슬롯 값이 꼬여 체감상 "2번 이후 먹통"이 재발.
+
+### 원인
+- 슬롯 참조 소스가 여러 경로로 분산됨:
+  - `BattleSettingManager`의 동적 탐색/리플렉션 기반 슬롯 수집
+  - 씬 전환 후 참조 유효성(같은 씬 오브젝트 여부) 문제
+  - 저장 타이밍과 UI 동기화 타이밍이 섞이며 부분 상태가 덮어써지는 구간 존재
+- 결과적으로 "인스펙터에는 값이 있음"과 "실제 동작 경로에서 쓰는 값"이 불일치할 수 있었음.
+
+### 조치
+- `SpawnManager`:
+  - 분할 필드(`playerSkillSlot1~4`) + 동기화 메서드(`SetPartySkillIDs`, `GetPartySkillIDs`) 유지.
+- `BattleSettingManager`:
+  - `SkillSlot.GetSkillID()`를 우선 소스로 읽도록 동기화 강화(블록 참조 유무와 무관하게 슬롯 ID 확보).
+  - 슬롯 수집 시 `SkillPresetHandler.skillSlots`를 최우선 순서 소스로 사용(인스펙터 수동 순서 고정).
+  - `SkillPresetHandler`가 유효하면 자동 재바인딩 로직이 덮어쓰지 않도록 보호.
+  - `SkillPresetHandler`를 직접 타입 참조하지 않고 `MonoBehaviour + reflection`으로 접근(어셈블리 경계 컴파일 이슈 회피).
+
+### 운영 원칙(재발 방지)
+- 스킬 슬롯 순서는 `SkillPresetHandler.skillSlots`를 단일 진실 소스로 유지.
+- 저장값은 슬롯 UI의 `GetSkillID()`에서만 읽어 생성.
+- 씬 전환/OnDisable 등 라이프사이클 이벤트에서의 무조건 저장은 지양하고, 명시적 전환 지점에서 저장 우선.
+- 문제 재발 시 우선 확인 순서:
+  1) `SkillPresetHandler.skillSlots` 1~4 연결 상태
+  2) `GetPartySkillIDsFromSlots()` 반환값
+  3) `SpawnManager.GetPartySkillIDs()` 값

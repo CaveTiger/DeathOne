@@ -97,9 +97,23 @@ public class SkillManager : MonoBehaviour
     {
         if (skill == null)
             return FailUseSkill("SkillNull");
-        if (!skill.IsUsable())
-            return FailUseSkill("SkillNotUsable", $"skill={skill.ID}:{skill.Name}, cooldown={skill.CurrentCooldown}");
-        skill.CurrentCooldown = skill.Cooldown;
+        if (caster == null)
+            return FailUseSkill("CasterNull");
+        if (skill.HealthCost > 0 && caster.Hp <= skill.HealthCost)
+            return FailUseSkill("NotEnoughHealthCost", $"skill={skill.ID}:{skill.Name}, hp={caster.Hp}, cost={skill.HealthCost}");
+        if (!caster.IsSkillUsable(skill))
+            return FailUseSkill("SkillNotUsable", $"skill={skill.ID}:{skill.Name}, casterCd={caster.GetSkillCooldownRemaining(skill.ID)}");
+
+        // HP 코스트는 실제 시전자 체력에서 즉시 차감한다(최소 1 HP는 유지).
+        if (skill.HealthCost > 0)
+        {
+            caster.Hp = Mathf.Max(1, caster.Hp - skill.HealthCost);
+            if (caster.HpUI != null)
+                caster.HpUI.UpdateHpBar(caster.Hp, caster.MaxHp);
+            Debug.Log($"[SkillCost] {caster.Label} HP 코스트 소모: -{skill.HealthCost}, 남은 HP={caster.Hp}, skill={skill.ID}:{skill.Name}");
+        }
+
+        caster.RegisterSkillCastRuntime(skill);
 
         // 전체 타겟 스킬인지 확인 (AllEnemies, AllAllies)
         if (IsAllTargetSkill(skill))
@@ -652,7 +666,12 @@ public class SkillManager : MonoBehaviour
         // 4. 스킬 모션 재생
         Debug.Log("[스킬연출] PlaySkillEffect - 스킬 모션 재생 시작");
         if (casterMotion != null && !caster.IsDead)
-            casterMotion.PlaySkillMotion(skill.Motion);
+        {
+            if (skill.Type == SkillType.Debuff && string.Equals(skill.Motion, "Buff", System.StringComparison.OrdinalIgnoreCase))
+                casterMotion.PlayDebuffCasterMotion();
+            else
+                casterMotion.PlaySkillMotion(skill.Motion);
+        }
         if (ShouldUseGhostProxyEffect(skill, caster))
             StartCoroutine(PlayGhostProxyEffect(skill, caster, target));
         Debug.Log("[스킬연출] PlaySkillEffect - 스킬 모션 재생 완료");
@@ -675,6 +694,11 @@ public class SkillManager : MonoBehaviour
                 if (buffMotion != null && !buffTargetsForMotion[0].IsDead)
                     buffMotion.PlayBuffMotion();
             }
+        }
+        else if (skill.Type == SkillType.Debuff)
+        {
+            if (targetMotion != null && !target.IsDead)
+                targetMotion.PlayDebuffTargetMotion();
         }
         else if (targetMotion != null && !target.IsDead)
         {
@@ -723,8 +747,8 @@ public class SkillManager : MonoBehaviour
 
                                 Debug.Log($"[SkillManager] 버프 정보: EffectID={effect.EffectID}, 이름={effectName}, 수치={buffValue}, 스킬={skill.Name}, 대상={buffTarget.Label}");
 
-                                string buffType = GetBuffTypeFromEffectID(effect.EffectID);
-                                buffTarget.ApplyBuff(buffType, buffValue);
+                                // 스탯 버프 수치 적용은 StatusEffectInstanceBuff(부착/만료)에서만 처리한다.
+                                // 여기서 ApplyBuff를 중복 호출하면 만료 시 1회만 원복되어 스탯 누적이 발생한다.
 
                                 Debug.Log($"[SkillManager] 팝업 생성 시도: {effectName}, 수치={buffValue}, 대상={buffTarget.Label}");
 
@@ -782,6 +806,8 @@ public class SkillManager : MonoBehaviour
                 Debug.LogWarning("알 수 없는 스킬 타입입니다.");
                 break;
         }
+        // 스킬 공통 패널티: 시전자에게 적용되는 상태이상 (예: 반동 기절)
+        ApplySelfStatusEffects(skill, caster);
         Debug.Log("[스킬연출] PlaySkillEffect - 피해/효과 처리 완료");
 
         // 8. 공격 모션이 끝날 때까지 추가 대기 (카메라 줌아웃과 맞춤)
@@ -928,7 +954,13 @@ public class SkillManager : MonoBehaviour
         else
             dir = caster.IsPlayer ? Vector3.right : Vector3.left;
 
-        ghostObj.transform.position = caster.transform.position + dir * ghostProxyFixedDistance;
+        // 지원형 연출(버프/디버프/힐)은 시전자 뒤에 배치해 "뒤에서 보조" 느낌을 만든다.
+        // 공격형은 기존처럼 시전자 앞(타겟 방향)에 배치한다.
+        bool placeBehindCaster = skill.Type == SkillType.Buff
+                              || skill.Type == SkillType.Debuff
+                              || skill.Type == SkillType.Heal;
+        float signedDistance = placeBehindCaster ? -ghostProxyFixedDistance : ghostProxyFixedDistance;
+        ghostObj.transform.position = caster.transform.position + dir * signedDistance;
 
         // 기본 스프라이트가 좌측을 바라본다는 전제로, 공격 방향이 오른쪽이면 flipX=true.
         ghostRenderer.flipX = dir.x > 0f;
@@ -1424,6 +1456,36 @@ public class SkillManager : MonoBehaviour
             else
             {
                 Debug.LogWarning($"[SkillManager] 상태이상 데이터를 찾을 수 없음: {effect.EffectID}");
+            }
+        }
+    }
+
+    private void ApplySelfStatusEffects(SkillData skill, CharacterStats caster)
+    {
+        if (skill == null || caster == null || skill.selfSkillEffects == null || skill.selfSkillEffects.Count == 0)
+            return;
+
+        foreach (var effect in skill.selfSkillEffects)
+        {
+            if (effect == null || string.IsNullOrEmpty(effect.EffectID))
+                continue;
+            if (!ShouldApplyEffectByChance(effect, skill, caster))
+                continue;
+
+            if (StatusEffectManager.Instance == null)
+            {
+                Debug.LogError("[SkillManager] StatusEffectManager.Instance가 null입니다!");
+                continue;
+            }
+
+            var effectData = StatusEffectManager.Instance.GetById(effect.EffectID);
+            if (effectData != null)
+            {
+                caster.AddStatusEffectPrefab(effectData, effect.Duration, effect.Value);
+            }
+            else
+            {
+                Debug.LogWarning($"[SkillManager] self 상태이상 데이터를 찾을 수 없음: {effect.EffectID}");
             }
         }
     }

@@ -17,8 +17,16 @@ public class DefaultEnemyAIController : EnemyAIController
             return null;
         }
 
-        // 사용 가능한 스킬만 필터링 (빈 문자열 제외)
-        var availableSkills = stat.Skills.Where(skill => !string.IsNullOrEmpty(skill)).ToList();
+        // 사용 가능한 스킬만 필터링 (빈 문자열 제외 + EnemyAIUsable=false 제외)
+        var availableSkills = stat.Skills
+            .Where(skill => !string.IsNullOrWhiteSpace(skill))
+            .Where(skillId =>
+            {
+                if (!SkillData.skillDict.TryGetValue(skillId, out var skill) || skill == null)
+                    return true; // 데이터 미로드/누락은 기존 동작 유지
+                return skill.EnemyAIUsable && stat.IsSkillUsable(skill);
+            })
+            .ToList();
         
         if (availableSkills.Count == 0)
         {

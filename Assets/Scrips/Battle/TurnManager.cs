@@ -299,10 +299,11 @@ public class TurnManager : MonoBehaviour
 
             if (SkillData.skillDict.TryGetValue(skillId, out var skillData) && skillData != null)
             {
-                if (skillData.CurrentCooldown > 0)
+                int before = character.GetSkillCooldownRemaining(skillId);
+                if (before > 0)
                 {
-                    skillData.CurrentCooldown = Mathf.Max(0, skillData.CurrentCooldown - 1);
-                    Debug.Log($"[SkillCooldown] 턴 시작 감소: {character.Label} {skillData.ID}:{skillData.Name} -> {skillData.CurrentCooldown}");
+                    character.DecrementSkillCooldownTurn(skillId);
+                    Debug.Log($"[SkillCooldown] 턴 시작 감소: {character.Label} {skillData.ID}:{skillData.Name} -> {character.GetSkillCooldownRemaining(skillId)}");
                 }
             }
         }

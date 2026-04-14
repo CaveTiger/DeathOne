@@ -5,8 +5,8 @@
 	<Skill ID ="011001" ParentID="010000">
 		<Name>어설픈 다루기</Name>
 		<Icon>SkillIcon/010001</Icon>
-		<DamageMin>30</DamageMin> <!--게임오버 테스트용으로 데미지 상승 (원래값: 5)-->
-		<DamageMax>50</DamageMax> <!--원래값: 12-->
+		<DamageMin>10</DamageMin>
+		<DamageMax>18</DamageMax>
 		<SkillEffect>
 		</SkillEffect>
 		<SkillTarget>Enemy</SkillTarget>
@@ -25,14 +25,9 @@
 	<Skill ID ="011002" ParentID="010000">
 		<Name>버서크 임펙트</Name>
 		<Icon>SkillIcon/010002</Icon>
-		<DamageMin>25</DamageMin> 
-		<DamageMax>40</DamageMax> 
+		<DamageMin>60</DamageMin> 
+		<DamageMax>100</DamageMax> 
 		<SkillEffect>
-			<li>
-				<EffectID>022001</EffectID> <!-- 체력 10% 감소 -->
-				<Value>10</Value>
-				<Duration>1</Duration>
-			</li>
 		</SkillEffect>
 		<SkillTarget>Enemy</SkillTarget>
 		<Motion>Attack</Motion>
@@ -41,11 +36,12 @@
 		<AttackEffect>Cut</AttackEffect>
 		<ActiveCount>None</ActiveCount>
 		<ManaCost>0</ManaCost>
-		<CoolTime>0</CoolTime>
+		<HealthCost>30</HealthCost>
+		<CoolTime>5</CoolTime>
 	</Skill>
 	
 	<Skill ID ="011003" ParentID="010000">
-		<Name>상황 관찰</Name>
+		<Name>경계 감도 증가</Name>
 		<Icon>SkillIcon/010003</Icon>
 		<SkillEffect>
 			<li>
@@ -60,7 +56,7 @@
 		<AttackEffect>Buff</AttackEffect>
 		<ActiveCount>None</ActiveCount>
 		<ManaCost>0</ManaCost>
-		<CoolTime>0</CoolTime>
+		<CoolTime>3</CoolTime>
 	</Skill>
 	
 	<Skill ID ="011004" ParentID="010000">

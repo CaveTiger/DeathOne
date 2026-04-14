@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8995972467411873208}
   - component: {fileID: 8453253450464492768}
+  - component: {fileID: 9182736455566778801}
   - component: {fileID: 426376700189562872}
   - component: {fileID: 713812773015226045}
   m_Layer: 6
@@ -44,6 +45,25 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e502747e609332740a5903c0d6b728b3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  effectData: {fileID: 0}
+  remainingTurns: 0
+  value: 0
+  owner: {fileID: 0}
+  triggerCount: 0
+  isActive: 1
+  iconRenderer: {fileID: 0}
+--- !u!114 &9182736455566778801
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6510473027615198677}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7939e2768574b8e48b085b62d234d5e0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   effectData: {fileID: 0}

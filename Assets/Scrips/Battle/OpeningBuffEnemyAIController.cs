@@ -22,7 +22,15 @@ public class OpeningBuffEnemyAIController : EnemyAIController
             return null;
         }
 
-        var availableSkills = stat.Skills.Where(skill => !string.IsNullOrWhiteSpace(skill)).ToList();
+        var availableSkills = stat.Skills
+            .Where(skill => !string.IsNullOrWhiteSpace(skill))
+            .Where(id =>
+            {
+                if (!SkillData.skillDict.TryGetValue(id, out var skill) || skill == null)
+                    return true;
+                return skill.EnemyAIUsable && stat.IsSkillUsable(skill);
+            })
+            .ToList();
         if (availableSkills.Count == 0)
         {
             Debug.LogWarning("[AI OpeningBuff] 사용 가능한 스킬이 없습니다");
@@ -36,7 +44,7 @@ public class OpeningBuffEnemyAIController : EnemyAIController
             {
                 if (!SkillData.skillDict.TryGetValue(id, out var skill) || skill == null)
                     continue;
-                if (skill.Type != SkillType.Buff || !skill.IsUsable())
+                if (!skill.EnemyAIUsable || skill.Type != SkillType.Buff || !stat.IsSkillUsable(skill))
                     continue;
 
                 openingBuffConsumed = true;

@@ -68,6 +68,8 @@ public class SkillData
     public int HealMax { get; set; }
     public SkillType Type { get; set; }
     public bool HasExplicitType { get; set; }
+    public bool EnemyAIUsable { get; set; } = true;
+    public bool HasExplicitEnemyAIUsable { get; set; }
     public string UseSkillId { get; set; }
     
     [Header("스킬 사용 횟수 제한")]
@@ -76,6 +78,7 @@ public class SkillData
     public int CurrentUseCount { get; set; } // 현재 남은 사용 횟수
     
     public List<SkillEffectInfo> skillEffects = new List<SkillEffectInfo>();
+    public List<SkillEffectInfo> selfSkillEffects = new List<SkillEffectInfo>();
     public float KnockdownMultiplier { get; set; } = 1.0f;
     public SkillData Clone()
     {
@@ -100,6 +103,7 @@ public class SkillData
             AttackType = this.AttackType,
             AttackEffect = this.AttackEffect,
             skillEffects = new List<SkillEffectInfo>(this.skillEffects),
+            selfSkillEffects = new List<SkillEffectInfo>(this.selfSkillEffects),
             ManaCost = this.ManaCost,
             StaminaCost = this.StaminaCost,
             HealthCost = this.HealthCost,
@@ -109,10 +113,13 @@ public class SkillData
             HealMax = this.HealMax,
             Type = this.Type,
             HasExplicitType = this.HasExplicitType,
+            EnemyAIUsable = this.EnemyAIUsable,
+            HasExplicitEnemyAIUsable = this.HasExplicitEnemyAIUsable,
             UseSkillId = this.UseSkillId,
             KnockdownMultiplier = this.KnockdownMultiplier
         };
     }
+    /// <summary>템플릿 인스턴스의 <see cref="CurrentCooldown"/>만 검사한다. 전투에서는 <see cref="CharacterStats.IsSkillUsable"/>를 사용하세요.</summary>
     public bool IsUsable()
     {
         // 쿨다운 체크

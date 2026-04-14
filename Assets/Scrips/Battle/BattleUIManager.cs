@@ -162,9 +162,27 @@ public class BattleUIManager : MonoBehaviour
             }
         }
         Debug.Log("[AI개선] UpdateSkillUIForTurn - 스킬 슬롯 업데이트 완료");
+
+        RefreshSkillCooldownDisplaysForAllSlots();
         
         float endTime = Time.realtimeSinceStartup;
         Debug.Log($"[AI개선] UpdateSkillUIForTurn 완료 - 소요시간: {(endTime - startTime) * 1000:F2}ms");
+    }
+
+    /// <summary>모든 파티원 스킬 버튼의 쿨 표시를 <see cref="CharacterStats"/> 기준으로 갱신한다.</summary>
+    public void RefreshSkillCooldownDisplaysForAllSlots()
+    {
+        if (skillSetRoot == null) return;
+        for (int slotIdx = 0; slotIdx < 4; slotIdx++)
+        {
+            Transform slot = skillSetRoot.Find($"SkillSlot{slotIdx + 1}");
+            if (slot == null) continue;
+            foreach (Transform child in slot)
+            {
+                var skillInstance = child.GetComponent<SkillInstance>();
+                skillInstance?.RefreshCooldownDisplay();
+            }
+        }
     }
 
     /// <summary>

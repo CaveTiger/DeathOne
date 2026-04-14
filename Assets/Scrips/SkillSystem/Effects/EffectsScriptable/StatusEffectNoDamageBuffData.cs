@@ -5,7 +5,7 @@ public class StatusEffectNoDamageBuffData : StatusEffectData
 {
     private void OnEnable()
     {
-        EffectID = "021002";
+        EffectID = "024001";
         effectType = StatusEffectType.Token; // Buff에서 Token으로 변경
         effectName = "피해무시";
         description = "한 번의 피해를 완전히 무시합니다.";

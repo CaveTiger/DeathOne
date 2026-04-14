@@ -16,7 +16,7 @@
 		<Skills>
 			<li>010005</li>
 			<li>010006</li>
-			<li>010007</li>
+			<li>011009</li>
 			<li>010008</li>
 		</Skills>
 		<Passives>
@@ -31,19 +31,19 @@
 		<Description>설명 영혼의 기억에서 확인 가능</Description> <!---->
 		<Stats>
 			<Hp>512</Hp> <!--들어갈때 최대체력 + 현재체력 모두 이걸로 세팅된다.-->
-			<Atk>50</Atk> <!--게임오버 테스트용으로 공격력 대폭 상승 (원래값: 3)-->
+			<Atk>3</Atk> 
 			<Def>1</Def>
 			<KDP>0</KDP>
-			<MaxKDP>1</MaxKDP><!-- 원본 256 -->
+			<MaxKDP>256</MaxKDP><!-- 원본 256 -->
 			<Evasionrate>0.1</Evasionrate>
 			<Accuracy>0.0</Accuracy>
 			<Speed>22</Speed>
 		</Stats>
 		<Skills>
-			<li>011001</li> <!--보스 전용 스킬로 변경 (원래값: 010001)-->
-			<li>011002</li> <!--원래값: 010002-->
-			<li>011003</li> <!--원래값: 010003-->
-			<li>011004</li> <!--원래값: 010004-->
+			<li>011001</li> 
+			<li>011002</li> 
+			<li>011003</li> 
+			<li>011004</li> 
 		</Skills>
 		<Passives>
 		</Passives>
@@ -54,11 +54,11 @@
 	</Character>
 	
 	<Character ID="001003">
-		<Label>Mora</Label> <!--캐릭터의 이름-->
+		<Label>모라</Label> <!--캐릭터의 이름-->
 		<Description>설명 영혼의 기억에서 확인 가능</Description> <!---->
 		<Stats>
 			<Hp>83</Hp> <!--들어갈때 최대체력 + 현재체력 모두 이걸로 세팅된다.-->
-			<Atk>1</Atk> <!--게임오버 테스트용으로 공격력 대폭 상승 (원래값: 3)-->
+			<Atk>0</Atk> 
 			<Def>2</Def>
 			<KDP>0</KDP>
 			<MaxKDP>84</MaxKDP>

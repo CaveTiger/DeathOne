@@ -7,7 +7,7 @@
 		<Name>기초적인 검격</Name>
 		<Icon>SkillIcon/010005</Icon>
 		<DamageMin>5</DamageMin>
-		<DamageMax>8</DamageMax>
+		<DamageMax>12</DamageMax>
 		<SkillEffect></SkillEffect>
 		<SkillTarget>Enemy</SkillTarget>
 		<Motion>Attack</Motion>
@@ -26,12 +26,13 @@
 	<Skill ID ="010006" ParentID="010000">
 		<Name>방어</Name>
 		<Icon>SkillIcon/010006</Icon>
+		<Type>Buff</Type>
 		<DamageMin>0</DamageMin>
 		<DamageMax>0</DamageMax>
 		<SkillEffect>
 			<li>
 				<EffectID>021007</EffectID>
-				<Value>7</Value>
+				<Value>8</Value>
 				<Duration>1</Duration>
 			</li>
 		</SkillEffect>
@@ -46,7 +47,7 @@
 		<Name>참수</Name>
 		<Icon>SkillIcon/010007</Icon>
 		<DamageMin>1</DamageMin>
-		<DamageMax>18</DamageMax>
+		<DamageMax>28</DamageMax>
 		<SkillEffect>
 		</SkillEffect>
 		<SkillTarget>Enemy</SkillTarget>
@@ -60,11 +61,17 @@
 	<Skill ID ="010008" ParentID="010000">
 		<Name>지목</Name>
 		<Icon>SkillIcon/010008</Icon>
+		<Type>Debuff</Type>
 		<SkillEffect>
-			<li>020005</li>
+			<li>
+				<EffectID>022001</EffectID>
+				<Duration>5</Duration>
+			</li>
 		</SkillEffect>
 		<SkillTarget>Enemy</SkillTarget>
-		<Motion>Buff</Motion>
+		<Motion>Mark</Motion>
+		<GhostSpritePath>UnitSprite/Stelly/Mark</GhostSpritePath>
+		<AttackEffect>Mark</AttackEffect>
 	</Skill>
 	
 	<!-- 010009 사용자: 000004(귀족 신참병), 000005(데인마르 방패병), 000006(데인마르 기수), 000007(데인마르 궁수) -->
@@ -74,7 +81,11 @@
 		<DamageMin>3</DamageMin>
 		<DamageMax>7</DamageMax>
 		<SkillEffect>
-			<li>020005</li>
+			<li>
+				<EffectID>020001</EffectID>
+				<Value>4</Value>
+				<Duration>4</Duration>
+			</li>
 		</SkillEffect>
 		<SkillTarget>Enemy</SkillTarget>
 		<Motion>Attack</Motion>
@@ -91,10 +102,14 @@
 	<Skill ID ="010010" ParentID="010000">
 		<Name>녹슨 날</Name>
 		<Icon>SkillIcon/010010</Icon>
-		<DamageMin>3</DamageMin>
-		<DamageMax>7</DamageMax>
+		<DamageMin>5</DamageMin>
+		<DamageMax>9</DamageMax>
 		<SkillEffect>
-			<li>020005</li>
+			<li>
+				<EffectID>020002</EffectID>
+				<Value>3</Value>
+				<Duration>4</Duration>
+			</li>
 		</SkillEffect>
 		<SkillTarget>Enemy</SkillTarget>
 		<Motion>Attack</Motion>

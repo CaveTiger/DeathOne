@@ -119,8 +119,8 @@ public class StatusEffectInstanceReaction : StatusEffectInstanceBase
             return false;
 
         ReactionEffectMode mode = effectData.reactionMode;
-        // 기존 데이터 호환: reactionMode를 아직 안 쓴 021002는 피해무시로 동작 유지
-        if (mode == ReactionEffectMode.None && effectData.EffectID == "021002")
+        // 기존 데이터 호환: reactionMode를 아직 안 쓴 피해무시 ID(024001, 구버전 021002)는 피해무시로 동작 유지
+        if (mode == ReactionEffectMode.None && (effectData.EffectID == "024001" || effectData.EffectID == "021002"))
             mode = ReactionEffectMode.DamageNullify;
 
         // maxTriggerCount > 0 일 때만 횟수 제한을 적용한다. (0은 무제한)
@@ -246,7 +246,8 @@ public class StatusEffectInstanceReaction : StatusEffectInstanceBase
     public void ReduceDuration()
     {
         if (!isActive) return;
-        
+        if (effectData == null) return;
+
         remainingTurns--;
         UpdateUI();
         

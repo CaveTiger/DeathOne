@@ -1,26 +1,28 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using static UnityEngine.GraphicsBuffer;
-using System.Collections;
 
 public class SkillInstance : MonoBehaviour
 {
     [SerializeField] public string skillID; //스킬 ID
 
     private bool isActive; //스킬 사용가능 여부
-    private float cooldownTime;
-    private float currentCooldown;
     private string groupName;
     private SkillData skillData;
     private int slotIndex;  // 슬롯의 순서를 지정하는 인덱스
     private CharacterStats caster;
     private CharacterStats target;
 
+    [Header("UI")]
     [SerializeField] private Image skillIconImage;
-    [SerializeField] private Image cooldownImage;
+    [Tooltip("남은 쿨 턴 표시. 쿨이 없을 때는 GameObject 비활성.")]
+    [SerializeField] private TextMeshProUGUI skillCooldownTurnsText;
     [SerializeField] private TextMeshProUGUI skillNameText;
     [SerializeField] private GameObject csaterObject;
+
+    [Header("쿨타임 연출")]
+    [SerializeField] private Color skillIconReadyColor = Color.white;
+    [SerializeField] private Color skillIconCooldownColor = new Color(0.45f, 0.45f, 0.45f, 1f);
 
     public void SetSkillData(SkillData data)
     {
@@ -28,11 +30,10 @@ public class SkillInstance : MonoBehaviour
         if (skillData != null)
         {
             groupName = skillData.Group;
-            cooldownTime = skillData.Cooldown;
             isActive = true;
-            currentCooldown = 0f;
 
             UpdateSkillUI();
+            RefreshCooldownDisplay();
             
             Debug.Log($"[SkillInstance] 스킬 데이터 설정 완료: {skillData.Name}");
         }
@@ -63,21 +64,67 @@ public class SkillInstance : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// <see cref="CharacterStats"/>에 쌓인 남은 쿨 턴을 반영한다. TMP는 쿨 중에만 활성.
+    /// </summary>
+    public void RefreshCooldownDisplay()
+    {
+        if (skillCooldownTurnsText != null)
+        {
+            var go = skillCooldownTurnsText.gameObject;
+            if (skillData == null || caster == null)
+            {
+                go.SetActive(false);
+                skillCooldownTurnsText.text = string.Empty;
+                ApplyIconCooldownVisual(0);
+                return;
+            }
+
+            int remaining = caster.GetSkillCooldownRemaining(skillData.ID);
+            if (remaining > 0)
+            {
+                go.SetActive(true);
+                skillCooldownTurnsText.text = remaining.ToString();
+                ApplyIconCooldownVisual(remaining);
+            }
+            else
+            {
+                go.SetActive(false);
+                skillCooldownTurnsText.text = string.Empty;
+                ApplyIconCooldownVisual(0);
+            }
+        }
+        else if (skillIconImage != null && skillData != null && caster != null)
+        {
+            int remaining = caster.GetSkillCooldownRemaining(skillData.ID);
+            ApplyIconCooldownVisual(remaining);
+        }
+    }
+
+    private void ApplyIconCooldownVisual(int cooldownRemaining)
+    {
+        if (skillIconImage == null) return;
+        skillIconImage.color = cooldownRemaining > 0 ? skillIconCooldownColor : skillIconReadyColor;
+    }
+
     public void SetCaster(CharacterStats newCaster)
     {
         caster = newCaster;
+        RefreshCooldownDisplay();
     }
 
     private void Awake()
     {
+        if (skillCooldownTurnsText != null)
+            skillCooldownTurnsText.gameObject.SetActive(false);
+
         // skillID가 Inspector에서 설정된 경우에만 로드
         if (!string.IsNullOrEmpty(skillID) && SkillData.skillDict.TryGetValue(skillID, out skillData))
         {
             groupName = skillData.Group;
-            cooldownTime = skillData.Cooldown;
             isActive = true;
-            currentCooldown = 0f;
             UpdateSkillUI();
+            RefreshCooldownDisplay();
         }
     }
 
@@ -113,9 +160,9 @@ public class SkillInstance : MonoBehaviour
         if (!isActive || skillData == null) return;
 
         // 스킬 사용 가능 여부는 SkillData의 실제 쿨다운/횟수 상태를 기준으로 판단한다.
-        if (!skillData.IsUsable())
+        if (!caster.IsSkillUsable(skillData))
         {
-            Debug.LogWarning($"[UseSkill] 사용 불가 스킬 시도 차단: {skillData.ID}:{skillData.Name}, cooldown={skillData.CurrentCooldown}");
+            Debug.LogWarning($"[UseSkill] 사용 불가 스킬 시도 차단: {skillData.ID}:{skillData.Name}, casterCooldown={caster.GetSkillCooldownRemaining(skillData.ID)}");
             return;
         }
 
@@ -130,6 +177,8 @@ public class SkillInstance : MonoBehaviour
         bool started = SkillManager.Instance.UseSkill(skillData, caster, target, skillData);
         if (!started)
             Debug.LogWarning($"[UseSkill] 스킬 실행 시작 실패: {skillData?.ID}:{skillData?.Name}");
+        else if (BattleUIManager.Instance != null)
+            BattleUIManager.Instance.RefreshSkillCooldownDisplaysForAllSlots();
     }
 
     public void SetGroup(string newGroupName) //그룹을 지정하기

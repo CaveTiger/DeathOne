@@ -272,6 +272,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   CharacterUnit: {fileID: 0}
+  ghostProxyFixedDistance: 0.4
+  ghostProxyBaseScale: 0.6
+  ghostProxyMotionFallbackSeconds: 0.45
+  ghostProxyFadeSeconds: 0.22
 --- !u!114 &35762116
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -297,6 +301,9 @@ MonoBehaviour:
   playerInfoUI: {fileID: 0}
   playerSlots: []
   enemySlots: []
+  enableTurnRewindKey: 1
+  turnRewindKey: 289
+  turnsBackOnRewind: 1
 --- !u!114 &35762117
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2959,6 +2966,7 @@ MonoBehaviour:
   deathOverlayCanvas: {fileID: 562606571}
   deathIconPrefab: {fileID: 8350251405544458453, guid: 677329de562b2884fa69ce24aae2f1f9, type: 3}
   deathIconWorldOffset: {x: 0, y: 0.8, z: 0}
+  deathIconHeightNormalized: 0.56
   deathIconLifetime: 2.8
 --- !u!1 &529875335
 GameObject:
@@ -4077,6 +4085,7 @@ MonoBehaviour:
   deathOverlayCanvas: {fileID: 562606571}
   deathIconPrefab: {fileID: 8350251405544458453, guid: 677329de562b2884fa69ce24aae2f1f9, type: 3}
   deathIconWorldOffset: {x: 0, y: 0.8, z: 0}
+  deathIconHeightNormalized: 0.56
   deathIconLifetime: 2.8
 --- !u!1 &679302520
 GameObject:
@@ -4262,6 +4271,7 @@ MonoBehaviour:
   deathOverlayCanvas: {fileID: 562606571}
   deathIconPrefab: {fileID: 8350251405544458453, guid: 677329de562b2884fa69ce24aae2f1f9, type: 3}
   deathIconWorldOffset: {x: 0, y: 0.8, z: 0}
+  deathIconHeightNormalized: 0.56
   deathIconLifetime: 2.8
 --- !u!1 &688912616
 GameObject:
@@ -5200,6 +5210,7 @@ MonoBehaviour:
   deathOverlayCanvas: {fileID: 562606571}
   deathIconPrefab: {fileID: 8350251405544458453, guid: 677329de562b2884fa69ce24aae2f1f9, type: 3}
   deathIconWorldOffset: {x: 0, y: 0.8, z: 0}
+  deathIconHeightNormalized: 0.56
   deathIconLifetime: 2.8
 --- !u!1 &815056953
 GameObject:
@@ -5465,6 +5476,7 @@ MonoBehaviour:
   deathOverlayCanvas: {fileID: 562606571}
   deathIconPrefab: {fileID: 8350251405544458453, guid: 677329de562b2884fa69ce24aae2f1f9, type: 3}
   deathIconWorldOffset: {x: 0, y: 0.8, z: 0}
+  deathIconHeightNormalized: 0.56
   deathIconLifetime: 2.8
 --- !u!1 &835440286
 GameObject:
@@ -8147,6 +8159,7 @@ MonoBehaviour:
   deathOverlayCanvas: {fileID: 562606571}
   deathIconPrefab: {fileID: 8350251405544458453, guid: 677329de562b2884fa69ce24aae2f1f9, type: 3}
   deathIconWorldOffset: {x: 0, y: 0.8, z: 0}
+  deathIconHeightNormalized: 0.56
   deathIconLifetime: 2.8
 --- !u!1 &1691602324
 GameObject:
@@ -9499,6 +9512,7 @@ MonoBehaviour:
   deathOverlayCanvas: {fileID: 562606571}
   deathIconPrefab: {fileID: 8350251405544458453, guid: 677329de562b2884fa69ce24aae2f1f9, type: 3}
   deathIconWorldOffset: {x: 0, y: 0.8, z: 0}
+  deathIconHeightNormalized: 0.56
   deathIconLifetime: 2.8
 --- !u!1 &1920947535
 GameObject:
@@ -9609,6 +9623,7 @@ MonoBehaviour:
   deathOverlayCanvas: {fileID: 562606571}
   deathIconPrefab: {fileID: 8350251405544458453, guid: 677329de562b2884fa69ce24aae2f1f9, type: 3}
   deathIconWorldOffset: {x: 0, y: 0.8, z: 0}
+  deathIconHeightNormalized: 0.56
   deathIconLifetime: 2.8
 --- !u!1 &1995997757
 GameObject:

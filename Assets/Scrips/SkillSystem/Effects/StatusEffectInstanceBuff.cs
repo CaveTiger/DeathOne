@@ -32,6 +32,9 @@ public class StatusEffectInstanceBuff : StatusEffectInstanceBase
     public void RemoveEffect()
     {
         if (owner == null) return;
+        // 지목 등: 스탯 필드 반영 없이 특수 로직만 쓰는 디버프는 원복·반영 모두 생략
+        if (effectData != null && effectData.markPriorityTarget)
+            return;
 
         var statField = owner.GetType().GetField(effectData.statType.ToString());
         if (statField != null)
@@ -50,7 +53,8 @@ public class StatusEffectInstanceBuff : StatusEffectInstanceBase
     public void ReduceDuration()
     {
         if (!isActive) return;
-        
+        if (effectData == null) return;
+
         remainingTurns--;
         UpdateUI();
 
@@ -161,6 +165,8 @@ public class StatusEffectInstanceBuff : StatusEffectInstanceBase
     public void ApplyEffect()
     {
         if (owner == null) return;
+        if (effectData != null && effectData.markPriorityTarget)
+            return;
 
         // statType의 이름과 동일한 필드를 찾아서 값을 증가
         var statField = owner.GetType().GetField(effectData.statType.ToString());

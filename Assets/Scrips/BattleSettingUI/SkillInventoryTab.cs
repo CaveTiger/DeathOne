@@ -167,6 +167,19 @@ public class SkillInventoryTab : MonoBehaviour, IPointerEnterHandler, IPointerEx
         }
     }
 
+    /// <summary>
+    /// 현재 파티 스킬 슬롯 기준으로 인벤토리 블록 사용 가능/불가(어둡게) 상태를 즉시 갱신.
+    /// </summary>
+    public void RefreshUsedSkillsFromParty()
+    {
+        if (BattleSettingManager.Instance == null)
+            return;
+
+        var partySkillIDs = BattleSettingManager.Instance.GetPartySkillIDsFromSlots();
+        var usedSkillIDs = partySkillIDs.Where(id => !string.IsNullOrEmpty(id)).ToList();
+        RefreshSkillBlockInteractable(usedSkillIDs);
+    }
+
     private void ClearSkillList()
     {
         foreach (var block in skillBlocks)
@@ -224,6 +237,15 @@ public class SkillInventoryTab : MonoBehaviour, IPointerEnterHandler, IPointerEx
             return skillData;
         }
         return null;
+    }
+
+    /// <summary>
+    /// 인벤토리 목록에서 스킬 ID로 SkillBlock을 찾습니다.
+    /// </summary>
+    public SkillBlock GetSkillBlockByID(string skillId)
+    {
+        if (string.IsNullOrEmpty(skillId)) return null;
+        return skillBlocks.FirstOrDefault(b => b != null && b.skillData != null && b.skillData.ID == skillId);
     }
 
     /// <summary>

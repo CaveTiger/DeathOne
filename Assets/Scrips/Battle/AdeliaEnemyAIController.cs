@@ -13,6 +13,7 @@ using System.Linq;
 public class AdeliaEnemyAIController : EnemyAIController
 {
     private int turnCount = 0;
+    private const string BerserkImpactSkillId = "011002";
 
     public override string ChooseSkillID()
     {
@@ -26,6 +27,18 @@ public class AdeliaEnemyAIController : EnemyAIController
         // 턴 카운트 증가 (턴 매니저에서 관리하는 것이 더 좋지만 일단 여기서)
         turnCount++;
         Debug.Log($"[AI Adelia] 턴 {turnCount} - 스킬 선택 시작");
+
+        // 우선 규칙: 버서크 임펙트(011002)가 쿨타임/사용제한에 막히지 않으면 무조건 사용.
+        string berserkId = stat.Skills.FirstOrDefault(id => id == BerserkImpactSkillId);
+        if (!string.IsNullOrEmpty(berserkId) &&
+            SkillData.skillDict.TryGetValue(berserkId, out var berserkSkill) &&
+            berserkSkill != null &&
+            berserkSkill.EnemyAIUsable &&
+            stat.IsSkillUsable(berserkSkill))
+        {
+            Debug.Log($"[AI Adelia] 우선 규칙 발동: 버서크 임펙트 고정 사용 ({berserkId})");
+            return berserkId;
+        }
 
         string selectedSkill = null;
 
@@ -74,6 +87,30 @@ public class AdeliaEnemyAIController : EnemyAIController
         {
             Debug.LogWarning($"[AI Adelia] 선택된 스킬이 null입니다. 턴: {turnCount}");
             return null;
+        }
+
+        // EnemyAIUsable=false 또는 쿨다운 중인 스킬은 패턴에서 제외하고 대체한다.
+        if (SkillData.skillDict.TryGetValue(selectedSkill, out var selectedData) && selectedData != null
+            && (!selectedData.EnemyAIUsable || !stat.IsSkillUsable(selectedData)))
+        {
+            var fallbackSkills = stat.Skills
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Where(id =>
+                {
+                    if (!SkillData.skillDict.TryGetValue(id, out var skill) || skill == null)
+                        return true;
+                    return skill.EnemyAIUsable && stat.IsSkillUsable(skill);
+                })
+                .ToList();
+
+            if (fallbackSkills.Count == 0)
+            {
+                Debug.LogWarning($"[AI Adelia] 사용 가능한 스킬이 없습니다. 턴: {turnCount}");
+                return null;
+            }
+
+            selectedSkill = fallbackSkills[Random.Range(0, fallbackSkills.Count)];
+            Debug.Log($"[AI Adelia] EnemyAIUsable/쿨다운 제한으로 대체 스킬 선택: {selectedSkill}");
         }
 
         Debug.Log($"[AI Adelia] 최종 선택된 스킬: {selectedSkill}");

@@ -37,7 +37,7 @@ MonoBehaviour:
   useAppliedValueForReaction: 0
   reflectReducedAmountDirect: 0
   useReducedAmountAsReflectBase: 0
-  reductionMode: 1
+  reductionMode: 0
   reductionFixedValue: 0
   reductionPercent: 0
-  useAppliedValueForReduction: 1
+  useAppliedValueForReduction: 0

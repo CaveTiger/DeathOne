@@ -81,6 +81,12 @@ public class BattleSettingCharacterSlot : MonoBehaviour, IPointerEnterHandler, I
         // 슬롯이 잠겨있으면 배치 불가
         if (isLocked) return;
 
+        if (CharacterInventoryTab.Instance != null)
+        {
+            // 인벤토리 리스트에 남아 있는 참조를 제거해 슬롯/인벤토리 UI 이중 상태를 방지.
+            CharacterInventoryTab.Instance.RemoveBlockFromList(block);
+        }
+
         // 기존 블록이 있으면 인벤토리로 반환
         if (currentCharacterBlock != null)
         {
@@ -152,6 +158,31 @@ public class BattleSettingCharacterSlot : MonoBehaviour, IPointerEnterHandler, I
     }
 
     /// <summary>
+    /// 현재 슬롯 자식/참조를 기준으로 UI를 강제 동기화합니다.
+    /// 데이터는 정상인데 슬롯 비주얼만 비는 현상 방지용.
+    /// </summary>
+    public void ForceSyncVisualFromCurrentBlock()
+    {
+        if (currentCharacterBlock == null)
+        {
+            currentCharacterBlock = GetComponentInChildren<CharacterBlock>(true);
+        }
+
+        if (currentCharacterBlock != null)
+        {
+            currentCharacterData = currentCharacterBlock.characterData;
+            slotVisualState = SlotVisualState.Occupied;
+        }
+        else
+        {
+            currentCharacterData = null;
+            slotVisualState = SlotVisualState.Empty;
+        }
+
+        UpdateSlotVisual();
+    }
+
+    /// <summary>
     /// 외부에서 캐릭터 데이터를 직접 설정합니다 (주인공 자동 배치 등).
     /// </summary>
     public void SetCharacter(CharacterData data, Sprite sprite)
@@ -216,7 +247,11 @@ public class BattleSettingCharacterSlot : MonoBehaviour, IPointerEnterHandler, I
             case SlotVisualState.Occupied:
                 if (currentCharacterData != null && !string.IsNullOrEmpty(currentCharacterData.Sprite))
                 {
-                    characterImage.sprite = Resources.Load<Sprite>(currentCharacterData.Sprite);
+                    string standPath = $"{currentCharacterData.Sprite}/Stand";
+                    Sprite loaded = Resources.Load<Sprite>(standPath);
+                    if (loaded == null)
+                        loaded = Resources.Load<Sprite>(currentCharacterData.Sprite); // 구형 단일 경로 호환
+                    characterImage.sprite = loaded;
                     characterImage.color = Color.white;
                 }
                 break;

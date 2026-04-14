@@ -317,6 +317,47 @@ public class CharacterMotionController : MonoBehaviour
     }
 
     /// <summary>
+    /// 디버프 시전자 모션: Buff 스프라이트는 재사용하되 색상은 바꾸지 않는다.
+    /// </summary>
+    public void PlayDebuffCasterMotion()
+    {
+        if (!characterStats.IsActive) return;
+        currentMotion = "Buff";
+
+        string buffPath = $"{characterStats.data.Sprite}/Buff";
+        Sprite buffSprite = Resources.Load<Sprite>(buffPath);
+        if (buffSprite != null)
+        {
+            spriteRenderer.sprite = buffSprite;
+            Debug.Log($"[MotionController] 디버프 시전자 모션 스프라이트 변경: {buffPath}");
+        }
+        else
+        {
+            string standPath = $"{characterStats.data.Sprite}/Stand";
+            Sprite standSprite = Resources.Load<Sprite>(standPath);
+            if (standSprite != null)
+            {
+                spriteRenderer.sprite = standSprite;
+                Debug.Log($"[MotionController] 디버프 시전자 모션 - Stand 스프라이트 사용: {standPath}");
+            }
+        }
+
+        // 요구사항: 디버프 시전자 색상 효과 없음
+        spriteRenderer.color = Color.white;
+    }
+
+    /// <summary>
+    /// 디버프 대상 모션: 피격 자세 + 보라색 틴트.
+    /// </summary>
+    public void PlayDebuffTargetMotion()
+    {
+        PlayHitMotion();
+        var sr = GetPrimarySpriteRenderer();
+        if (sr != null)
+            sr.color = new Color(0.65f, 0.35f, 0.9f, 1f); // 보라색
+    }
+
+    /// <summary>
     /// 죽는 모션을 실행합니다.
     /// </summary>
     public void PlayDeathMotion()

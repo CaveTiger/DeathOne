@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -78,11 +77,17 @@ public class StageBlockSelection : MonoBehaviour
 
         if (blockID != null)
         {
+            // 전환 직전 현재 세팅을 가장 먼저 저장한다.
+            if (BattleSettingManager.Instance != null)
+            {
+                BattleSettingManager.Instance.CommitSetupBeforeTransition();
+            }
+
             // 1. 슬롯 기반 스킬ID 배열 전달
             if (BattleSettingManager.Instance != null)
             {
                 var slotSkillIDs = BattleSettingManager.Instance.GetPartySkillIDsFromSlots();
-                SpawnManager.Instance.partySkillIDs = slotSkillIDs;
+                SpawnManager.Instance.SetPartySkillIDs(slotSkillIDs);
                 Debug.Log($"[SpawnSkill][StageBlockSelection] 슬롯 기반 partySkillIDs: {string.Join(",", slotSkillIDs)}");
             }
 

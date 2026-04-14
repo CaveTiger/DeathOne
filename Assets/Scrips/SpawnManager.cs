@@ -14,7 +14,13 @@ public class SpawnManager : MonoBehaviour
     [Header("플레이어")]
     public string playerID = "000001";  // 항상 등장하는 플레이어
 
-    // 슬롯 기반 단방향 전달: 스킬ID 배열 저장용
+    [Header("플레이어 스킬 슬롯(분할 필드)")]
+    public string playerSkillSlot1 = "";
+    public string playerSkillSlot2 = "";
+    public string playerSkillSlot3 = "";
+    public string playerSkillSlot4 = "";
+
+    // 하위 호환용 배열(디버그/레거시 참조). 분할 필드와 항상 동기화한다.
     public string[] partySkillIDs = new string[4] { "", "", "", "" };
 
     [Header("아군 유닛")]
@@ -45,5 +51,33 @@ public class SpawnManager : MonoBehaviour
     public void LogPartyData(string context)
     {
         // 파티 정보 디버그 출력 (필요시 주석 해제)
+    }
+
+    public void SetPartySkillIDs(string[] skillIDs)
+    {
+        if (skillIDs == null || skillIDs.Length < 4)
+            return;
+
+        playerSkillSlot1 = skillIDs[0] ?? "";
+        playerSkillSlot2 = skillIDs[1] ?? "";
+        playerSkillSlot3 = skillIDs[2] ?? "";
+        playerSkillSlot4 = skillIDs[3] ?? "";
+        SyncArrayFromSlots();
+    }
+
+    public string[] GetPartySkillIDs()
+    {
+        SyncArrayFromSlots();
+        return (string[])partySkillIDs.Clone();
+    }
+
+    private void SyncArrayFromSlots()
+    {
+        if (partySkillIDs == null || partySkillIDs.Length != 4)
+            partySkillIDs = new string[4] { "", "", "", "" };
+        partySkillIDs[0] = playerSkillSlot1 ?? "";
+        partySkillIDs[1] = playerSkillSlot2 ?? "";
+        partySkillIDs[2] = playerSkillSlot3 ?? "";
+        partySkillIDs[3] = playerSkillSlot4 ?? "";
     }
 }

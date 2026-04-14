@@ -10,6 +10,7 @@ public class UnitStateSnapshot
     public bool isDead;
     public int kdp;
     public float collapseChance;
+    public List<SkillCooldownTurnSnapshot> skillCooldowns = new List<SkillCooldownTurnSnapshot>();
 }
 
 [System.Serializable]
@@ -155,7 +156,8 @@ public class BattleSnapshotManager : MonoBehaviour
                     hp = unit.Hp,
                     isDead = unit.IsDead,
                     kdp = !unit.IsPlayer ? unit.KnockdownBuildup : 0,
-                    collapseChance = unit.CollapseChance
+                    collapseChance = unit.CollapseChance,
+                    skillCooldowns = unit.ExportSkillCooldownsForSnapshot()
                 });
             }
         }
@@ -189,6 +191,8 @@ public class BattleSnapshotManager : MonoBehaviour
             {
                 live.HpUI.UpdateHpBar(live.Hp, live.MaxHp);
             }
+
+            live.ImportSkillCooldownsFromTurnSnapshot(state.skillCooldowns);
         }
     }
 }

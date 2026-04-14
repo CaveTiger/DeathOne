@@ -30,6 +30,8 @@ public class GameProgressManager : MonoBehaviour
         
         // 슬롯 기반 프리셋 저장용
         public string[] savedSkillPreset = new string[4] { "", "", "", "" };
+        // 파티 세팅 화면의 슬롯 배치(1~4)를 그대로 저장. 비어있는 슬롯은 빈 문자열.
+        public string[] savedPartySlots = new string[4] { "", "", "", "" };
         
         // 재화 필드 추가
         public int soulDust = 0; // 영혼먼지
@@ -377,6 +379,15 @@ public class GameProgressManager : MonoBehaviour
                 if (saveSlots[slot].activeBlessingByLine == null || saveSlots[slot].activeBlessingByLine.Length != 5)
                 {
                     saveSlots[slot].activeBlessingByLine = new string[5] { "", "", "", "", "" };
+                }
+
+                if (saveSlots[slot].savedSkillPreset == null || saveSlots[slot].savedSkillPreset.Length != 4)
+                {
+                    saveSlots[slot].savedSkillPreset = new string[4] { "", "", "", "" };
+                }
+                if (saveSlots[slot].savedPartySlots == null || saveSlots[slot].savedPartySlots.Length != 4)
+                {
+                    saveSlots[slot].savedPartySlots = new string[4] { "", "", "", "" };
                 }
                 
                 // 각 라인의 문자열이 null이면 빈 문자열로 초기화

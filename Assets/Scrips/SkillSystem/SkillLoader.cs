@@ -45,6 +45,13 @@ public class SkillLoader : MonoBehaviour
         LoadAllSkills();
         Debug.Log($"[SkillLoader] 스킬 로딩 완료. 총 {SkillData.skillDict.Count}개");
         Debug.Log($"[SkillLoader] 로드된 스킬 목록:\n{string.Join("\n", SkillData.skillDict.Keys.Select(id => $"  - {id}"))}");
+        foreach (var kv in SkillData.skillDict)
+        {
+            if (kv.Value == null) continue;
+            kv.Value.CurrentCooldown = 0;
+            if (kv.Value.UseCountYes)
+                kv.Value.CurrentUseCount = kv.Value.UseCount;
+        }
         isInitialized = true;
     }
 
@@ -65,6 +72,7 @@ public class SkillLoader : MonoBehaviour
             var parsed = doc.Descendants("Skill").Select(x =>
             {
                 var parsedType = ParseSkillTypeFromElement(x);
+                var parsedEnemyAIUsable = ParseEnemyAIUsableFromElement(x);
                 return new SkillData
                 {
                 ID = (string)x.Attribute("ID") ?? "",
@@ -74,6 +82,8 @@ public class SkillLoader : MonoBehaviour
                 Icon = (string)x.Element("Icon") ?? "",
                 Type = parsedType.type,
                 HasExplicitType = parsedType.hasExplicitType,
+                EnemyAIUsable = parsedEnemyAIUsable.enemyAIUsable,
+                HasExplicitEnemyAIUsable = parsedEnemyAIUsable.hasExplicitEnemyAIUsable,
                 UseSkillId = ((string)x.Element("UseSkill") ?? "").Trim(),
                 Description = (string)x.Element("Description") ?? "",
                 DamageMin = (int?)x.Element("DamageMin") ?? 0,
@@ -116,6 +126,29 @@ public class SkillLoader : MonoBehaviour
                         };
                     })
                     .Where(e => e != null)
+                    .ToList() ?? new List<SkillEffectInfo>(),
+                selfSkillEffects = x.Element("SelfSkillEffect")?
+                    .Elements("li")
+                    .Select(li => {
+                        var effectIdElement = li.Element("EffectID");
+                        if (effectIdElement == null) return null;
+
+                        string effectId = (string)effectIdElement;
+                        if (string.IsNullOrWhiteSpace(effectId)) return null;
+
+                        int value = (int?)li.Element("Value") ?? 0;
+                        int duration = (int?)li.Element("Duration") ?? 0;
+                        float chance = Mathf.Clamp01((float?)li.Element("Chance") ?? 1.0f);
+
+                        return new SkillEffectInfo
+                        {
+                            EffectID = effectId.Trim(),
+                            Value = value,
+                            Duration = duration,
+                            Chance = chance
+                        };
+                    })
+                    .Where(e => e != null)
                     .ToList() ?? new List<SkillEffectInfo>()
                 };
             }).ToList();
@@ -136,6 +169,7 @@ public class SkillLoader : MonoBehaviour
                 var parsed = doc.Descendants("Skill").Select(x =>
                 {
                     var parsedType = ParseSkillTypeFromElement(x);
+                    var parsedEnemyAIUsable = ParseEnemyAIUsableFromElement(x);
                     return new SkillData
                     {
                     ID = (string)x.Attribute("ID") ?? "",
@@ -145,6 +179,8 @@ public class SkillLoader : MonoBehaviour
                     Icon = (string)x.Element("Icon") ?? "",
                     Type = parsedType.type,
                     HasExplicitType = parsedType.hasExplicitType,
+                    EnemyAIUsable = parsedEnemyAIUsable.enemyAIUsable,
+                    HasExplicitEnemyAIUsable = parsedEnemyAIUsable.hasExplicitEnemyAIUsable,
                     UseSkillId = ((string)x.Element("UseSkill") ?? "").Trim(),
                     Description = (string)x.Element("Description") ?? "",
                     DamageMin = (int?)x.Element("DamageMin") ?? 0,
@@ -166,6 +202,29 @@ public class SkillLoader : MonoBehaviour
                     HealMax = GetHealRange(x).healMax,
                 KnockdownMultiplier = (float?)x.Element("KnockdownMultiplier") ?? 1.0f,
                 skillEffects = x.Element("SkillEffect")?
+                        .Elements("li")
+                        .Select(li => {
+                            var effectIdElement = li.Element("EffectID");
+                            if (effectIdElement == null) return null;
+
+                            string effectId = (string)effectIdElement;
+                            if (string.IsNullOrWhiteSpace(effectId)) return null;
+
+                            int value = (int?)li.Element("Value") ?? 0;
+                            int duration = (int?)li.Element("Duration") ?? 0;
+                            float chance = Mathf.Clamp01((float?)li.Element("Chance") ?? 1.0f);
+
+                            return new SkillEffectInfo
+                            {
+                                EffectID = effectId.Trim(),
+                                Value = value,
+                                Duration = duration,
+                                Chance = chance
+                            };
+                        })
+                        .Where(e => e != null)
+                        .ToList() ?? new List<SkillEffectInfo>(),
+                    selfSkillEffects = x.Element("SelfSkillEffect")?
                         .Elements("li")
                         .Select(li => {
                             var effectIdElement = li.Element("EffectID");
@@ -290,6 +349,20 @@ public class SkillLoader : MonoBehaviour
         return (SkillType.Damage, true);
     }
 
+    /// <summary>EnemyAIUsable 태그 존재 시 bool 파싱, 미존재 시 기본 true.</summary>
+    private static (bool enemyAIUsable, bool hasExplicitEnemyAIUsable) ParseEnemyAIUsableFromElement(XElement skillElement)
+    {
+        var el = skillElement.Element("EnemyAIUsable");
+        if (el == null)
+            return (true, false);
+
+        if (bool.TryParse(el.Value?.Trim(), out bool parsed))
+            return (parsed, true);
+
+        // 잘못된 값은 안전하게 true로 취급하고, 명시 태그로 간주해 부모값 상속은 차단한다.
+        return (true, true);
+    }
+
     /// <summary>Cooldown/CoolTime 둘 다 지원해 쿨타임을 읽는다.</summary>
     private static int ParseCooldownValue(XElement skillElement)
     {
@@ -405,6 +478,8 @@ public class SkillLoader : MonoBehaviour
         // CurrentCooldown은 게임 내에서만 관리되므로 파싱하지 않음
         if (overrideData.HasExplicitType)
             baseData.Type = overrideData.Type;
+        if (overrideData.HasExplicitEnemyAIUsable)
+            baseData.EnemyAIUsable = overrideData.EnemyAIUsable;
         
         // skillEffects 덮어쓰기 로직 (자식에 있으면 덮어쓰기, 없으면 부모 것 유지)
         if (overrideData.skillEffects != null && overrideData.skillEffects.Count > 0)
@@ -417,6 +492,19 @@ public class SkillLoader : MonoBehaviour
             if (baseData.skillEffects != null && baseData.skillEffects.Count > 0)
             {
                 baseData.skillEffects = new List<SkillEffectInfo>(baseData.skillEffects);
+            }
+        }
+
+        // selfSkillEffects 덮어쓰기 로직 (자식에 있으면 덮어쓰기, 없으면 부모 것 유지)
+        if (overrideData.selfSkillEffects != null && overrideData.selfSkillEffects.Count > 0)
+        {
+            baseData.selfSkillEffects = new List<SkillEffectInfo>(overrideData.selfSkillEffects);
+        }
+        else
+        {
+            if (baseData.selfSkillEffects != null && baseData.selfSkillEffects.Count > 0)
+            {
+                baseData.selfSkillEffects = new List<SkillEffectInfo>(baseData.selfSkillEffects);
             }
         }
     }

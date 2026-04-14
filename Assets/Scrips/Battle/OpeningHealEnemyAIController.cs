@@ -24,7 +24,11 @@ public class OpeningHealEnemyAIController : EnemyAIController
         // 힐 타입 + 사용 가능 스킬만 필터링
         var healSkills = stat.Skills
             .Where(id => !string.IsNullOrWhiteSpace(id))
-            .Where(id => SkillData.skillDict.TryGetValue(id, out var skill) && skill != null && skill.Type == SkillType.Heal && skill.IsUsable())
+            .Where(id => SkillData.skillDict.TryGetValue(id, out var skill)
+                         && skill != null
+                         && skill.EnemyAIUsable
+                         && skill.Type == SkillType.Heal
+                         && stat.IsSkillUsable(skill))
             .ToList();
 
         if (healSkills.Count == 0)

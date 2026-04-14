@@ -18,9 +18,26 @@ MonoBehaviour:
   description: "\uD55C \uBC88\uC758 \uD53C\uD574\uB97C \uC644\uC804\uD788 \uBB34\uC2DC\uD569\uB2C8\uB2E4."
   icon: {fileID: 21300000, guid: ff0264f9b8561614da58d492140b89ee, type: 3}
   negativeIcon: {fileID: 0}
+  effectColor: {r: 1, g: 0, b: 0, a: 1}
   effectPrefab: {fileID: 4257483028304872767, guid: 15ada45c27d31344ea652bedf46c1920, type: 3}
   duration: 0
   value: 0
   iconPath: StatusEffect/NoDamage
   maxTriggerCount: 1
   statType: 0
+  blockOtherAlliesAsTarget: 0
+  tauntAffectsRandomTargeting: 0
+  tauntProtectsAgainstAoE: 0
+  markPriorityTarget: 0
+  markDamageTakenMultiplier: 1.1
+  treatContinuousValueAsHeal: 0
+  reactionMode: 0
+  reactionFixedValue: 0
+  reactionPercent: 0
+  useAppliedValueForReaction: 1
+  reflectReducedAmountDirect: 0
+  useReducedAmountAsReflectBase: 0
+  reductionMode: 0
+  reductionFixedValue: 0
+  reductionPercent: 0
+  useAppliedValueForReduction: 0

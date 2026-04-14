@@ -11,7 +11,7 @@
 		<SkillEffect>
 			<li>
 				<EffectID>021006</EffectID>
-				<Value>3</Value>
+				<Value>10</Value>
 				<Duration>1</Duration>
 			</li>
 		</SkillEffect>
@@ -50,8 +50,8 @@
 	<Skill ID ="011007" ParentID="010000">
 		<Name>영혼의 고통</Name>
 		<Icon>SkillIcon/010001</Icon>
-		<DamageMin>8</DamageMin>
-		<DamageMax>12</DamageMax>
+		<DamageMin>12</DamageMin>
+		<DamageMax>24</DamageMax>
 		<SkillEffect>
 		</SkillEffect>
 		<SkillTarget>Enemy</SkillTarget>
@@ -63,7 +63,7 @@
 		<AttackEffect>Blunt</AttackEffect>
 		<ActiveCount>None</ActiveCount>
 		<ManaCost>0</ManaCost>
-		<CoolTime>0</CoolTime>
+		<CoolTime>2</CoolTime>
 	</Skill>
 	
 	<Skill ID ="011008" ParentID="010000">
@@ -86,6 +86,35 @@
 		<AttackPoint>Body</AttackPoint>
 		<AttackType>none</AttackType>
 		<AttackEffect>None</AttackEffect>
+		<ActiveCount>None</ActiveCount>
+		<ManaCost>0</ManaCost>
+		<CoolTime>0</CoolTime>
+	</Skill>
+
+	<!-- 스텔리 스킬 -->
+	
+	<Skill ID ="011009" ParentID="010000">
+		<Name>무모한 돌진</Name>
+		<Icon>SkillIcon/010001</Icon>
+		<EnemyAIUsable>false</EnemyAIUsable>
+		<DamageMin>14</DamageMin>
+		<DamageMax>20</DamageMax>
+		<SkillEffect>
+		</SkillEffect>
+		<SelfSkillEffect>
+			<li>
+				<EffectID>023001</EffectID>
+				<Duration>1</Duration>
+			</li>
+		</SelfSkillEffect>
+		<SkillTarget>Enemy</SkillTarget>
+		<Motion>Attack</Motion>
+		<!-- 주인공 영체 연출용(코드 연동 전 메모): GhostSpritePath가 비어있지 않으면 영체 연출 사용 -->
+		<GhostSpritePath>UnitSprite/Stelly/Attack</GhostSpritePath>
+		<GhostProxyScale>1.2</GhostProxyScale>
+		<AttackPoint>Body</AttackPoint>
+		<AttackType>Blunt</AttackType>
+		<AttackEffect>Blunt</AttackEffect>
 		<ActiveCount>None</ActiveCount>
 		<ManaCost>0</ManaCost>
 		<CoolTime>0</CoolTime>
